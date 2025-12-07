@@ -1,0 +1,5 @@
+{
+  "name": "StaticWaves POD Studio",
+  "description": "A web-based simulation of the StaticWaves Print-on-Demand automation suite, featuring batch processing, real-time logging, and an interactive design editor.",
+  "requestFramePermissions": []
+}
