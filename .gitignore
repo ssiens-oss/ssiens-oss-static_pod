@@ -22,3 +22,37 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# StaticWaves POD - Sensitive Data
+.env.local
+staticwaves_pod/data/oauth.json
+staticwaves_pod/data/tiktok_metrics.json
+
+# Keep example files
+!staticwaves_pod/data/*.example

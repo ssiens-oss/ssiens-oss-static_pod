@@ -1,0 +1,14 @@
+[Unit]
+Description=StaticWaves OAuth Token Refresh Timer
+Documentation=https://github.com/staticwaves/pod-engine
+
+[Timer]
+# Run every 12 hours
+OnCalendar=*-*-* 00,12:00:00
+# Run on boot if missed
+Persistent=true
+# Random delay to prevent thundering herd
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

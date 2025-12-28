@@ -1,0 +1,1 @@
+# StaticWaves POD Core Module

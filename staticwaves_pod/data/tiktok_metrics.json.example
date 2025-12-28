@@ -1,0 +1,28 @@
+{
+  "HOODIE-001": {
+    "prices": {
+      "29.99": {
+        "impressions": 1200,
+        "clicks": 48,
+        "orders": 3,
+        "cvr": 0.0625
+      },
+      "39.99": {
+        "impressions": 800,
+        "clicks": 24,
+        "orders": 1,
+        "cvr": 0.0417
+      }
+    }
+  },
+  "TSHIRT-001": {
+    "prices": {
+      "19.99": {
+        "impressions": 2400,
+        "clicks": 96,
+        "orders": 8,
+        "cvr": 0.0833
+      }
+    }
+  }
+}
