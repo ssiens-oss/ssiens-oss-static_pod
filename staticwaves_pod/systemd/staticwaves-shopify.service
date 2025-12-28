@@ -1,0 +1,11 @@
+[Unit]
+Description=StaticWaves Shopify Worker
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/staticwaves_pod/workers/shopify_worker.py
+Restart=always
+User=static
+
+[Install]
+WantedBy=multi-user.target

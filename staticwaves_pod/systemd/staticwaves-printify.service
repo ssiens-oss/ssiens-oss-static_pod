@@ -1,0 +1,11 @@
+[Unit]
+Description=StaticWaves Printify Worker
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/staticwaves_pod/workers/printify_worker.py
+Restart=always
+User=static
+
+[Install]
+WantedBy=multi-user.target

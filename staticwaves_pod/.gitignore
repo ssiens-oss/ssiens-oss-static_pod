@@ -1,0 +1,28 @@
+# Environment
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Queue files
+queues/incoming/*.png
+queues/processed/*.png
+queues/published/*.png
+queues/failed/*.png
+
+# Exports
+exports/*.xlsx
+exports/*.csv
+
+# Assets (user provided)
+assets/*.png
+assets/*.jpg
+
+# Logs
+*.log
+
+# System
+.DS_Store
+*.swp
