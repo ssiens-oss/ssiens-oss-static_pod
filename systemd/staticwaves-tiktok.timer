@@ -1,0 +1,20 @@
+[Unit]
+Description=StaticWaves TikTok Feed Generator Timer
+Documentation=https://github.com/staticwaves/pod-automation
+Requires=staticwaves-tiktok.service
+
+[Timer]
+# Run every 6 hours
+OnCalendar=*-*-* 00,06,12,18:00:00
+
+# Run on boot (5 minutes after system starts)
+OnBootSec=5min
+
+# If system was off, run immediately
+Persistent=true
+
+# Randomize start time by up to 10 minutes (prevents API spike)
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,25 @@
+# StaticWaves TikTok Shop Integration - Python Dependencies
+# ===========================================================
+# Install with: pip install -r requirements.txt
+
+# Core dependencies
+pandas>=2.0.0,<3.0.0        # DataFrame operations for feed generation
+openpyxl>=3.1.0,<4.0.0      # Excel file export support
+requests>=2.31.0,<3.0.0     # HTTP client for TikTok API
+flask>=3.0.0,<4.0.0         # REST API framework
+python-dotenv>=1.0.0,<2.0.0 # Environment variable management
+
+# Optional but recommended
+flask-cors>=4.0.0,<5.0.0    # CORS support for frontend integration
+gunicorn>=21.0.0,<22.0.0    # Production WSGI server
+redis>=5.0.0,<6.0.0         # Caching layer (optional)
+celery>=5.3.0,<6.0.0        # Background task queue (optional)
+
+# Development tools (optional)
+pytest>=7.4.0,<8.0.0        # Testing framework
+black>=23.0.0,<24.0.0       # Code formatter
+flake8>=6.1.0,<7.0.0        # Linting
+mypy>=1.5.0,<2.0.0          # Type checking
+
+# Security
+cryptography>=41.0.0,<42.0.0  # Secure token handling

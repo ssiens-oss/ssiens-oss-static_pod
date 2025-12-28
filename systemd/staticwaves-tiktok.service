@@ -1,0 +1,38 @@
+[Unit]
+Description=StaticWaves TikTok Feed Generator
+Documentation=https://github.com/staticwaves/pod-automation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=staticwaves
+Group=staticwaves
+WorkingDirectory=/opt/staticwaves_pod
+EnvironmentFile=/opt/staticwaves_pod/.env
+
+# Feed generation command
+ExecStart=/usr/bin/python3 /opt/staticwaves_pod/tools/tiktok_feed_generator.py
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=staticwaves-tiktok
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/staticwaves_pod/exports /opt/staticwaves_pod/logs
+
+# Resource limits
+CPUQuota=50%
+MemoryLimit=512M
+
+# Restart policy (for failures)
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

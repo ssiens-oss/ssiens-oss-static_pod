@@ -1,0 +1,25 @@
+# StaticWaves TikTok Feed Generation - Cron Example
+# =================================================
+# Add to crontab with: crontab -e
+#
+# NOTE: systemd timers are preferred over cron for better logging,
+# dependency management, and service integration.
+#
+# To use systemd instead:
+#   sudo systemctl enable staticwaves-tiktok.timer
+#   sudo systemctl start staticwaves-tiktok.timer
+
+# Run every 6 hours (at 00:00, 06:00, 12:00, 18:00)
+0 */6 * * * cd /opt/staticwaves_pod && /usr/bin/python3 tools/tiktok_feed_generator.py >> logs/cron.log 2>&1
+
+# Alternative: Run twice daily (08:00 and 20:00)
+# 0 8,20 * * * cd /opt/staticwaves_pod && /usr/bin/python3 tools/tiktok_feed_generator.py >> logs/cron.log 2>&1
+
+# Alternative: Run daily at midnight
+# 0 0 * * * cd /opt/staticwaves_pod && /usr/bin/python3 tools/tiktok_feed_generator.py >> logs/cron.log 2>&1
+
+# With full environment loading
+# 0 */6 * * * cd /opt/staticwaves_pod && source .env && /usr/bin/python3 tools/tiktok_feed_generator.py >> logs/cron.log 2>&1
+
+# Monitor cron logs:
+#   tail -f /opt/staticwaves_pod/logs/cron.log
