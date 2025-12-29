@@ -1,0 +1,92 @@
+{
+  "name": "staticwaves-pod-studio-production",
+  "imageName": "your-dockerhub-username/staticwaves-pod-studio:beta",
+  "dockerArgs": "",
+  "ports": "80/http",
+  "volumeInGb": 50,
+  "containerDiskInGb": 20,
+  "minVcpuCount": 4,
+  "minMemoryInGb": 8,
+  "gpuTypeId": "NVIDIA GeForce RTX 3070",
+  "env": [
+    {
+      "key": "NODE_ENV",
+      "value": "production"
+    },
+    {
+      "key": "BETA_MODE",
+      "value": "true"
+    },
+    {
+      "key": "BETA_USERS_ALLOWED",
+      "value": "true"
+    },
+    {
+      "key": "FEATURE_FLAG_BATCH_MODE",
+      "value": "true"
+    },
+    {
+      "key": "FEATURE_FLAG_EDITOR",
+      "value": "true"
+    },
+    {
+      "key": "LOG_LEVEL",
+      "value": "info"
+    },
+    {
+      "key": "MAX_CONCURRENT_PROCESSES",
+      "value": "10"
+    },
+    {
+      "key": "CACHE_ENABLED",
+      "value": "true"
+    },
+    {
+      "key": "ENABLE_ANALYTICS",
+      "value": "true"
+    },
+    {
+      "key": "RUNPOD_DEPLOYED",
+      "value": "true"
+    }
+  ],
+  "volumeMountPath": "/workspace",
+  "startJupyter": false,
+  "startSsh": false,
+  "cudaVersion": "12.1",
+  "gpuCount": 1,
+  "cloudType": "SECURE",
+  "securityLevel": "medium",
+  "dataCenterId": "US-OR-1",
+  "networkVolumeId": null,
+  "minDownload": 500,
+  "minUpload": 500,
+  "bidPerGpu": 0.5,
+  "templateType": "pod",
+  "category": "web-application",
+  "metadata": {
+    "application": "StaticWaves POD Studio",
+    "version": "6.0-beta.1",
+    "framework": "react",
+    "server": "nginx",
+    "description": "Print-on-Demand automation suite with batch processing and design editor",
+    "healthCheckPath": "/health.json",
+    "mainPort": 80,
+    "protocol": "http"
+  },
+  "allowedCudaVersions": ["11.8", "12.0", "12.1"],
+  "dockerRegistry": "docker.io",
+  "publicKey": null,
+  "saveState": true,
+  "terminateAfter": null,
+  "idleTimeout": 3600,
+  "restartPolicy": "on-failure",
+  "healthCheck": {
+    "enabled": true,
+    "path": "/health.json",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3,
+    "startPeriod": 10
+  }
+}
