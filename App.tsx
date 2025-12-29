@@ -1,18 +1,22 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Terminal } from './components/Terminal';
 import { EditorControls } from './components/EditorControls';
-import { runSimulation } from './services/mockEngine';
-import { LogEntry, LogType, QueueItem, EngineConfig, EditorState } from './types';
-import { 
-  Rocket, 
-  Layers, 
-  Box, 
-  Settings, 
-  Play, 
+import { PipelineStatus } from './components/PipelineStatus';
+import { runSimulation, runFullPipeline } from './services/mockEngine';
+import { LogEntry, LogType, QueueItem, EngineConfig, EditorState, ApiCredentials, PipelineStatus as PipelineStatusType } from './types';
+import {
+  Rocket,
+  Layers,
+  Box,
+  Settings,
+  Play,
   Image as ImageIcon,
   CheckCircle2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 const INITIAL_EDITOR_STATE: EditorState = {
@@ -42,6 +46,27 @@ export default function App() {
 
   // Editor State
   const [editorState, setEditorState] = useState<EditorState>(INITIAL_EDITOR_STATE);
+
+  // API Credentials
+  const [credentials, setCredentials] = useState<ApiCredentials>({
+    printifyApiKey: '',
+    printifyShopId: '',
+    shopifyStoreName: '',
+    shopifyAccessToken: '',
+    tiktokAppKey: '',
+    tiktokAppSecret: '',
+    tiktokShopId: ''
+  });
+
+  // Pipeline Status
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusType>({
+    printify: 'pending',
+    shopify: 'pending',
+    tiktok: 'pending'
+  });
+
+  // UI State
+  const [showApiConfig, setShowApiConfig] = useState(false);
 
   // Stop Signal
   const stopRef = useRef(false);
@@ -135,6 +160,62 @@ export default function App() {
     addLog(`Edited image saved locally with transform applied.`, LogType.SUCCESS);
   };
 
+  const handleRunFullPipeline = async () => {
+    if (isRunning) return;
+
+    // Validate credentials
+    if (!credentials.printifyApiKey || !credentials.shopifyStoreName || !credentials.tiktokAppKey) {
+      addLog("Please configure API credentials first!", LogType.ERROR);
+      setShowApiConfig(true);
+      return;
+    }
+
+    stopRef.current = false;
+    setIsRunning(true);
+    setProgress(0);
+    setQueue([]);
+    setLogs([]);
+
+    // Reset images and pipeline status
+    setDesignImage(null);
+    setMockupImage(null);
+    setEditorState(INITIAL_EDITOR_STATE);
+    setPipelineStatus({
+      printify: 'pending',
+      shopify: 'pending',
+      tiktok: 'pending'
+    });
+
+    try {
+      await runFullPipeline(
+        config.dropName,
+        credentials,
+        (log) => setLogs(prev => [...prev, log]),
+        (prog) => setProgress(prog),
+        (item) => setQueue(prev => {
+          const existing = prev.findIndex(q => q.id === item.id);
+          if (existing >= 0) {
+            const copy = [...prev];
+            copy[existing] = item;
+            return copy;
+          }
+          return [...prev, item];
+        }),
+        (type, url) => {
+          if (type === 'design') setDesignImage(url);
+          if (type === 'mockup') setMockupImage(url);
+        },
+        (status) => setPipelineStatus(status),
+        () => stopRef.current
+      );
+    } catch (err) {
+      addLog(`Critical Error: ${err}`, LogType.ERROR);
+    } finally {
+      setIsRunning(false);
+      setProgress(100);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200">
       
@@ -199,23 +280,130 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-1 gap-3">
-            <button 
+            <button
+              onClick={handleRunFullPipeline}
+              disabled={isRunning}
+              className={`flex items-center justify-center gap-2 py-3 rounded-lg font-bold shadow-lg transition-all ${isRunning ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-purple-900/30'}`}
+            >
+              {isRunning ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} />}
+              Auto-Publish Pipeline
+            </button>
+            <button
               onClick={() => handleRun(false)}
               disabled={isRunning}
-              className={`flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all ${isRunning ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold shadow-lg transition-all text-sm ${isRunning ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}
             >
-              {isRunning ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}
+              {isRunning ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
               Run Single Drop
             </button>
-            <button 
+            <button
               onClick={() => handleRun(true)}
               disabled={isRunning}
-              className={`flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all border border-slate-700 ${isRunning ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-indigo-300'}`}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold shadow-lg transition-all border border-slate-700 text-sm ${isRunning ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-indigo-300'}`}
             >
-              <Rocket size={18} />
+              <Rocket size={16} />
               Run Batch Mode
             </button>
           </div>
+
+          {/* API Configuration Section */}
+          <div className="border border-slate-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setShowApiConfig(!showApiConfig)}
+              className="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-750 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Settings size={16} className="text-slate-400" />
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">API Configuration</span>
+              </div>
+              {showApiConfig ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+            </button>
+
+            {showApiConfig && (
+              <div className="p-3 space-y-3 bg-slate-900/50">
+                <div className="text-xs text-slate-500 mb-2">Configure API keys for auto-publish pipeline</div>
+
+                {/* Printify */}
+                <div>
+                  <span className="text-xs text-slate-400 mb-1 block">Printify API Key</span>
+                  <input
+                    type="password"
+                    value={credentials.printifyApiKey}
+                    onChange={e => setCredentials({...credentials, printifyApiKey: e.target.value})}
+                    placeholder="sk_test_..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 mb-1 block">Printify Shop ID</span>
+                  <input
+                    type="text"
+                    value={credentials.printifyShopId}
+                    onChange={e => setCredentials({...credentials, printifyShopId: e.target.value})}
+                    placeholder="123456"
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                {/* Shopify */}
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="text-xs text-slate-400 mb-1 block">Shopify Store Name</span>
+                  <input
+                    type="text"
+                    value={credentials.shopifyStoreName}
+                    onChange={e => setCredentials({...credentials, shopifyStoreName: e.target.value})}
+                    placeholder="mystore"
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 mb-1 block">Shopify Access Token</span>
+                  <input
+                    type="password"
+                    value={credentials.shopifyAccessToken}
+                    onChange={e => setCredentials({...credentials, shopifyAccessToken: e.target.value})}
+                    placeholder="shpat_..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                {/* TikTok */}
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="text-xs text-slate-400 mb-1 block">TikTok App Key</span>
+                  <input
+                    type="text"
+                    value={credentials.tiktokAppKey}
+                    onChange={e => setCredentials({...credentials, tiktokAppKey: e.target.value})}
+                    placeholder="tt_app_..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 mb-1 block">TikTok App Secret</span>
+                  <input
+                    type="password"
+                    value={credentials.tiktokAppSecret}
+                    onChange={e => setCredentials({...credentials, tiktokAppSecret: e.target.value})}
+                    placeholder="tt_secret_..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 mb-1 block">TikTok Shop ID</span>
+                  <input
+                    type="text"
+                    value={credentials.tiktokShopId}
+                    onChange={e => setCredentials({...credentials, tiktokShopId: e.target.value})}
+                    placeholder="7123456789"
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pipeline Status */}
+          <PipelineStatus status={pipelineStatus} />
 
           {/* Upload Queue */}
           <div>

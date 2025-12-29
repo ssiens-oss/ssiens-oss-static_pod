@@ -1,9 +1,11 @@
-import { LogType, LogEntry, QueueItem } from '../types';
+import { LogType, LogEntry, QueueItem, ApiCredentials, PipelineStatus } from '../types';
+import { PipelineOrchestrator } from './pipelineOrchestrator';
 
 type LogCallback = (entry: LogEntry) => void;
 type ProgressCallback = (val: number) => void;
 type QueueCallback = (item: QueueItem) => void;
 type ImageCallback = (type: 'design' | 'mockup', url: string) => void;
+type StatusCallback = (status: PipelineStatus) => void;
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 const timestamp = () => new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -93,4 +95,105 @@ export const runSimulation = async (
     onQueue({ id: queueId, name: `${dropName} - T-Shirt`, status: 'completed' });
     addLog(`✅ Job Complete for ${dropName}`, LogType.SUCCESS);
     onProgress(100);
+};
+
+/**
+ * Run full pipeline simulation with Printify → Shopify → TikTok
+ */
+export const runFullPipeline = async (
+    dropName: string,
+    credentials: ApiCredentials,
+    onLog: LogCallback,
+    onProgress: ProgressCallback,
+    onQueue: QueueCallback,
+    onImage: ImageCallback,
+    onStatus: StatusCallback,
+    shouldStop: () => boolean
+) => {
+    const addLog = (msg: string, type: LogType = LogType.INFO) => {
+        onLog({
+            id: generateId(),
+            timestamp: timestamp(),
+            message: msg,
+            type
+        });
+    };
+
+    if (shouldStop()) return;
+
+    addLog(`🚀 Starting FULL PIPELINE for: ${dropName}`, LogType.INFO);
+    onProgress(5);
+    await sleep(600);
+
+    // Simulate Image Generation
+    addLog(`Creating design assets for ${dropName}...`, LogType.INFO);
+    await sleep(800);
+
+    const designId = Math.floor(Math.random() * 1000);
+    const designUrl = `https://picsum.photos/seed/${designId}/800/800`;
+    onImage('design', designUrl);
+    addLog(`Generated: design_${dropName}_v1.png`, LogType.SUCCESS);
+    onProgress(15);
+
+    if (shouldStop()) return;
+    await sleep(1000);
+
+    // Simulate Mockup Generation
+    addLog("Applying design to product mockup (Blueprint 6)...", LogType.INFO);
+    await sleep(500);
+    onImage('mockup', `https://picsum.photos/seed/${designId + 500}/800/800`);
+    addLog(`Generated: mockup_${dropName}_front.png`, LogType.SUCCESS);
+    onProgress(25);
+
+    if (shouldStop()) return;
+
+    // Initialize Pipeline Orchestrator
+    const orchestrator = new PipelineOrchestrator(credentials);
+
+    // Execute Full Pipeline
+    addLog("Initializing multi-platform pipeline...", LogType.WARNING);
+    onProgress(30);
+    await sleep(500);
+
+    const queueId = generateId();
+    onQueue({ id: queueId, name: `${dropName} - Auto-Pipeline`, status: 'pending' });
+
+    try {
+        onQueue({ id: queueId, name: `${dropName} - Auto-Pipeline`, status: 'uploading' });
+
+        const result = await orchestrator.executeFullPipeline(
+            designUrl,
+            `${dropName} Premium T-Shirt`,
+            6, // blueprint ID
+            29.99, // price
+            'Apparel & Accessories > Clothing > Shirts & Tops', // category
+            onLog,
+            onStatus,
+            shouldStop
+        );
+
+        if (result.success) {
+            onQueue({ id: queueId, name: `${dropName} - Auto-Pipeline`, status: 'completed' });
+            addLog('', LogType.INFO);
+            addLog('📊 PIPELINE SUMMARY:', LogType.SUCCESS);
+            if (result.productUrls.printify) {
+                addLog(`  ✓ Printify: ${result.productUrls.printify}`, LogType.SUCCESS);
+            }
+            if (result.productUrls.shopify) {
+                addLog(`  ✓ Shopify: ${result.productUrls.shopify}`, LogType.SUCCESS);
+            }
+            if (result.productUrls.tiktok) {
+                addLog(`  ✓ TikTok Shop: ${result.productUrls.tiktok}`, LogType.SUCCESS);
+            }
+            onProgress(100);
+        } else {
+            onQueue({ id: queueId, name: `${dropName} - Auto-Pipeline`, status: 'failed' });
+            addLog('Pipeline completed with errors', LogType.ERROR);
+            onProgress(100);
+        }
+    } catch (err) {
+        onQueue({ id: queueId, name: `${dropName} - Auto-Pipeline`, status: 'failed' });
+        addLog(`Pipeline Error: ${err}`, LogType.ERROR);
+        onProgress(100);
+    }
 };
