@@ -51,6 +51,7 @@ Access at: `http://localhost:8080`
 
 ## 📚 Documentation
 
+- **[WALKTHROUGH.md](WALKTHROUGH.md)** - 🎯 **START HERE** - Complete step-by-step walkthrough
 - **[QUICKSTART.md](QUICKSTART.md)** - Fast track to RunPod deployment
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Comprehensive deployment guide
 - **[BETA_TESTING.md](BETA_TESTING.md)** - Beta testing guide and checklist
