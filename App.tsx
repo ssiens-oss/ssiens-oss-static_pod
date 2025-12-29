@@ -1,18 +1,30 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Terminal } from './components/Terminal';
 import { EditorControls } from './components/EditorControls';
+import { Settings as SettingsPanel, AppSettings, DEFAULT_SETTINGS } from './components/Settings';
+import { ShortcutsHelp } from './components/ShortcutsHelp';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { runSimulation } from './services/mockEngine';
 import { LogEntry, LogType, QueueItem, EngineConfig, EditorState } from './types';
-import { 
-  Rocket, 
-  Layers, 
-  Box, 
-  Settings, 
-  Play, 
+import { useKeyboardShortcuts, KeyboardShortcut } from './utils/useKeyboardShortcuts';
+import { useHistory } from './utils/useHistory';
+import { saveToStorage, loadFromStorage, StorageKeys } from './utils/storage';
+import { exportTransformedImage, exportLogs, exportQueueData } from './utils/export';
+import {
+  Rocket,
+  Layers,
+  Box,
+  Settings as SettingsIcon,
+  Play,
   Image as ImageIcon,
   CheckCircle2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Undo,
+  Redo,
+  Keyboard,
+  StopCircle
 } from 'lucide-react';
 
 const INITIAL_EDITOR_STATE: EditorState = {
@@ -21,7 +33,7 @@ const INITIAL_EDITOR_STATE: EditorState = {
   translateY: 0
 };
 
-export default function App() {
+function AppContent() {
   // --- State ---
   const [config, setConfig] = useState<EngineConfig>({
     dropName: 'Drop7',
@@ -35,16 +47,37 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
-  
+
   // Images
   const [designImage, setDesignImage] = useState<string | null>(null);
   const [mockupImage, setMockupImage] = useState<string | null>(null);
 
-  // Editor State
-  const [editorState, setEditorState] = useState<EditorState>(INITIAL_EDITOR_STATE);
+  // Editor State with History
+  const [editorState, setEditorStateRaw, historyActions] = useHistory<EditorState>(
+    INITIAL_EDITOR_STATE,
+    50
+  );
+
+  // UI State
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(() =>
+    loadFromStorage(StorageKeys.SETTINGS, DEFAULT_SETTINGS)
+  );
 
   // Stop Signal
   const stopRef = useRef(false);
+
+  // --- Local Storage Persistence ---
+  useEffect(() => {
+    saveToStorage(StorageKeys.SETTINGS, settings);
+  }, [settings]);
+
+  useEffect(() => {
+    if (settings.autoSave) {
+      saveToStorage(StorageKeys.EDITOR_STATE, editorState);
+    }
+  }, [editorState, settings.autoSave]);
 
   // --- Handlers ---
   const addLog = useCallback((message: string, type: LogType = LogType.INFO) => {
@@ -120,37 +153,138 @@ export default function App() {
 
   // Editor Handlers
   const handleZoom = (factor: number) => {
-    setEditorState(prev => ({ ...prev, scale: prev.scale * factor }));
+    setEditorStateRaw({ ...editorState, scale: editorState.scale * factor });
   };
 
   const handleMove = (dx: number, dy: number) => {
-    setEditorState(prev => ({ 
-      ...prev, 
-      translateX: prev.translateX + dx,
-      translateY: prev.translateY + dy 
-    }));
+    setEditorStateRaw({
+      ...editorState,
+      translateX: editorState.translateX + dx,
+      translateY: editorState.translateY + dy
+    });
   };
 
-  const handleSaveEdit = () => {
-    addLog(`Edited image saved locally with transform applied.`, LogType.SUCCESS);
+  const handleSaveEdit = async () => {
+    if (!designImage) {
+      addLog('No design image to save', LogType.WARNING);
+      return;
+    }
+
+    try {
+      await exportTransformedImage(designImage, editorState, {
+        filename: `${config.dropName}_edited`,
+        format: 'png',
+        quality: 0.95
+      });
+      addLog('Edited image saved successfully', LogType.SUCCESS);
+    } catch (error) {
+      addLog(`Failed to save image: ${error}`, LogType.ERROR);
+    }
   };
+
+  const handleStop = () => {
+    stopRef.current = true;
+    addLog('Stopping simulation...', LogType.WARNING);
+  };
+
+  const handleExportLogs = () => {
+    exportLogs(logs, `logs_${new Date().toISOString().slice(0, 10)}`);
+    addLog('Logs exported successfully', LogType.SUCCESS);
+  };
+
+  const handleExportQueue = () => {
+    exportQueueData(queue, `queue_${new Date().toISOString().slice(0, 10)}`);
+    addLog('Queue data exported successfully', LogType.SUCCESS);
+  };
+
+  // --- Keyboard Shortcuts ---
+  const shortcuts: KeyboardShortcut[] = [
+    {
+      key: 'r',
+      ctrl: true,
+      description: 'Run single drop',
+      action: () => !isRunning && handleRun(false)
+    },
+    {
+      key: 's',
+      ctrl: true,
+      description: 'Save edited design',
+      action: handleSaveEdit
+    },
+    {
+      key: 'z',
+      ctrl: true,
+      description: 'Undo editor change',
+      action: historyActions.undo
+    },
+    {
+      key: 'y',
+      ctrl: true,
+      description: 'Redo editor change',
+      action: historyActions.redo
+    },
+    {
+      key: ',',
+      ctrl: true,
+      description: 'Open settings',
+      action: () => setSettingsOpen(true)
+    },
+    {
+      key: '?',
+      shift: true,
+      description: 'Show keyboard shortcuts',
+      action: () => setShortcutsOpen(true)
+    },
+    {
+      key: 'Escape',
+      description: 'Stop simulation',
+      action: handleStop
+    },
+    {
+      key: 'e',
+      ctrl: true,
+      description: 'Export logs',
+      action: handleExportLogs
+    }
+  ];
+
+  useKeyboardShortcuts(shortcuts, true);
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-200">
-      
-      {/* --- LEFT SIDEBAR: Controls & Queue --- */}
-      <div className="w-96 flex flex-col border-r border-slate-800 bg-slate-900/50">
-        
-        {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
-            <Layers className="text-white" size={24} />
+    <>
+      <div className="flex h-screen bg-slate-950 text-slate-200">
+
+        {/* --- LEFT SIDEBAR: Controls & Queue --- */}
+        <div className="w-96 flex flex-col border-r border-slate-800 bg-slate-900/50">
+
+          {/* Header */}
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
+                <Layers className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="font-bold text-slate-100 leading-tight">StaticWaves</h1>
+                <p className="text-xs text-indigo-400 font-mono">POD STUDIO v6.1</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShortcutsOpen(true)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+                title="Keyboard Shortcuts (?)"
+              >
+                <Keyboard size={18} />
+              </button>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+                title="Settings (Ctrl+,)"
+              >
+                <SettingsIcon size={18} />
+              </button>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-slate-100 leading-tight">StaticWaves</h1>
-            <p className="text-xs text-indigo-400 font-mono">POD STUDIO v6.0</p>
-          </div>
-        </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
           
@@ -199,15 +333,15 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-1 gap-3">
-            <button 
+            <button
               onClick={() => handleRun(false)}
               disabled={isRunning}
               className={`flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all ${isRunning ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}
             >
               {isRunning ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}
-              Run Single Drop
+              Run Single Drop {!isRunning && <span className="text-xs opacity-75">(Ctrl+R)</span>}
             </button>
-            <button 
+            <button
               onClick={() => handleRun(true)}
               disabled={isRunning}
               className={`flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all border border-slate-700 ${isRunning ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-indigo-300'}`}
@@ -215,6 +349,15 @@ export default function App() {
               <Rocket size={18} />
               Run Batch Mode
             </button>
+            {isRunning && (
+              <button
+                onClick={handleStop}
+                className="flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all bg-red-600 hover:bg-red-500 text-white border border-red-700"
+              >
+                <StopCircle size={18} />
+                Stop (ESC)
+              </button>
+            )}
           </div>
 
           {/* Upload Queue */}
@@ -323,13 +466,59 @@ export default function App() {
             </div>
 
             {/* Editor Tools Column */}
-            <div className="lg:col-span-2 flex flex-col justify-center">
-               <EditorControls 
-                  onZoom={handleZoom} 
+            <div className="lg:col-span-2 flex flex-col justify-center gap-3">
+               <EditorControls
+                  onZoom={handleZoom}
                   onMove={handleMove}
                   onSave={handleSaveEdit}
                   state={editorState}
                />
+
+               {/* History Controls */}
+               <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 space-y-2">
+                 <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2">
+                   History
+                 </div>
+                 <div className="grid grid-cols-2 gap-2">
+                   <button
+                     onClick={historyActions.undo}
+                     disabled={!historyActions.canUndo}
+                     className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-200 py-2 rounded transition-colors text-sm font-medium"
+                     title="Undo (Ctrl+Z)"
+                   >
+                     <Undo size={16} /> Undo
+                   </button>
+                   <button
+                     onClick={historyActions.redo}
+                     disabled={!historyActions.canRedo}
+                     className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-200 py-2 rounded transition-colors text-sm font-medium"
+                     title="Redo (Ctrl+Y)"
+                   >
+                     <Redo size={16} /> Redo
+                   </button>
+                 </div>
+               </div>
+
+               {/* Export Controls */}
+               <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 space-y-2">
+                 <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2">
+                   Export
+                 </div>
+                 <button
+                   onClick={handleExportLogs}
+                   disabled={logs.length === 0}
+                   className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-200 py-2 rounded transition-colors text-sm font-medium"
+                 >
+                   <Download size={14} /> Logs
+                 </button>
+                 <button
+                   onClick={handleExportQueue}
+                   disabled={queue.length === 0}
+                   className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-200 py-2 rounded transition-colors text-sm font-medium"
+                 >
+                   <Download size={14} /> Queue
+                 </button>
+               </div>
             </div>
           </div>
         </div>
@@ -341,5 +530,28 @@ export default function App() {
 
       </div>
     </div>
+
+      {/* Modals */}
+      <SettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onSave={setSettings}
+      />
+
+      <ShortcutsHelp
+        isOpen={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+        shortcuts={shortcuts}
+      />
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }
