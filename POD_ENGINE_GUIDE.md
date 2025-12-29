@@ -236,7 +236,7 @@ print(content["tags"])
 
 ```bash
 # On RunPod GPU pod terminal:
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_REPO/ssiens-oss-static_pod/main/pod-engine/runpod_install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ssiens-oss/ssiens-oss-static_pod/main/pod-engine/runpod_install.sh)
 ```
 
 This automatically:

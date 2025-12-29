@@ -28,7 +28,7 @@ Complete guide for deploying to RunPod GPU cloud infrastructure.
 Once your pod is running, click **Connect** → **Start Web Terminal**, then run:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/ssiens-oss-static_pod/main/pod-engine/runpod_install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ssiens-oss/ssiens-oss-static_pod/main/pod-engine/runpod_install.sh)
 ```
 
 ⏱️ Install time: 5-8 minutes (depending on GPU/network)

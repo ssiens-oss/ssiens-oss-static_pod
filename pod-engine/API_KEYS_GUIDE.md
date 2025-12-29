@@ -506,7 +506,7 @@ curl http://127.0.0.1:8188/system_stats
 - TikTok Seller Support: https://seller-us-support.tiktok.com
 
 **Issues with this guide?**
-- GitHub Issues: https://github.com/YOUR_ORG/ssiens-oss-static_pod/issues
+- GitHub Issues: https://github.com/ssiens-oss/ssiens-oss-static_pod/issues
 - Email: support@staticwaves.ai
 
 ---

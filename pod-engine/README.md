@@ -41,7 +41,7 @@ Enterprise-grade Print-on-Demand automation platform with AI generation, multi-p
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_ORG/ssiens-oss-static_pod.git
+git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git
 cd ssiens-oss-static_pod/pod-engine
 
 # Install Python dependencies
@@ -139,7 +139,7 @@ python engine/create_client.py client_name plan_tier
 ### RunPod (GPU Cloud)
 ```bash
 # One-command install
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_REPO/pod-engine/main/runpod_install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ssiens-oss/ssiens-oss-static_pod/main/pod-engine/runpod_install.sh)
 ```
 
 ### Docker
