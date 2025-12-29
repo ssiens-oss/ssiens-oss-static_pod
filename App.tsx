@@ -3,33 +3,31 @@ import { Terminal } from './components/Terminal';
 import { EditorControls } from './components/EditorControls';
 import { runSimulation } from './services/mockEngine';
 import { LogEntry, LogType, QueueItem, EngineConfig, EditorState } from './types';
-import { 
-  Rocket, 
-  Layers, 
-  Box, 
-  Settings, 
-  Play, 
+import {
+  DEFAULT_ENGINE_CONFIG,
+  DEFAULT_EDITOR_STATE,
+  APP_BRANDING
+} from './config/podConfig';
+import {
+  createLogEntry,
+  parseBatchList,
+  calculateBatchProgress
+} from './utils/podUtils';
+import {
+  Rocket,
+  Layers,
+  Box,
+  Settings,
+  Play,
   Image as ImageIcon,
   CheckCircle2,
   Loader2,
   AlertCircle
 } from 'lucide-react';
 
-const INITIAL_EDITOR_STATE: EditorState = {
-  scale: 1,
-  translateX: 0,
-  translateY: 0
-};
-
 export default function App() {
   // --- State ---
-  const [config, setConfig] = useState<EngineConfig>({
-    dropName: 'Drop7',
-    designCount: 10,
-    blueprintId: 6,
-    providerId: 1,
-    batchList: ''
-  });
+  const [config, setConfig] = useState<EngineConfig>(DEFAULT_ENGINE_CONFIG);
 
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -41,19 +39,14 @@ export default function App() {
   const [mockupImage, setMockupImage] = useState<string | null>(null);
 
   // Editor State
-  const [editorState, setEditorState] = useState<EditorState>(INITIAL_EDITOR_STATE);
+  const [editorState, setEditorState] = useState<EditorState>(DEFAULT_EDITOR_STATE);
 
   // Stop Signal
   const stopRef = useRef(false);
 
   // --- Handlers ---
   const addLog = useCallback((message: string, type: LogType = LogType.INFO) => {
-    setLogs(prev => [...prev, {
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      message,
-      type
-    }]);
+    setLogs(prev => [...prev, createLogEntry(message, type)]);
   }, []);
 
   const handleRun = async (isBatch: boolean) => {
@@ -68,10 +61,10 @@ export default function App() {
     // Reset images if starting new run
     setDesignImage(null);
     setMockupImage(null);
-    setEditorState(INITIAL_EDITOR_STATE);
+    setEditorState(DEFAULT_EDITOR_STATE);
 
-    const drops = isBatch 
-      ? config.batchList.split(',').map(d => d.trim()).filter(Boolean)
+    const drops = isBatch
+      ? parseBatchList(config.batchList)
       : [config.dropName];
 
     if (drops.length === 0) {
@@ -90,9 +83,7 @@ export default function App() {
           (log) => setLogs(prev => [...prev, log]),
           (prog) => {
             // Calculate total progress based on current batch index
-            const baseProgress = (i / drops.length) * 100;
-            const currentStepProgress = (prog / 100) * (100 / drops.length);
-            setProgress(baseProgress + currentStepProgress);
+            setProgress(calculateBatchProgress(i, drops.length, prog));
           },
           (item) => setQueue(prev => {
              const existing = prev.findIndex(q => q.id === item.id);
@@ -147,8 +138,8 @@ export default function App() {
             <Layers className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 leading-tight">StaticWaves</h1>
-            <p className="text-xs text-indigo-400 font-mono">POD STUDIO v6.0</p>
+            <h1 className="font-bold text-slate-100 leading-tight">{APP_BRANDING.name}</h1>
+            <p className="text-xs text-indigo-400 font-mono">{APP_BRANDING.tagline}</p>
           </div>
         </div>
 
