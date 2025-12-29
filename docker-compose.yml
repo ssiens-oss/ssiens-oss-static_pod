@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  staticwaves-pod-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: staticwaves-pod-studio
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+      - BETA_MODE=true
+      - BETA_USERS_ALLOWED=true
+      - FEATURE_FLAG_BATCH_MODE=true
+      - FEATURE_FLAG_EDITOR=true
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health.json"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    volumes:
+      # Mount logs for debugging (optional)
+      - ./logs:/var/log/nginx
+    labels:
+      - "com.staticwaves.app=pod-studio"
+      - "com.staticwaves.version=6.0"
+      - "com.staticwaves.environment=beta"
+
+networks:
+  default:
+    name: staticwaves-network

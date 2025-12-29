@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:prod": "NODE_ENV=production vite build --mode production",
+    "preview": "vite preview",
+    "docker:build": "docker build -t staticwaves-pod-studio:beta .",
+    "docker:run": "docker run -p 8080:80 staticwaves-pod-studio:beta",
+    "docker:compose": "docker-compose up",
+    "docker:compose:build": "docker-compose up --build",
+    "docker:compose:down": "docker-compose down"
   },
   "dependencies": {
     "react": "^19.2.1",

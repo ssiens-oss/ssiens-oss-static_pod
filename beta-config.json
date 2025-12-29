@@ -1,0 +1,72 @@
+{
+  "beta": {
+    "version": "6.0-beta.1",
+    "release_date": "2025-12-29",
+    "enabled": true,
+    "environment": "staging"
+  },
+  "features": {
+    "batch_mode": {
+      "enabled": true,
+      "max_concurrent_batches": 5,
+      "description": "Process multiple drops simultaneously"
+    },
+    "design_editor": {
+      "enabled": true,
+      "max_zoom": 3.0,
+      "min_zoom": 0.5,
+      "description": "Interactive design transformation editor"
+    },
+    "real_time_logs": {
+      "enabled": true,
+      "max_log_entries": 1000,
+      "description": "Live terminal logging"
+    },
+    "printify_queue": {
+      "enabled": true,
+      "auto_upload": false,
+      "description": "Product upload queue management"
+    }
+  },
+  "limits": {
+    "max_designs_per_drop": 100,
+    "max_batch_list_items": 20,
+    "session_timeout_minutes": 30,
+    "max_file_size_mb": 10
+  },
+  "testing": {
+    "feedback_enabled": true,
+    "analytics_enabled": false,
+    "error_reporting": true,
+    "debug_mode": false
+  },
+  "beta_testers": {
+    "access_control": "open",
+    "invite_required": false,
+    "max_concurrent_users": 100
+  },
+  "runpod": {
+    "recommended_gpu": "RTX 3070",
+    "min_memory_gb": 8,
+    "min_storage_gb": 20,
+    "container_port": 80,
+    "health_check_path": "/health.json"
+  },
+  "monitoring": {
+    "health_check_interval_seconds": 30,
+    "log_retention_days": 7,
+    "metrics_collection": false
+  },
+  "known_issues": [
+    {
+      "id": "BETA-001",
+      "severity": "low",
+      "description": "Editor zoom resets on new simulation run",
+      "workaround": "Manual zoom adjustment after each run"
+    }
+  ],
+  "feedback_channels": {
+    "github_issues": "https://github.com/ssiens-oss/ssiens-oss-static_pod/issues",
+    "ai_studio": "https://ai.studio/apps/drive/1tFlXgUzuZqrOcLHGveQzS2XoSnQEtQc4"
+  }
+}
