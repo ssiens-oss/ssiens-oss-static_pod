@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Logs
+logs/
+*.log
+
+# Queues
+queues/incoming/*
+queues/done/*
+queues/failed/*
+queues/published/*
+!queues/**/.gitkeep
+
+# Exports
+exports/
+*.xlsx
+*.csv
+
+# Client data
+clients/*/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
