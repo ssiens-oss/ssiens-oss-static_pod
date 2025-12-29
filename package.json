@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "docker:build": "docker build -t staticwaves-pod-studio:latest .",
+    "docker:test": "./scripts/test-local.sh",
+    "docker:deploy": "./scripts/deploy-runpod.sh"
   },
   "dependencies": {
     "lucide-react": "^0.556.0",

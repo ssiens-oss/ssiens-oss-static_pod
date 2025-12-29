@@ -157,6 +157,18 @@ npm run test:coverage
 
 ## 🚀 Deployment
 
+### RunPod (Docker/Cloud)
+
+```bash
+# Build and deploy to RunPod
+./scripts/deploy-runpod.sh
+
+# Or test locally first
+./scripts/test-local.sh
+```
+
+**See detailed guide**: [RunPod Deployment](./docs/RUNPOD_DEPLOYMENT.md)
+
 ### GitHub Pages
 
 1. Enable GitHub Pages in repository settings

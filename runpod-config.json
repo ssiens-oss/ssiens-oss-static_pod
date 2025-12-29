@@ -1,0 +1,31 @@
+{
+  "name": "staticwaves-pod-studio",
+  "version": "6.0.0",
+  "description": "StaticWaves POD Studio - Print-on-Demand Automation Platform",
+  "image": "staticwaves-pod-studio:latest",
+  "ports": [
+    {
+      "containerPort": 80,
+      "protocol": "http",
+      "expose": true
+    }
+  ],
+  "env": [],
+  "volumeMounts": [],
+  "resources": {
+    "cpu": "1000m",
+    "memory": "512Mi",
+    "gpu": 0
+  },
+  "scaling": {
+    "min": 1,
+    "max": 5,
+    "targetCPU": 80
+  },
+  "healthCheck": {
+    "path": "/health",
+    "port": 80,
+    "initialDelaySeconds": 10,
+    "periodSeconds": 30
+  }
+}
