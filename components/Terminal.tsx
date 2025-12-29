@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { LogEntry, LogType } from '../types';
-import { Terminal as TerminalIcon, Trash2 } from 'lucide-react';
+import { Terminal as TerminalIcon, Trash2, Download } from 'lucide-react';
 
 interface TerminalProps {
   logs: LogEntry[];
   onClear: () => void;
+  onExport?: () => void;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ logs, onClear }) => {
+export const Terminal: React.FC<TerminalProps> = ({ logs, onClear, onExport }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,13 +31,24 @@ export const Terminal: React.FC<TerminalProps> = ({ logs, onClear }) => {
           <TerminalIcon size={14} />
           <span>System Output</span>
         </div>
-        <button 
-          onClick={onClear}
-          className="text-slate-500 hover:text-red-400 transition-colors"
-          title="Clear Logs"
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="flex items-center gap-2">
+          {onExport && logs.length > 0 && (
+            <button
+              onClick={onExport}
+              className="text-slate-500 hover:text-indigo-400 transition-colors"
+              title="Export Logs as CSV"
+            >
+              <Download size={14} />
+            </button>
+          )}
+          <button
+            onClick={onClear}
+            className="text-slate-500 hover:text-red-400 transition-colors"
+            title="Clear Logs"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
       <div className="flex-1 p-3 overflow-y-auto font-mono text-xs terminal-scroll space-y-1">
         {logs.length === 0 && (
