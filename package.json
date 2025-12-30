@@ -1,12 +1,15 @@
 {
   "name": "staticwaves-pod-studio",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pipeline:single": "node scripts/run-pipeline.js",
+    "pipeline:batch": "node scripts/run-batch.js",
+    "setup:platforms": "node scripts/setup-platforms.js"
   },
   "dependencies": {
     "react": "^19.2.1",
@@ -15,6 +18,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
