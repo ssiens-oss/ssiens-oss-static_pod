@@ -1,0 +1,86 @@
+# RunPod Dockerfile with ComfyUI and POD Pipeline
+# This Dockerfile sets up a complete environment for the POD automation pipeline
+
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV COMFYUI_PATH=/workspace/ComfyUI
+ENV POD_APP_PATH=/workspace/app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    git \
+    wget \
+    curl \
+    nginx \
+    chromium-browser \
+    chromium-chromedriver \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# Create workspace directories
+WORKDIR /workspace
+RUN mkdir -p ${COMFYUI_PATH} ${POD_APP_PATH} /data/designs /data/chrome-profile
+
+# Install ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git ${COMFYUI_PATH}
+WORKDIR ${COMFYUI_PATH}
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
+    && pip3 install -r requirements.txt
+
+# Download SDXL model (optional - can be downloaded at runtime)
+# RUN mkdir -p models/checkpoints && \
+#     wget -O models/checkpoints/sd_xl_base_1.0.safetensors \
+#     https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
+
+# Copy POD application
+WORKDIR ${POD_APP_PATH}
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy application files
+COPY . .
+
+# Build frontend
+RUN npm run build
+
+# Configure Nginx
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Expose ports
+# 80: Frontend web UI
+# 8188: ComfyUI API
+# 3000: Backend API (if needed)
+EXPOSE 80 8188 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost/health && curl -f http://localhost:8188/system_stats || exit 1
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+# Start ComfyUI\n\
+cd /workspace/ComfyUI\n\
+python3 main.py --listen 0.0.0.0 --port 8188 &\n\
+\n\
+# Wait for ComfyUI to start\n\
+echo "Waiting for ComfyUI to start..."\n\
+sleep 10\n\
+\n\
+# Start Nginx\n\
+nginx -g "daemon off;" &\n\
+\n\
+# Keep container running\n\
+tail -f /dev/null\n\
+' > /start.sh && chmod +x /start.sh
+
+CMD ["/start.sh"]
