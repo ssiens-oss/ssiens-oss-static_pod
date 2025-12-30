@@ -45,7 +45,14 @@ RUN pip3 install torch torchvision torchaudio --index-url https://download.pytor
 # Copy POD application
 WORKDIR ${POD_APP_PATH}
 COPY package*.json ./
-RUN npm install
+
+# Install ALL dependencies (including dev dependencies needed for build)
+RUN npm install --include=dev && \
+    echo "Checking vite installation..." && \
+    ls -la node_modules/.bin/vite && \
+    which node && \
+    node --version && \
+    npm --version
 
 # Copy application files
 COPY . .
