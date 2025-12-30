@@ -18,7 +18,7 @@ from api import (
     automation_router,
     analytics_router,
 )
-from routers import webhooks, monitoring
+from routers import webhooks, monitoring, shopify_app, product_catalog
 
 
 # Configure logger
@@ -82,6 +82,10 @@ app.include_router(analytics_router.router, prefix="/api/analytics", tags=["Anal
 # Webhooks and monitoring
 app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
+
+# SaaS App functionality
+app.include_router(shopify_app.router, prefix="/api", tags=["Shopify App"])
+app.include_router(product_catalog.router, prefix="/api", tags=["Product Catalog"])
 
 
 @app.get("/")

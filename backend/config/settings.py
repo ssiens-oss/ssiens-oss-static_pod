@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: str = "development"
     SECRET_KEY: str
+    APP_URL: str = "https://your-app.com"  # Your public app URL for OAuth callbacks
 
     # Database
     DATABASE_URL: str
