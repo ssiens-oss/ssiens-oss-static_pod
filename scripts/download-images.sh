@@ -33,19 +33,25 @@ echo -e "From: ${BLUE}$RUNPOD_SSH_HOST:$REMOTE_PATH${NC}"
 echo -e "To:   ${BLUE}$LOCAL_PATH${NC}"
 echo ""
 
-# Download using SCP (works better with RunPod's banner)
-echo -e "${YELLOW}Note: This may take a few minutes for large numbers of files...${NC}"
-scp -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no -r \
-    "$RUNPOD_SSH_HOST:$REMOTE_PATH/*" \
-    "$LOCAL_PATH/" 2>&1 | grep -v "RUNPOD.IO" | grep -v "Enjoy your Pod"
+# Download using tar over SSH (most reliable with RunPod)
+echo -e "${YELLOW}Downloading via tar stream (this works around RunPod limitations)...${NC}"
+echo -e "${YELLOW}This may take a few minutes for 301 files (~540MB)...${NC}"
+echo ""
 
-if [ ${PIPESTATUS[0]} -eq 0 ]; then
+# Use tar over SSH to transfer files
+ssh -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no "$RUNPOD_SSH_HOST" \
+    "cd $REMOTE_PATH && tar czf - *.png 2>/dev/null" | \
+    tar xzf - -C "$LOCAL_PATH/" 2>&1
+
+if [ $? -eq 0 ]; then
     # Count files
-    file_count=$(find "$LOCAL_PATH" -type f | wc -l)
+    file_count=$(find "$LOCAL_PATH" -type f -name "*.png" | wc -l)
+    total_size=$(du -sh "$LOCAL_PATH" | cut -f1)
     echo ""
     echo -e "${GREEN}✓ Download complete!${NC}"
-    echo -e "Total files: ${BLUE}$file_count${NC}"
-    echo -e "Location: ${BLUE}$LOCAL_PATH${NC}"
+    echo -e "Total files: ${BLUE}$file_count PNG images${NC}"
+    echo -e "Total size:  ${BLUE}$total_size${NC}"
+    echo -e "Location:    ${BLUE}$LOCAL_PATH${NC}"
 else
     echo ""
     echo -e "${RED}✗ Download failed${NC}"
