@@ -38,12 +38,13 @@ echo -e "${YELLOW}Downloading via tar stream (this works around RunPod limitatio
 echo -e "${YELLOW}This may take a few minutes for 301 files (~540MB)...${NC}"
 echo ""
 
-# Use tar over SSH to transfer files
-ssh -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no "$RUNPOD_SSH_HOST" \
-    "cd $REMOTE_PATH && tar czf - *.png 2>/dev/null" | \
-    tar xzf - -C "$LOCAL_PATH/" 2>&1
+# Use uncompressed tar over SSH (gzip can be confused by RunPod banner)
+# Redirect stderr to filter out RunPod banner messages
+ssh -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no -o LogLevel=ERROR "$RUNPOD_SSH_HOST" \
+    "cd $REMOTE_PATH 2>/dev/null && tar cf - *.png 2>/dev/null" 2>/dev/null | \
+    tar xf - -C "$LOCAL_PATH/" 2>&1 | grep -v "RUNPOD" | grep -v "Enjoy"
 
-if [ $? -eq 0 ]; then
+if [ ${PIPESTATUS[1]} -eq 0 ]; then
     # Count files
     file_count=$(find "$LOCAL_PATH" -type f -name "*.png" | wc -l)
     total_size=$(du -sh "$LOCAL_PATH" | cut -f1)
@@ -55,5 +56,20 @@ if [ $? -eq 0 ]; then
 else
     echo ""
     echo -e "${RED}✗ Download failed${NC}"
-    exit 1
+    echo -e "${YELLOW}Trying alternative method...${NC}"
+
+    # Fallback: Download files one by one using a loop over SSH
+    echo -e "${YELLOW}Downloading files individually (slower but more reliable)...${NC}"
+    ssh -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no "$RUNPOD_SSH_HOST" \
+        "cd $REMOTE_PATH && ls *.png" 2>/dev/null | while read filename; do
+        if [ ! -z "$filename" ]; then
+            ssh -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no "$RUNPOD_SSH_HOST" \
+                "cat $REMOTE_PATH/$filename" > "$LOCAL_PATH/$filename" 2>/dev/null
+            echo -n "."
+        fi
+    done
+
+    echo ""
+    file_count=$(find "$LOCAL_PATH" -type f -name "*.png" | wc -l)
+    echo -e "${GREEN}✓ Downloaded $file_count files${NC}"
 fi
