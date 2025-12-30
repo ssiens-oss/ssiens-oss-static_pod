@@ -306,7 +306,7 @@ export class Orchestrator {
     promptData: any,
     productType: 'tshirt' | 'hoodie',
     autoPublish: boolean
-  ): Promise<Array<{ platform: string; productId: string; url: string; type: string }>> {
+  ): Promise<Array<{ platform: string; productId: string; url: string; type: 'tshirt' | 'hoodie' }>> {
     const products = []
     const enabledPlatforms = this.config.options?.enabledPlatforms || ['printify', 'shopify']
 
