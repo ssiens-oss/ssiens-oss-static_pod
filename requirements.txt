@@ -13,6 +13,9 @@ Pillow==10.1.0
 # Configuration
 python-dotenv==1.0.0
 
+# Agent Automation
+playwright==1.40.0  # Browser automation (requires: playwright install)
+
 # Optional: for advanced features
 # opencv-python==4.8.1.78  # Advanced image processing
 # numpy==1.26.2  # Numerical operations

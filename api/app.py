@@ -20,9 +20,13 @@ from api.pricing import price_product
 from api.validators import validate_product
 from api.alerts import send_alert
 from api.license import check_license
+from api.agents_api import agents_bp
 
 app = Flask(__name__)
 CORS(app)
+
+# Register agent management blueprint
+app.register_blueprint(agents_bp)
 
 # Configuration
 DATA_DIR = Path(__file__).parent.parent / "data"

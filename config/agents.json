@@ -1,0 +1,62 @@
+{
+  "agents": {
+    "marketplace_monitor_etsy": {
+      "enabled": true,
+      "schedule": "every 6 hours",
+      "config": {
+        "marketplace": "etsy",
+        "search_query": "trending",
+        "headless": true
+      }
+    },
+    "marketplace_monitor_redbubble": {
+      "enabled": false,
+      "schedule": "every 6 hours",
+      "config": {
+        "marketplace": "redbubble",
+        "search_query": "trending",
+        "headless": true
+      }
+    },
+    "trend_analysis": {
+      "enabled": true,
+      "schedule": "every 12 hours",
+      "config": {}
+    },
+    "seasonal_trends": {
+      "enabled": true,
+      "schedule": "daily",
+      "config": {}
+    },
+    "opportunity_finder": {
+      "enabled": true,
+      "schedule": "every 12 hours",
+      "config": {}
+    },
+    "prompt_generator": {
+      "enabled": true,
+      "schedule": "every 6 hours",
+      "config": {
+        "min_prompts": 10,
+        "max_prompts": 20
+      }
+    },
+    "prompt_optimizer": {
+      "enabled": false,
+      "schedule": "weekly",
+      "config": {}
+    }
+  },
+  "workflows": {
+    "daily_research": {
+      "enabled": true,
+      "schedule": "daily at 06:00",
+      "description": "Run full market research workflow"
+    },
+    "weekly_optimization": {
+      "enabled": true,
+      "schedule": "weekly on Monday",
+      "description": "Optimize prompts based on performance"
+    }
+  }
+}

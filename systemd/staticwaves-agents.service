@@ -1,0 +1,27 @@
+[Unit]
+Description=StaticWaves Agent Orchestrator
+After=network.target
+Documentation=https://github.com/ssiens-oss/ssiens-oss-static_pod
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/staticwaves-pod
+ExecStart=/usr/bin/python3 /opt/staticwaves-pod/agents/agent_daemon.py
+Restart=always
+RestartSec=10
+
+# Environment
+EnvironmentFile=-/opt/staticwaves-pod/config/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=staticwaves-agents
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
