@@ -18,6 +18,7 @@ from api import (
     automation_router,
     analytics_router,
 )
+from routers import webhooks, monitoring
 
 
 # Configure logger
@@ -77,6 +78,10 @@ app.include_router(products_router.router, prefix="/api/products", tags=["Produc
 app.include_router(orders_router.router, prefix="/api/orders", tags=["Orders"])
 app.include_router(automation_router.router, prefix="/api/automation", tags=["Automation"])
 app.include_router(analytics_router.router, prefix="/api/analytics", tags=["Analytics"])
+
+# Webhooks and monitoring
+app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
+app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
 
 
 @app.get("/")

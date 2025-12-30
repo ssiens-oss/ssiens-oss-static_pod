@@ -34,9 +34,13 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 
-# Task Queue
+# Task Queue & Background Workers
 celery==5.3.6
 redis==5.0.1
+flower==2.0.1  # Celery monitoring web UI
+
+# Payments
+stripe==7.10.0
 
 # Monitoring & Logging
 loguru==0.7.2

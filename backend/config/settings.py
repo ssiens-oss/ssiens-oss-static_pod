@@ -57,8 +57,16 @@ class Settings(BaseSettings):
     WOOCOMMERCE_CONSUMER_KEY: Optional[str] = None
     WOOCOMMERCE_CONSUMER_SECRET: Optional[str] = None
 
-    # Redis
+    # Redis (for Celery)
     REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Stripe (for billing)
+    STRIPE_API_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+
+    # Webhook Secrets
+    SHOPIFY_WEBHOOK_SECRET: Optional[str] = None
+    TIKTOK_WEBHOOK_SECRET: Optional[str] = None
 
     # API Rate Limits
     RATE_LIMIT_PER_MINUTE: int = 60
