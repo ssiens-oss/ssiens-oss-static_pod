@@ -9,6 +9,7 @@ from loguru import logger
 from datetime import datetime
 
 from config.settings import settings
+from utils.inventory import normalize_for_shopify, normalize_variants
 
 
 class ShopifyService:
@@ -71,14 +72,19 @@ class ShopifyService:
             product.vendor = data.get("vendor", "Dropship Supplier")
             product.product_type = data.get("product_type", "")
 
-            # Set variants
+            # Set variants with normalized inventory
             if "variants" in data:
-                product.variants = data["variants"]
+                # Normalize inventory for all variants
+                product.variants = normalize_variants(data["variants"], platform="shopify")
             else:
+                # Normalize single variant inventory
+                raw_stock = data.get("stock", 0)
+                normalized_stock = normalize_for_shopify(raw_stock)
+
                 product.variants = [
                     {
                         "price": str(data.get("price", 0)),
-                        "inventory_quantity": data.get("stock", 0),
+                        "inventory_quantity": normalized_stock,
                         "sku": data.get("sku", ""),
                     }
                 ]
@@ -252,15 +258,53 @@ class ShopifyService:
             raise
 
     async def sync_inventory(self) -> Dict[str, Any]:
-        """Sync inventory from suppliers"""
+        """Sync inventory from suppliers with normalization"""
         try:
-            # Placeholder for inventory sync logic
             logger.info("Syncing inventory from suppliers")
 
-            # Fetch inventory from suppliers
-            # Update Shopify products
+            # Get all products
+            products = await asyncio.to_thread(shopify.Product.find, limit=250)
+            synced_count = 0
+            errors = []
 
-            return {"success": True, "synced_count": 0}
+            for product in products:
+                try:
+                    # Get supplier stock (this would come from your supplier APIs)
+                    # For now, we'll normalize existing inventory to safe values
+                    for variant in product.variants:
+                        current_qty = getattr(variant, "inventory_quantity", 0)
+
+                        # Normalize inventory (handles Printify's 999999999, etc.)
+                        normalized_qty = normalize_for_shopify(current_qty)
+
+                        # Only update if changed
+                        if current_qty != normalized_qty:
+                            logger.info(
+                                f"Normalizing inventory for {product.title} "
+                                f"(Variant {variant.id}): {current_qty:,} → {normalized_qty:,}"
+                            )
+
+                            # Update variant inventory
+                            variant.inventory_quantity = normalized_qty
+
+                    # Save updated product
+                    success = await asyncio.to_thread(product.save)
+                    if success:
+                        synced_count += 1
+                    else:
+                        errors.append(f"Product {product.id}: {product.errors.full_messages()}")
+
+                except Exception as e:
+                    logger.error(f"Error syncing product {product.id}: {e}")
+                    errors.append(f"Product {product.id}: {str(e)}")
+
+            logger.info(f"Inventory sync complete: {synced_count} products updated")
+
+            return {
+                "success": True,
+                "synced_count": synced_count,
+                "errors": errors,
+            }
 
         except Exception as e:
             logger.error(f"Error syncing inventory: {e}")

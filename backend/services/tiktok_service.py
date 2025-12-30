@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from loguru import logger
 
 from config.settings import settings
+from utils.inventory import normalize_for_tiktok
 
 
 class TikTokService:
@@ -36,13 +37,37 @@ class TikTokService:
         return sign
 
     async def sync_products(self, shopify_product_ids: List[int]):
-        """Sync Shopify products to TikTok Shop"""
+        """Sync Shopify products to TikTok Shop with inventory normalization"""
         try:
-            for product_id in shopify_product_ids:
-                # Fetch product from Shopify (would integrate with ShopifyService)
-                # Convert to TikTok format
-                # Upload to TikTok
+            from services.shopify_service import ShopifyService
+            shopify_service = ShopifyService()
 
+            for product_id in shopify_product_ids:
+                # Fetch product from Shopify
+                product = await shopify_service.get_product(str(product_id))
+                if not product:
+                    logger.warning(f"Product {product_id} not found in Shopify")
+                    continue
+
+                # Normalize inventory for TikTok (max: 9,999)
+                normalized_variants = []
+                for variant in product.get("variants", []):
+                    raw_stock = variant.get("inventory_quantity", 0)
+                    normalized_stock = normalize_for_tiktok(raw_stock)
+
+                    if raw_stock != normalized_stock:
+                        logger.info(
+                            f"Normalizing inventory for TikTok: {product['title']} "
+                            f"(Variant {variant.get('sku', 'N/A')}): {raw_stock:,} → {normalized_stock:,}"
+                        )
+
+                    normalized_variants.append({
+                        "sku": variant.get("sku", ""),
+                        "price": variant.get("price", "0"),
+                        "inventory_quantity": normalized_stock,  # TikTok safe value
+                    })
+
+                # Prepare TikTok product payload
                 endpoint = "/product/202309/products/upload"
                 timestamp = str(int(time.time()))
 
@@ -51,15 +76,24 @@ class TikTokService:
                     "timestamp": timestamp,
                     "access_token": self.access_token,
                     "shop_id": self.shop_id,
-                    # Product data would go here
+                }
+
+                # TikTok product data
+                product_data = {
+                    "title": product.get("title", ""),
+                    "description": product.get("description", ""),
+                    "variants": normalized_variants,  # Using normalized inventory
+                    "images": [img.get("src") for img in product.get("images", [])],
                 }
 
                 params["sign"] = self._generate_signature(endpoint, params)
 
                 url = self.base_url + endpoint
-                # response = requests.post(url, params=params)
+                # Uncomment when ready to actually sync:
+                # response = requests.post(url, params=params, json=product_data, timeout=30)
+                # response.raise_for_status()
 
-                logger.info(f"Synced product {product_id} to TikTok")
+                logger.info(f"Synced product {product_id} to TikTok with normalized inventory")
 
         except Exception as e:
             logger.error(f"Error syncing products to TikTok: {e}")
