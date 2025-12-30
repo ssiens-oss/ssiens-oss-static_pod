@@ -45,13 +45,20 @@ RUN pip3 install torch torchvision torchaudio --index-url https://download.pytor
 # Copy POD application
 WORKDIR ${POD_APP_PATH}
 COPY package*.json ./
-RUN npm install --production
+RUN npm install
 
 # Copy application files
 COPY . .
 
 # Build frontend
 RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --production
+
+# Copy built frontend to nginx html directory
+RUN mkdir -p /usr/share/nginx/html && \
+    cp -r dist/* /usr/share/nginx/html/
 
 # Configure Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
