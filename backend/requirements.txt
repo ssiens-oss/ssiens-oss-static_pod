@@ -1,0 +1,52 @@
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+databases==0.8.0
+asyncpg==0.29.0
+
+# E-commerce Platform APIs
+shopify-python-api==12.3.0
+requests==2.31.0
+
+# Web Scraping & Automation
+selenium==4.17.2
+undetected-chromedriver==3.5.5
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# Data Processing
+pandas==2.2.0
+numpy==1.26.3
+
+# Async Support
+aiohttp==3.9.1
+httpx==0.26.0
+
+# Security & Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# Task Queue & Background Workers
+celery==5.3.6
+redis==5.0.1
+flower==2.0.1  # Celery monitoring web UI
+
+# Payments
+stripe==7.10.0
+
+# Monitoring & Logging
+loguru==0.7.2
+
+# AI Integration (optional)
+openai==1.10.0
+
+# Utils
+python-levenshtein==0.25.0

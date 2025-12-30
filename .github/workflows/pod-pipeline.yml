@@ -1,0 +1,258 @@
+name: POD Studio CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'App.tsx'
+      - 'components/**'
+      - 'services/**'
+      - 'Dockerfile'
+      - 'package.json'
+      - '.github/workflows/pod-pipeline.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: 'Container Registry'
+        required: true
+        default: 'dockerhub'
+        type: choice
+        options:
+          - dockerhub
+          - ghcr
+          - both
+      tag:
+        description: 'Image Tag'
+        required: false
+        default: 'latest'
+
+env:
+  IMAGE_NAME: staticwaves-pod-studio
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  # Build and test the application
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # Build Docker image
+  docker-build:
+    name: Docker Build
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build Docker image (test)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Test Docker image
+        run: |
+          # Start container
+          docker run -d --name test-pod -p 8080:80 ${{ env.IMAGE_NAME }}:test
+
+          # Wait for container to be ready
+          sleep 5
+
+          # Test health endpoint
+          curl --fail --retry 5 --retry-delay 2 http://localhost:8080/health || exit 1
+
+          # Test main page
+          curl --fail --retry 3 http://localhost:8080/ || exit 1
+
+          # Cleanup
+          docker stop test-pod
+          docker rm test-pod
+
+      - name: Save Docker image
+        run: |
+          docker save ${{ env.IMAGE_NAME }}:test | gzip > pod-studio-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: pod-studio-image.tar.gz
+          retention-days: 7
+
+  # Push to Docker Hub
+  push-dockerhub:
+    name: Push to Docker Hub
+    needs: docker-build
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build and push to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Docker Hub image info
+        run: |
+          echo "### Docker Hub Image Published ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Images:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # Push to GitHub Container Registry
+  push-ghcr:
+    name: Push to GHCR
+    needs: docker-build
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build and push to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: GHCR image info
+        run: |
+          echo "### GitHub Container Registry Image Published ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Images:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # Deploy notification
+  deploy-ready:
+    name: Deployment Ready
+    needs: [push-dockerhub, push-ghcr]
+    if: always() && (needs.push-dockerhub.result == 'success' || needs.push-ghcr.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 POD Studio Ready for Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### RunPod Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to [RunPod](https://www.runpod.io/)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Deploy a custom container" >> $GITHUB_STEP_SUMMARY
+          echo "3. Use one of the images pushed above" >> $GITHUB_STEP_SUMMARY
+          echo "4. Expose port 80" >> $GITHUB_STEP_SUMMARY
+          echo "5. Deploy and access your app!" >> $GITHUB_STEP_SUMMARY

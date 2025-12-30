@@ -30,4 +30,5 @@ export interface EditorState {
   scale: number;
   translateX: number;
   translateY: number;
+  rotation: number; // degrees
 }

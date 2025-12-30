@@ -2,6 +2,7 @@
 
 # StaticWaves POD Studio - Docker Build and Deploy Script
 # This script builds the Docker image and optionally pushes to a registry
+# Enhanced version with multi-platform support and better error handling
 
 set -e
 
@@ -9,14 +10,19 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
 IMAGE_NAME="staticwaves-pod-studio"
 VERSION="${1:-latest}"
-REGISTRY_TYPE="${2:-dockerhub}"  # dockerhub or ghcr
+REGISTRY_TYPE="${2:-dockerhub}"  # dockerhub, ghcr, or both
+BUILD_PLATFORM="${3:-linux/amd64}"  # Can specify linux/amd64,linux/arm64 for multi-arch
 
 echo -e "${GREEN}=== StaticWaves POD Studio Deployment ===${NC}"
+echo -e "${BLUE}Version: ${VERSION}${NC}"
+echo -e "${BLUE}Registry: ${REGISTRY_TYPE}${NC}"
+echo -e "${BLUE}Platform: ${BUILD_PLATFORM}${NC}"
 echo ""
 
 # Check if Docker is installed
@@ -25,8 +31,16 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
+# Check for Docker Buildx (required for multi-platform builds)
+if [[ "$BUILD_PLATFORM" == *","* ]]; then
+    if ! docker buildx version &> /dev/null; then
+        echo -e "${YELLOW}Warning: Docker Buildx not available. Multi-platform build disabled.${NC}"
+        BUILD_PLATFORM="linux/amd64"
+    fi
+fi
+
 echo -e "${YELLOW}Building Docker image...${NC}"
-docker build -t "${IMAGE_NAME}:${VERSION}" .
+docker build --platform "${BUILD_PLATFORM}" -t "${IMAGE_NAME}:${VERSION}" .
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Docker image built successfully${NC}"
@@ -51,7 +65,8 @@ echo ""
 read -p "Do you want to push to a registry? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if [ "$REGISTRY_TYPE" = "dockerhub" ]; then
+    if [ "$REGISTRY_TYPE" = "dockerhub" ] || [ "$REGISTRY_TYPE" = "both" ]; then
+        echo -e "${YELLOW}--- Pushing to Docker Hub ---${NC}"
         read -p "Enter your Docker Hub username: " DOCKER_USERNAME
         FULL_IMAGE_NAME="${DOCKER_USERNAME}/${IMAGE_NAME}:${VERSION}"
 
@@ -76,7 +91,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
             exit 1
         fi
 
-    elif [ "$REGISTRY_TYPE" = "ghcr" ]; then
+    fi
+
+    if [ "$REGISTRY_TYPE" = "ghcr" ] || [ "$REGISTRY_TYPE" = "both" ]; then
+        echo ""
+        echo -e "${YELLOW}--- Pushing to GitHub Container Registry ---${NC}"
         read -p "Enter your GitHub username: " GITHUB_USERNAME
         FULL_IMAGE_NAME="ghcr.io/${GITHUB_USERNAME}/${IMAGE_NAME}:${VERSION}"
 
