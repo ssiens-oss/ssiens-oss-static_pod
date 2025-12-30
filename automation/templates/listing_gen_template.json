@@ -1,0 +1,16 @@
+{
+  "asset_type": "2D Icon Pack",
+  "theme": "Fantasy Potions",
+  "style": "Hand-Painted, Vibrant",
+  "usage": "RPG UI, Game Development",
+  "prompts": [
+    "fantasy potion icons, vibrant colors, game UI style",
+    "magical elixirs, glowing effects, transparent bottles",
+    "health mana stamina potions, RPG style icons"
+  ],
+  "additional_context": "32 unique icons, PNG format, 512x512px, transparent background",
+  "outputs": {
+    "filename": "fantasy_potions.zip",
+    "upload_targets": ["Gumroad", "Itch.io"]
+  }
+}

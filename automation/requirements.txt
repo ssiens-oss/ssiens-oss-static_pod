@@ -1,0 +1,8 @@
+# Core dependencies
+anthropic>=0.40.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Optional: For enhanced features
+# Butler CLI for Itch.io uploads (install separately)
+# https://itch.io/docs/butler/installing.html

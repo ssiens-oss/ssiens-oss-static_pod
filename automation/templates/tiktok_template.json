@@ -1,0 +1,40 @@
+{
+  "asset_name": "Fantasy Potion Icons Pack",
+  "theme": "Hand-Painted RPG UI",
+  "key_features": [
+    "32 unique icons",
+    "Vibrant, eye-catching colors",
+    "Transparent PNG format",
+    "Game-ready, high resolution"
+  ],
+  "target_audience": "indie game developers and RPG makers",
+  "video_length": 30,
+  "content_type": "showcase",
+  "posting_schedule": {
+    "video_1": {
+      "day": "Monday",
+      "type": "teaser",
+      "hook": "POV: You're making an RPG and need potion icons..."
+    },
+    "video_2": {
+      "day": "Wednesday",
+      "type": "showcase",
+      "hook": "32 hand-painted potion icons that will make your game POP 🔥"
+    },
+    "video_3": {
+      "day": "Friday",
+      "type": "tutorial",
+      "hook": "How to import these into Unity in 60 seconds"
+    },
+    "video_4": {
+      "day": "Sunday",
+      "type": "behind_the_scenes",
+      "hook": "The process of creating magical potion icons ✨"
+    },
+    "video_5": {
+      "day": "Tuesday",
+      "type": "launch",
+      "hook": "New icon pack just dropped! Link in bio 👇"
+    }
+  }
+}
