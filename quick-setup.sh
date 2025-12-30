@@ -1,0 +1,38 @@
+#!/bin/bash
+# Quick setup script for local deployment
+
+echo "📦 POD Pipeline - Quick Setup"
+echo "=============================="
+echo ""
+
+# Get repository URL
+REPO_URL="https://github.com/ssiens-oss/ssiens-oss-static_pod.git"
+BRANCH="claude/setup-pod-pipeline-siF3A"
+
+echo "Repository: $REPO_URL"
+echo "Branch: $BRANCH"
+echo ""
+echo "Run these commands on your local machine:"
+echo ""
+echo "# 1. Clone repository"
+echo "git clone $REPO_URL"
+echo ""
+echo "# 2. Navigate to repo"
+echo "cd ssiens-oss-static_pod"
+echo ""
+echo "# 3. Checkout the pipeline branch"
+echo "git checkout $BRANCH"
+echo ""
+echo "# 4. Verify files"
+echo "ls -la scripts/ services/ .env.example"
+echo ""
+echo "# 5. Configure environment"
+echo "cp .env.example .env"
+echo "nano .env  # Edit with your API keys"
+echo ""
+echo "# 6. Deploy to RunPod"
+echo "export DOCKER_USERNAME=staticwaves"
+echo "export RUNPOD_API_KEY=rpa_ZLK5MWU94JE5RJLBF7J0GFTKXY6LHPPPJJGRTI0X1q8bte"
+echo "./scripts/deploy-runpod.sh"
+echo ""
+echo "=============================="
