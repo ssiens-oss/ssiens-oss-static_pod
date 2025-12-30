@@ -73,16 +73,14 @@ while true; do
     # List local files before sync
     find "$LOCAL_PATH" -type f 2>/dev/null | sort > "$temp_before"
 
-    # Perform rsync
+    # Perform sync using SCP (works better with RunPod)
     echo -e "${BLUE}[$timestamp]${NC} Syncing..."
 
-    rsync -avz --progress \
-        -e "ssh -i $RUNPOD_SSH_KEY -o StrictHostKeyChecking=no" \
-        "$RUNPOD_SSH_HOST:$REMOTE_PATH/" \
-        "$LOCAL_PATH/" \
-        2>/dev/null
+    scp -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no -o LogLevel=QUIET -r \
+        "$RUNPOD_SSH_HOST:$REMOTE_PATH/*" \
+        "$LOCAL_PATH/" 2>&1 | grep -v "RUNPOD.IO" | grep -v "Enjoy your Pod" > /dev/null
 
-    rsync_exit=$?
+    rsync_exit=${PIPESTATUS[0]}
 
     if [ $rsync_exit -eq 0 ]; then
         # List local files after sync

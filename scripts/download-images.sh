@@ -33,13 +33,13 @@ echo -e "From: ${BLUE}$RUNPOD_SSH_HOST:$REMOTE_PATH${NC}"
 echo -e "To:   ${BLUE}$LOCAL_PATH${NC}"
 echo ""
 
-# Download using rsync
-rsync -avz --progress \
-    -e "ssh -i $RUNPOD_SSH_KEY -o StrictHostKeyChecking=no" \
-    "$RUNPOD_SSH_HOST:$REMOTE_PATH/" \
-    "$LOCAL_PATH/"
+# Download using SCP (works better with RunPod's banner)
+echo -e "${YELLOW}Note: This may take a few minutes for large numbers of files...${NC}"
+scp -i "$RUNPOD_SSH_KEY" -o StrictHostKeyChecking=no -r \
+    "$RUNPOD_SSH_HOST:$REMOTE_PATH/*" \
+    "$LOCAL_PATH/" 2>&1 | grep -v "RUNPOD.IO" | grep -v "Enjoy your Pod"
 
-if [ $? -eq 0 ]; then
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
     # Count files
     file_count=$(find "$LOCAL_PATH" -type f | wc -l)
     echo ""
