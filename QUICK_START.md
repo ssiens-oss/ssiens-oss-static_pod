@@ -6,9 +6,12 @@ The POD pipeline automatically generates AI designs and publishes them to your p
 
 ### Prerequisites
 
-1. **RunPod is running** with ComfyUI
-2. **Environment variables configured** (copy `.env.example` to `.env` and fill in your API keys)
-3. **Auto-download running** (optional, to get images to your local machine)
+1. **Dependencies installed**: Run `npm install` in the `/workspace/app` directory
+2. **RunPod is running** with ComfyUI
+3. **Environment variables configured** (copy `.env.example` to `.env` and fill in your API keys)
+4. **Auto-download running** (optional, to get images to your local machine)
+
+> **First Time Setup**: Before running the pipeline for the first time, make sure to run `npm install` to install all required dependencies (TypeScript, Anthropic SDK, Axios, etc.)
 
 ### Basic Usage
 
@@ -185,7 +188,11 @@ New images appear in `~/POD-Designs/` automatically!
 # Make sure you're in the app directory
 cd /workspace/app
 
-# Reinstall dependencies
+# Install all dependencies (first time)
+npm install
+
+# If issues persist, clean install
+rm -rf node_modules package-lock.json
 npm install
 ```
 
