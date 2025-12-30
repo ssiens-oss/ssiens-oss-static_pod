@@ -1,0 +1,35 @@
+{
+  "name": "StaticWaves POD Studio",
+  "description": "Web-based POD automation suite with batch processing and design editor",
+  "image": "your-dockerhub-username/staticwaves-pod-studio:latest",
+  "ports": [
+    {
+      "containerPort": 80,
+      "protocol": "http",
+      "name": "Web UI"
+    }
+  ],
+  "env": [],
+  "volumeMounts": [],
+  "resources": {
+    "cpu": "1",
+    "memory": "2Gi",
+    "gpu": "0"
+  },
+  "startupProbe": {
+    "httpGet": {
+      "path": "/health",
+      "port": 80
+    },
+    "periodSeconds": 10,
+    "failureThreshold": 30
+  },
+  "livenessProbe": {
+    "httpGet": {
+      "path": "/health",
+      "port": 80
+    },
+    "periodSeconds": 30,
+    "failureThreshold": 3
+  }
+}
