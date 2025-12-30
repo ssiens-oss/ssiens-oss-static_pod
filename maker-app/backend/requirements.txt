@@ -1,0 +1,36 @@
+# FastAPI and server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Stripe
+stripe==8.0.0
+
+# Anthropic Claude
+anthropic>=0.40.0
+
+# Utilities
+python-dotenv==1.0.0
+requests>=2.31.0
+pydantic==2.5.3
+
+# PDF generation
+reportlab==4.0.9
+
+# EPUB generation (optional)
+ebooklib==0.18
+
+# Audio generation (optional)
+# audiocraft @ git+https://github.com/facebookresearch/audiocraft
+
+# Image processing (optional)
+# pillow==10.2.0
+
+# Redis (for production queue)
+# redis==5.0.1
+# celery==5.3.4

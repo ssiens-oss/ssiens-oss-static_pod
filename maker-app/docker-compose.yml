@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: maker_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/maker_app
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY}
+      RUNPOD_POD_ID: ${RUNPOD_POD_ID}
+      COMFYUI_URL: ${COMFYUI_URL:-http://localhost:8188}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python worker/worker.py
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/maker_app
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY}
+      RUNPOD_POD_ID: ${RUNPOD_POD_ID}
+      COMFYUI_URL: ${COMFYUI_URL:-http://localhost:8188}
+      WORKER_POLL_INTERVAL: 2
+      WORKER_MODE: autoscale
+    depends_on:
+      - postgres
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

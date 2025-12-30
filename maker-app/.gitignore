@@ -1,0 +1,61 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Node.js
+node_modules/
+.next/
+out/
+.vercel/
+
+# Mobile
+android/
+ios/
+*.apk
+*.ipa
+
+# Database
+*.db
+*.sqlite
+postgres_data/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated files
+/tmp/
+*.pdf
+*.mp3
+*.mp4
+*.png
+*.jpg
+*.epub
+
+# Docker
+.dockerignore
