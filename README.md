@@ -1,12 +1,117 @@
-# StaticWaves POD Studio v6.0
+# StaticWaves POD Studio v6.0 + Autonomous Backend
 
-> A web-based simulation of the StaticWaves Print-on-Demand automation suite, featuring batch processing, real-time logging, localStorage persistence, export functionality, and an interactive design editor.
+> A complete Print-on-Demand automation suite with multi-LLM AI agents, autonomous design generation, and social media publishing. Includes a web-based frontend for monitoring and a powerful Python backend with LangChain & CrewAI integration.
 
 ![Version](https://img.shields.io/badge/version-6.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-42%20passing-brightgreen.svg)
+![Backend](https://img.shields.io/badge/backend-Python%203.11-blue.svg)
+![AI](https://img.shields.io/badge/AI-GPT%20%7C%20Claude%20%7C%20Grok%20%7C%20Llama-purple.svg)
 
-## 🌟 Features
+## 🤖 Autonomous Backend System (NEW)
+
+The POD Studio now includes a **complete autonomous backend** powered by cutting-edge AI:
+
+### 🧠 Multi-LLM Orchestration
+
+Sequential AI pipeline using **4 different LLM providers**:
+
+```
+Grok-4 (Trend Analysis)
+    → Claude 3.5 (Prompt Engineering)
+        → Llama 3.3 (Creative Variations)
+            → GPT-4 (Marketing Polish)
+```
+
+- **Grok-4** (X.AI): Deep trend analysis with DeepSearch capabilities
+- **Claude 3.5** (Anthropic): Technical prompt engineering for ComfyUI
+- **Llama 3.3** (Groq): High-speed creative variations and alternatives
+- **GPT-4** (OpenAI): Final marketing polish and metadata generation
+
+### 🤖 CrewAI Agent System
+
+Three autonomous agents working together:
+
+1. **Trend Analyst Agent**
+   - Role: Streetwear trend researcher
+   - LLM: Grok-4
+   - Output: Market trends, viral aesthetics, emerging themes
+
+2. **Prompt Engineer Agent**
+   - Role: ComfyUI prompt specialist
+   - LLM: Claude 3.5
+   - Output: Technical image generation prompts with optimal parameters
+
+3. **Caption Writer Agent**
+   - Role: Social media content creator
+   - LLM: GPT-4
+   - Output: Viral captions, hashtags, and product descriptions
+
+### ✨ Key Features
+
+- ✅ **AI Image Generation**: RunPod ComfyUI with SDXL/Stable Diffusion
+- ✅ **Auto-Publishing**: Printify, Shopify, WooCommerce, Etsy, Amazon
+- ✅ **Social Media**: Instagram & TikTok automation with AI captions
+- ✅ **Webhooks**: Real-time event handling (Printify, WooCommerce)
+- ✅ **Product Research**: Trend analysis from AliExpress, Etsy, Shopify
+- ✅ **Batch Processing**: Handle 10-50+ products simultaneously
+- ✅ **Automated Scheduling**: Daily runs at 2 AM + hourly during business hours
+- ✅ **Caching**: Redis-powered caching with intelligent TTL
+- ✅ **Monitoring**: Prometheus metrics + Grafana dashboards
+- ✅ **Error Handling**: Retry logic with exponential backoff
+- ✅ **Notifications**: Email, Telegram, Discord, Slack alerts
+
+### 🚀 Quick Start (Backend)
+
+```bash
+cd backend
+
+# Copy and configure environment
+cp .env.example .env.pod
+nano .env.pod  # Add your API keys
+
+# Docker deployment (recommended)
+docker-compose up -d
+
+# OR manual setup
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python autonomous_pod.py
+```
+
+**📖 Full deployment guide**: See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete setup instructions including:
+- Local development setup
+- Production deployment (Docker, Supervisor, Systemd)
+- HTTPS configuration with Nginx
+- RunPod ComfyUI setup
+- Social media configuration
+- Monitoring & troubleshooting
+
+### 🏗️ Backend Architecture
+
+```
+Frontend (Browser) → Flask Backend → Multi-LLM Chain → CrewAI Agents
+                                    ↓
+                              RunPod ComfyUI (GPU)
+                                    ↓
+                          Printify / Shopify / Etsy
+                                    ↓
+                       Instagram / TikTok Publishing
+```
+
+**Backend Stack:**
+- Python 3.11 with Flask
+- LangChain (Multi-LLM orchestration)
+- CrewAI (Agent framework)
+- PostgreSQL (Data storage)
+- Redis (Caching)
+- Prometheus + Grafana (Monitoring)
+- Gunicorn (Production server)
+
+---
+
+## 🌟 Frontend Features
 
 ### Core Functionality
 - **🚀 Single & Batch Processing** - Process one or multiple product drops
@@ -24,7 +129,7 @@
 - **🧪 Comprehensive Testing** - 42 unit tests with full coverage
 - **🚀 CI/CD Pipeline** - Automated deployment with GitHub Actions
 
-## 📦 Quick Start
+## 📦 Quick Start (Frontend)
 
 ### Installation
 
@@ -101,31 +206,72 @@ The system will:
 - Generate unique designs and mockups per drop
 - Track all items in queue
 
-## 🏗️ Architecture
+## 🏗️ Project Structure
 
 ```
-├── App.tsx                      # Main application component
-├── components/
-│   ├── Terminal.tsx             # Log display component
-│   └── EditorControls.tsx       # Design editor tools
-├── services/
-│   └── mockEngine.ts            # POD workflow simulation
-├── config/
-│   └── podConfig.ts             # Centralized configuration
-├── utils/
-│   ├── podUtils.ts              # Shared utility functions
-│   ├── storage.ts               # localStorage persistence
-│   └── export.ts                # CSV/JSON export utilities
-├── types.ts                     # TypeScript definitions
-└── tests/                       # Comprehensive test suite
-    ├── podUtils.test.ts
-    ├── storage.test.ts
-    └── export.test.ts
+ssiens-oss-static_pod/
+├── backend/                     # 🆕 Autonomous Backend System
+│   ├── autonomous_pod.py        # Main Flask app with multi-LLM integration
+│   ├── scheduler.py             # Automated scheduling service
+│   ├── requirements.txt         # Python dependencies
+│   ├── .env.example             # Configuration template
+│   ├── Dockerfile               # Container image
+│   ├── docker-compose.yml       # Multi-container deployment
+│   └── supervisor.conf          # Process management config
+├── dist/
+│   └── pod-studio-complete.html # Enhanced frontend with agent monitoring
+├── src/                         # Frontend React Application
+│   ├── App.tsx                  # Main application component
+│   ├── components/
+│   │   ├── Terminal.tsx         # Log display component
+│   │   └── EditorControls.tsx   # Design editor tools
+│   ├── services/
+│   │   └── mockEngine.ts        # POD workflow simulation
+│   ├── config/
+│   │   └── podConfig.ts         # Centralized configuration
+│   ├── utils/
+│   │   ├── podUtils.ts          # Shared utility functions
+│   │   ├── storage.ts           # localStorage persistence
+│   │   └── export.ts            # CSV/JSON export utilities
+│   ├── types.ts                 # TypeScript definitions
+│   └── tests/                   # Comprehensive test suite
+│       ├── podUtils.test.ts
+│       ├── storage.test.ts
+│       └── export.test.ts
+├── DEPLOYMENT.md                # 🆕 Complete deployment guide
+└── README.md                    # This file
 ```
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Backend Environment Variables
+
+The autonomous backend requires API keys for:
+
+```bash
+# Multi-LLM Providers (at least 2 recommended)
+OPENAI_API_KEY=sk-your-key          # GPT-4/5
+ANTHROPIC_API_KEY=sk-ant-your-key   # Claude 3.5
+XAI_API_KEY=xai-your-key            # Grok-4
+GROQ_API_KEY=gsk_your-key           # Llama 3.3 (free tier)
+
+# AI Image Generation
+COMFYUI_URL=https://your-pod-8188.proxy.runpod.net
+RUNPOD_API_KEY=your-runpod-key
+
+# Print-on-Demand
+PRINTIFY_API_KEY=your-printify-key
+PRINTIFY_SHOP_ID=12345678
+
+# Social Media
+INSTAGRAM_USERNAME=your_username
+INSTAGRAM_PASSWORD=your_password
+TIKTOK_SESSION_ID=your-session-id
+```
+
+**See `backend/.env.example` for complete configuration template.**
+
+### Frontend Configuration
 
 No environment variables required for the simulation. For real API integration, see [API Integration Guide](./docs/API_INTEGRATION.md).
 
@@ -157,7 +303,44 @@ npm run test:coverage
 
 ## 🚀 Deployment
 
-### RunPod (Docker/Cloud)
+### Backend Deployment
+
+**Docker Compose (Recommended)**
+
+```bash
+cd backend
+docker-compose up -d
+
+# View logs
+docker-compose logs -f pod-backend
+docker-compose logs -f pod-scheduler
+```
+
+**Supervisor (VPS)**
+
+```bash
+cd backend
+sudo cp supervisor.conf /etc/supervisor/conf.d/pod-studio.conf
+sudo supervisorctl reread && sudo supervisorctl update
+sudo supervisorctl start pod-studio:*
+```
+
+**Systemd (Production Linux)**
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for systemd service configurations.
+
+**📖 Complete Guide**: [DEPLOYMENT.md](./DEPLOYMENT.md) includes:
+- Local development setup
+- Three deployment options (Docker/Supervisor/Systemd)
+- HTTPS with Nginx + Certbot
+- RunPod ComfyUI configuration
+- Monitoring & troubleshooting
+- Scaling strategies
+- Cost estimates ($10-20 per 100 designs)
+
+### Frontend Deployment
+
+#### RunPod (Docker/Cloud)
 
 ```bash
 # Build and deploy to RunPod
@@ -239,7 +422,20 @@ The POD simulation executes these stages:
 
 ## 📝 API Integration
 
-For integrating with real Printify API, see [API Integration Guide](./docs/API_INTEGRATION.md).
+### Autonomous Backend APIs
+
+The backend provides REST endpoints for:
+
+- `POST /webhook/printify` - Printify webhook handler (order events)
+- `POST /webhook/woocommerce` - WooCommerce webhook handler
+- `GET /health` - Health check endpoint
+- `POST /test/workflow` - Test complete workflow
+- `GET /api/analytics` - Analytics dashboard data
+- `GET /api/trends` - Current trend analysis
+
+### Frontend Integration
+
+For integrating the frontend with real Printify API, see [API Integration Guide](./docs/API_INTEGRATION.md).
 
 ## 🤝 Contributing
 
@@ -255,11 +451,20 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🙏 Acknowledgments
 
+**Frontend:**
 - Built with [React 19](https://react.dev/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
 - Icons by [Lucide](https://lucide.dev/)
 - Build tool: [Vite](https://vitejs.dev/)
 - Testing: [Vitest](https://vitest.dev/)
+
+**Backend:**
+- [LangChain](https://python.langchain.com/) - Multi-LLM orchestration
+- [CrewAI](https://docs.crewai.com/) - Agent framework
+- [Flask](https://flask.palletsprojects.com/) - Web framework
+- [RunPod](https://runpod.io/) - GPU compute for ComfyUI
+- [Printify](https://printify.com/) - Print-on-Demand API
+- AI Providers: OpenAI, Anthropic, X.AI, Groq
 
 ## 📞 Support
 
