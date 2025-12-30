@@ -1,0 +1,18 @@
+# StaticWaves POD Python Dependencies
+
+# Web Framework
+flask==3.0.0
+flask-cors==4.0.0
+
+# HTTP & API
+requests==2.31.0
+
+# Image Processing
+Pillow==10.1.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# Optional: for advanced features
+# opencv-python==4.8.1.78  # Advanced image processing
+# numpy==1.26.2  # Numerical operations

@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+echo "⏹️  Stopping StaticWaves POD services..."
+
+# Stop services
+systemctl stop staticwaves-pod-api.service || true
+systemctl stop staticwaves-pod-worker.service || true
+systemctl stop staticwaves-comfyui.service || true
+
+# Disable services
+systemctl disable staticwaves-pod-api.service || true
+systemctl disable staticwaves-pod-worker.service || true
+systemctl disable staticwaves-comfyui.service || true
+
+exit 0

@@ -1,0 +1,19 @@
+Package: staticwaves-pod
+Version: 1.0.0
+Section: web
+Priority: optional
+Architecture: amd64
+Depends: python3 (>= 3.8), python3-pip, python3-venv, ffmpeg, curl, nginx
+Maintainer: StaticWaves <ops@staticwaves.io>
+Homepage: https://staticwaves.io
+Description: StaticWaves AI Print-on-Demand Automation Engine
+ Fully autonomous AI-powered POD system with ComfyUI GPU workers,
+ Printify integration, Shopify publishing, and TikTok Shop sync.
+ .
+ Features:
+  - AI art generation via ComfyUI
+  - Automated product mockups
+  - Multi-channel publishing (Printify → Shopify → TikTok)
+  - Real-time queue management
+  - Web dashboard
+  - Systemd-managed services

@@ -1,0 +1,46 @@
+{
+  "templates": {
+    "hoodie": {
+      "name": "Premium Hoodie",
+      "blueprint_id": 384,
+      "base_cost": 35.00,
+      "variants": [
+        {"id": 17390, "name": "S - Black"},
+        {"id": 17391, "name": "M - Black"},
+        {"id": 17392, "name": "L - Black"},
+        {"id": 17393, "name": "XL - Black"},
+        {"id": 17394, "name": "2XL - Black"}
+      ]
+    },
+    "tee": {
+      "name": "Premium T-Shirt",
+      "blueprint_id": 6,
+      "base_cost": 18.00,
+      "variants": [
+        {"id": 17140, "name": "S - Black"},
+        {"id": 17141, "name": "M - Black"},
+        {"id": 17142, "name": "L - Black"},
+        {"id": 17143, "name": "XL - Black"}
+      ]
+    },
+    "poster": {
+      "name": "Premium Poster",
+      "blueprint_id": 19,
+      "base_cost": 12.00,
+      "variants": [
+        {"id": 17200, "name": "12x18"},
+        {"id": 17201, "name": "18x24"},
+        {"id": 17202, "name": "24x36"}
+      ]
+    },
+    "mug": {
+      "name": "Premium Mug",
+      "blueprint_id": 91,
+      "base_cost": 9.00,
+      "variants": [
+        {"id": 17250, "name": "11oz - White"},
+        {"id": 17251, "name": "15oz - White"}
+      ]
+    }
+  }
+}

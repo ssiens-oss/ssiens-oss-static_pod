@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+# Reload systemd after uninstall
+systemctl daemon-reload
+
+echo "🧹 StaticWaves POD removed"
+echo "   Data preserved in /opt/staticwaves-pod/data"
+
+exit 0

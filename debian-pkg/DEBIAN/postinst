@@ -1,0 +1,50 @@
+#!/bin/bash
+set -e
+
+echo "🚀 Installing StaticWaves POD Engine..."
+
+# Set ownership
+chown -R root:root /opt/staticwaves-pod
+chmod -R 755 /opt/staticwaves-pod
+
+# Install Python dependencies
+echo "📦 Installing Python dependencies..."
+pip3 install --upgrade pip
+pip3 install flask flask-cors requests pillow python-dotenv
+
+# Create runtime directories
+echo "📁 Creating runtime directories..."
+mkdir -p /opt/staticwaves-pod/data/{queue/{pending,processing,done,failed},designs,logs}
+chmod -R 777 /opt/staticwaves-pod/data
+
+# Copy systemd service files
+echo "⚙️  Installing systemd services..."
+cp /opt/staticwaves-pod/systemd/*.service /usr/lib/systemd/system/
+
+# Reload systemd
+systemctl daemon-reload
+
+# Enable services
+systemctl enable staticwaves-pod-api.service
+systemctl enable staticwaves-pod-worker.service
+
+# Start API service
+systemctl start staticwaves-pod-api.service
+
+echo ""
+echo "✅ StaticWaves POD installed successfully!"
+echo ""
+echo "⚠️  NEXT STEPS:"
+echo "  1. Copy /opt/staticwaves-pod/config/env.example to /opt/staticwaves-pod/config/.env"
+echo "  2. Edit .env and add your API keys (Printify, Shopify, TikTok)"
+echo "  3. Start the worker: sudo systemctl start staticwaves-pod-worker.service"
+echo ""
+echo "📊 Check status:"
+echo "  sudo systemctl status staticwaves-pod-api"
+echo "  sudo systemctl status staticwaves-pod-worker"
+echo ""
+echo "🌐 API running at: http://localhost:5000"
+echo "📖 Docs: https://github.com/ssiens-oss/ssiens-oss-static_pod"
+echo ""
+
+exit 0
