@@ -1,59 +1,72 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Terminal } from './components/Terminal';
 import { EditorControls } from './components/EditorControls';
 import { runSimulation } from './services/mockEngine';
 import { LogEntry, LogType, QueueItem, EngineConfig, EditorState } from './types';
-import { 
-  Rocket, 
-  Layers, 
-  Box, 
-  Settings, 
-  Play, 
+import {
+  DEFAULT_ENGINE_CONFIG,
+  DEFAULT_EDITOR_STATE,
+  APP_BRANDING
+} from './config/podConfig';
+import {
+  createLogEntry,
+  parseBatchList,
+  calculateBatchProgress
+} from './utils/podUtils';
+import { saveConfig, loadConfig, saveQueue, loadQueue } from './utils/storage';
+import { exportQueueAsCSV, exportLogsAsCSV } from './utils/export';
+import {
+  Rocket,
+  Layers,
+  Box,
+  Settings,
+  Play,
   Image as ImageIcon,
   CheckCircle2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  StopCircle,
+  Download,
+  Save
 } from 'lucide-react';
-
-const INITIAL_EDITOR_STATE: EditorState = {
-  scale: 1,
-  translateX: 0,
-  translateY: 0
-};
 
 export default function App() {
   // --- State ---
-  const [config, setConfig] = useState<EngineConfig>({
-    dropName: 'Drop7',
-    designCount: 10,
-    blueprintId: 6,
-    providerId: 1,
-    batchList: ''
+  const [config, setConfig] = useState<EngineConfig>(() => {
+    // Load config from localStorage on mount
+    const saved = loadConfig();
+    return saved || DEFAULT_ENGINE_CONFIG;
   });
 
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  
+  const [queue, setQueue] = useState<QueueItem[]>(loadQueue);
+
   // Images
   const [designImage, setDesignImage] = useState<string | null>(null);
   const [mockupImage, setMockupImage] = useState<string | null>(null);
 
   // Editor State
-  const [editorState, setEditorState] = useState<EditorState>(INITIAL_EDITOR_STATE);
+  const [editorState, setEditorState] = useState<EditorState>(DEFAULT_EDITOR_STATE);
 
   // Stop Signal
   const stopRef = useRef(false);
 
+  // --- Effects ---
+  // Save config to localStorage whenever it changes
+  useEffect(() => {
+    saveConfig(config);
+  }, [config]);
+
+  // Save queue to localStorage whenever it changes
+  useEffect(() => {
+    saveQueue(queue);
+  }, [queue]);
+
   // --- Handlers ---
   const addLog = useCallback((message: string, type: LogType = LogType.INFO) => {
-    setLogs(prev => [...prev, {
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      message,
-      type
-    }]);
+    setLogs(prev => [...prev, createLogEntry(message, type)]);
   }, []);
 
   const handleRun = async (isBatch: boolean) => {
@@ -68,10 +81,10 @@ export default function App() {
     // Reset images if starting new run
     setDesignImage(null);
     setMockupImage(null);
-    setEditorState(INITIAL_EDITOR_STATE);
+    setEditorState(DEFAULT_EDITOR_STATE);
 
-    const drops = isBatch 
-      ? config.batchList.split(',').map(d => d.trim()).filter(Boolean)
+    const drops = isBatch
+      ? parseBatchList(config.batchList)
       : [config.dropName];
 
     if (drops.length === 0) {
@@ -90,9 +103,7 @@ export default function App() {
           (log) => setLogs(prev => [...prev, log]),
           (prog) => {
             // Calculate total progress based on current batch index
-            const baseProgress = (i / drops.length) * 100;
-            const currentStepProgress = (prog / 100) * (100 / drops.length);
-            setProgress(baseProgress + currentStepProgress);
+            setProgress(calculateBatchProgress(i, drops.length, prog));
           },
           (item) => setQueue(prev => {
              const existing = prev.findIndex(q => q.id === item.id);
@@ -135,6 +146,31 @@ export default function App() {
     addLog(`Edited image saved locally with transform applied.`, LogType.SUCCESS);
   };
 
+  // Stop Handler
+  const handleStop = () => {
+    stopRef.current = true;
+    addLog("Stop requested by user", LogType.WARNING);
+  };
+
+  // Export Handlers
+  const handleExportQueue = () => {
+    if (queue.length === 0) {
+      addLog("Queue is empty, nothing to export", LogType.WARNING);
+      return;
+    }
+    exportQueueAsCSV(queue);
+    addLog(`Exported ${queue.length} queue items as CSV`, LogType.SUCCESS);
+  };
+
+  const handleExportLogs = () => {
+    if (logs.length === 0) {
+      addLog("No logs to export", LogType.WARNING);
+      return;
+    }
+    exportLogsAsCSV(logs);
+    addLog(`Exported ${logs.length} log entries as CSV`, LogType.SUCCESS);
+  };
+
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200">
       
@@ -147,8 +183,8 @@ export default function App() {
             <Layers className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 leading-tight">StaticWaves</h1>
-            <p className="text-xs text-indigo-400 font-mono">POD STUDIO v6.0</p>
+            <h1 className="font-bold text-slate-100 leading-tight">{APP_BRANDING.name}</h1>
+            <p className="text-xs text-indigo-400 font-mono">{APP_BRANDING.tagline}</p>
           </div>
         </div>
 
@@ -199,7 +235,7 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-1 gap-3">
-            <button 
+            <button
               onClick={() => handleRun(false)}
               disabled={isRunning}
               className={`flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all ${isRunning ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}
@@ -207,7 +243,7 @@ export default function App() {
               {isRunning ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}
               Run Single Drop
             </button>
-            <button 
+            <button
               onClick={() => handleRun(true)}
               disabled={isRunning}
               className={`flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all border border-slate-700 ${isRunning ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-indigo-300'}`}
@@ -215,13 +251,33 @@ export default function App() {
               <Rocket size={18} />
               Run Batch Mode
             </button>
+            {isRunning && (
+              <button
+                onClick={handleStop}
+                className="flex items-center justify-center gap-2 py-3 rounded-lg font-semibold shadow-lg transition-all bg-red-600 hover:bg-red-500 text-white"
+              >
+                <StopCircle size={18} />
+                Stop Execution
+              </button>
+            )}
           </div>
 
           {/* Upload Queue */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Printify Queue</label>
-              <span className="text-xs bg-slate-800 px-2 py-0.5 rounded-full text-slate-400">{queue.length}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-slate-800 px-2 py-0.5 rounded-full text-slate-400">{queue.length}</span>
+                {queue.length > 0 && (
+                  <button
+                    onClick={handleExportQueue}
+                    className="p-1 hover:bg-slate-700 rounded transition-colors"
+                    title="Export Queue as CSV"
+                  >
+                    <Download size={14} className="text-slate-400 hover:text-indigo-400" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden min-h-[150px]">
               {queue.length === 0 ? (
@@ -336,7 +392,7 @@ export default function App() {
 
         {/* Bottom Area: Logs */}
         <div className="h-64 p-4 border-t border-slate-800 bg-slate-900/30">
-          <Terminal logs={logs} onClear={() => setLogs([])} />
+          <Terminal logs={logs} onClear={() => setLogs([])} onExport={handleExportLogs} />
         </div>
 
       </div>
