@@ -18,7 +18,8 @@ import {
 const INITIAL_EDITOR_STATE: EditorState = {
   scale: 1,
   translateX: 0,
-  translateY: 0
+  translateY: 0,
+  rotation: 0
 };
 
 export default function App() {
@@ -131,8 +132,26 @@ export default function App() {
     }));
   };
 
+  const handleRotate = (degrees: number) => {
+    setEditorState(prev => ({ ...prev, rotation: prev.rotation + degrees }));
+  };
+
+  const handleReset = () => {
+    setEditorState(INITIAL_EDITOR_STATE);
+    addLog(`Transform reset to defaults.`, LogType.INFO);
+  };
+
   const handleSaveEdit = () => {
     addLog(`Edited image saved locally with transform applied.`, LogType.SUCCESS);
+  };
+
+  const handleDownload = () => {
+    if (!designImage) {
+      addLog(`No design image available to download.`, LogType.ERROR);
+      return;
+    }
+    addLog(`Downloading design with transforms (${Math.round(editorState.scale * 100)}% scale, ${editorState.rotation}° rotation)...`, LogType.SUCCESS);
+    // In a real implementation, this would download the transformed image
   };
 
   return (
@@ -283,12 +302,12 @@ export default function App() {
                   </div>
                   {designImage ? (
                     <div className="w-[350px] h-[350px] border border-dashed border-slate-700 overflow-hidden relative bg-[#1a1a1a]">
-                        <img 
-                          src={designImage} 
-                          alt="Design Preview" 
+                        <img
+                          src={designImage}
+                          alt="Design Preview"
                           className="w-full h-full object-contain transition-transform duration-75 ease-linear"
                           style={{
-                            transform: `scale(${editorState.scale}) translate(${editorState.translateX}px, ${editorState.translateY}px)`
+                            transform: `scale(${editorState.scale}) translate(${editorState.translateX}px, ${editorState.translateY}px) rotate(${editorState.rotation}deg)`
                           }}
                         />
                     </div>
@@ -324,10 +343,13 @@ export default function App() {
 
             {/* Editor Tools Column */}
             <div className="lg:col-span-2 flex flex-col justify-center">
-               <EditorControls 
-                  onZoom={handleZoom} 
+               <EditorControls
+                  onZoom={handleZoom}
                   onMove={handleMove}
+                  onRotate={handleRotate}
+                  onReset={handleReset}
                   onSave={handleSaveEdit}
+                  onDownload={handleDownload}
                   state={editorState}
                />
             </div>
