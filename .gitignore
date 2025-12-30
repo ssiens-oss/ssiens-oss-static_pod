@@ -22,3 +22,25 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend Python
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/.Python
+backend/venv/
+backend/env/
+backend/.venv/
+backend/.env
+backend/.env.local
+backend/.env.pod
+backend/.env.production
+backend/pod_automation.log
+backend/logs/
+backend/data/
+backend/*.db
+backend/*.sqlite
+
+# Keep example files
+!backend/.env.example
