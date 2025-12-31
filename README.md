@@ -8,6 +8,7 @@ Complete end-to-end Print-on-Demand automation using AI image generation, multi-
 
 **🚀 Full Pipeline Features:**
 - 🎨 **AI Image Generation** with Claude + ComfyUI
+- 🎵 **AI Music Generation** with user-controlled synths, vibe mixing & stems
 - 💾 **Auto-save** to local/cloud storage
 - 👕 **Product Creation** on Printify (T-shirts & Hoodies)
 - 🛍️ **Multi-Platform Publishing** to Shopify, TikTok, Etsy, Instagram, Facebook
@@ -125,6 +126,7 @@ export RUNPOD_API_KEY=your-runpod-api-key
 ## Documentation
 
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
+- **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
 - **[SYSTEM_WALKTHROUGH.md](SYSTEM_WALKTHROUGH.md)** - Original POD studio documentation
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Legacy deployment guide

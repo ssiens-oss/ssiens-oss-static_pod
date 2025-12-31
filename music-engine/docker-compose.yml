@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Redis - Job queue and cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Music API - FastAPI server
+  music-api:
+    build:
+      context: ..
+      dockerfile: music-engine/docker/api.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OUTPUT_DIR=/data/output
+    volumes:
+      - music_output:/data/output
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Music Worker - GPU processing
+  music-worker:
+    build:
+      context: ..
+      dockerfile: music-engine/docker/worker.Dockerfile
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OUTPUT_DIR=/data/output
+      - MUSICGEN_MODEL=facebook/musicgen-medium
+    volumes:
+      - music_output:/data/output
+      - model_cache:/root/.cache
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  music_output:
+  model_cache:
