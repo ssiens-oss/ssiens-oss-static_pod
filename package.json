@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:music": "vite --config vite.music.config.ts",
     "build": "vite build",
+    "build:music": "vite build --config vite.music.config.ts",
     "preview": "vite preview",
     "pipeline:single": "node scripts/run-pipeline.js",
     "pipeline:batch": "node scripts/run-batch.js",

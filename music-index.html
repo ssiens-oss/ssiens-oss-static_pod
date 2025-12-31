@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StaticWaves Music Studio - AI Music Generation</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background: #020617;
+        color: #e2e8f0;
+      }
+
+      #root {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Custom scrollbar */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Loading animation */
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-center;
+        height: 100vh;
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      }
+
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(168, 85, 247, 0.2);
+        border-top-color: #a855f7;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+      </div>
+    </div>
+    <script type="module" src="/music-index.tsx"></script>
+  </body>
+</html>
