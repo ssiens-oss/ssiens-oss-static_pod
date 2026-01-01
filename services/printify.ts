@@ -14,7 +14,8 @@ interface Product {
   blueprintId: number
   providerId: number
   variants: ProductVariant[]
-  images: PrintifyImage[]
+  print_areas: PrintArea[]
+  images?: PrintifyImage[]
   tags?: string[]
 }
 
@@ -31,6 +32,22 @@ interface PrintifyImage {
   y?: number
   scale?: number
   angle?: number
+}
+
+interface PrintAreaPlaceholder {
+  position: string
+  images: Array<{
+    id: string
+    x: number
+    y: number
+    scale: number
+    angle: number
+  }>
+}
+
+interface PrintArea {
+  variant_ids: number[]
+  placeholders: PrintAreaPlaceholder[]
 }
 
 interface CreatedProduct {
@@ -65,27 +82,55 @@ export class PrintifyService {
   ): Promise<CreatedProduct> {
     const {
       price = 19.99,
-      tags = [],
-      colors = ['Black', 'White', 'Navy', 'Heather Grey'],
-      sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL']
+      tags = []
     } = options
 
     // Blueprint 3: Unisex Heavy Cotton Tee (Gildan 5000)
     // Provider 99: SwiftPOD
+    const blueprintId = 3
+    const providerId = 99
+
+    // Step 1: Upload image to Printify
+    console.log('Uploading image to Printify...')
+    const imageId = await this.uploadImage(imageUrl, `${title}-design.png`)
+    console.log('Image uploaded with ID:', imageId)
+
+    // Step 2: Get real variants from Printify API
+    console.log('Fetching variants from Printify API...')
+    const variantsData = await this.getVariants(blueprintId, providerId)
+    console.log('Fetched variants:', variantsData.variants?.length || 0)
+
+    // Step 3: Build variants array with pricing
+    const variants = variantsData.variants.map((variant: any) => ({
+      id: variant.id,
+      price: Math.round(price * 100), // Price in cents
+      isEnabled: true
+    }))
+
+    // Step 4: Build print_areas with all variant IDs
+    const variantIds = variants.map((v: any) => v.id)
+    const print_areas = [{
+      variant_ids: variantIds,
+      placeholders: [{
+        position: 'front',
+        images: [{
+          id: imageId,
+          x: 0.5,
+          y: 0.5,
+          scale: 1,
+          angle: 0
+        }]
+      }]
+    }]
+
+    // Step 5: Create product with print_areas
     return this.createProduct({
       title,
       description,
-      blueprintId: 3,
-      providerId: 99,
-      variants: this.generateVariants(3, 99, colors, sizes, price),
-      images: [{
-        src: imageUrl,
-        position: 'front',
-        x: 0.5,
-        y: 0.5,
-        scale: 1,
-        angle: 0
-      }],
+      blueprintId,
+      providerId,
+      variants,
+      print_areas,
       tags
     })
   }
@@ -106,27 +151,55 @@ export class PrintifyService {
   ): Promise<CreatedProduct> {
     const {
       price = 34.99,
-      tags = [],
-      colors = ['Black', 'Navy', 'Heather Grey'],
-      sizes = ['S', 'M', 'L', 'XL', '2XL']
+      tags = []
     } = options
 
     // Blueprint 165: Unisex Heavy Blend Hoodie (Gildan 18500)
     // Provider 99: SwiftPOD
+    const blueprintId = 165
+    const providerId = 99
+
+    // Step 1: Upload image to Printify
+    console.log('Uploading image to Printify...')
+    const imageId = await this.uploadImage(imageUrl, `${title}-design.png`)
+    console.log('Image uploaded with ID:', imageId)
+
+    // Step 2: Get real variants from Printify API
+    console.log('Fetching variants from Printify API...')
+    const variantsData = await this.getVariants(blueprintId, providerId)
+    console.log('Fetched variants:', variantsData.variants?.length || 0)
+
+    // Step 3: Build variants array with pricing
+    const variants = variantsData.variants.map((variant: any) => ({
+      id: variant.id,
+      price: Math.round(price * 100), // Price in cents
+      isEnabled: true
+    }))
+
+    // Step 4: Build print_areas with all variant IDs
+    const variantIds = variants.map((v: any) => v.id)
+    const print_areas = [{
+      variant_ids: variantIds,
+      placeholders: [{
+        position: 'front',
+        images: [{
+          id: imageId,
+          x: 0.5,
+          y: 0.5,
+          scale: 1,
+          angle: 0
+        }]
+      }]
+    }]
+
+    // Step 5: Create product with print_areas
     return this.createProduct({
       title,
       description,
-      blueprintId: 165,
-      providerId: 99,
-      variants: this.generateVariants(165, 99, colors, sizes, price),
-      images: [{
-        src: imageUrl,
-        position: 'front',
-        x: 0.5,
-        y: 0.5,
-        scale: 1,
-        angle: 0
-      }],
+      blueprintId,
+      providerId,
+      variants,
+      print_areas,
       tags
     })
   }
@@ -404,6 +477,31 @@ export class PrintifyService {
     } catch (error) {
       console.error('Error getting providers:', error)
       return []
+    }
+  }
+
+  /**
+   * Get variants for a specific blueprint and provider
+   */
+  async getVariants(blueprintId: number, providerId: number): Promise<any> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.apiKey}`
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Failed to get variants: ${response.statusText}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error getting variants:', error)
+      throw error
     }
   }
 }
