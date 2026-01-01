@@ -1,14 +1,26 @@
+import { useEffect } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Music, Mic, Sword, Store, Upload, Home } from 'lucide-react'
+import { Music, Mic, Sword, Store, Upload, Home, Settings } from 'lucide-react'
 import GeneratePage from './pages/GeneratePage'
 import FreestylePage from './pages/FreestylePage'
 import BattlePage from './pages/BattlePage'
 import MarketplacePage from './pages/MarketplacePage'
 import ReleasePage from './pages/ReleasePage'
 import HomePage from './pages/HomePage'
+import SettingsPage from './pages/SettingsPage'
+import { ToastContainer } from './components'
+import useStore from './store'
 
 function App() {
   const location = useLocation()
+  const initialize = useStore((state) => state.initialize)
+  const cleanup = useStore((state) => state.cleanup)
+
+  // Initialize store on mount
+  useEffect(() => {
+    initialize()
+    return () => cleanup()
+  }, [initialize, cleanup])
 
   const navigation = [
     { path: '/', icon: Home, label: 'Home' },
@@ -17,10 +29,14 @@ function App() {
     { path: '/battle', icon: Sword, label: 'Battle' },
     { path: '/marketplace', icon: Store, label: 'Marketplace' },
     { path: '/release', icon: Upload, label: 'Release' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
   ]
 
   return (
     <div className="min-h-screen bg-primary text-white">
+      {/* Toast Notifications */}
+      <ToastContainer />
+
       {/* Header */}
       <header className="glass sticky top-0 z-50 border-b border-gray-800">
         <div className="container mx-auto px-4 py-4">
@@ -81,6 +97,7 @@ function App() {
             <Route path="/battle" element={<BattlePage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/release" element={<ReleasePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>
