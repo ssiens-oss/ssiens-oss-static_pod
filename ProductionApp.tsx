@@ -22,7 +22,9 @@ const INITIAL_EDITOR_STATE: EditorState = {
   translateY: 0
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use relative URL in production (when served from same origin), localhost for dev
+const API_URL = import.meta.env.VITE_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 export default function ProductionApp() {
   // --- State ---

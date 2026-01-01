@@ -10,7 +10,9 @@ import {
 import { Terminal } from './components/Terminal';
 import { LogEntry, LogType } from './types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use relative URL in production (when served from same origin), localhost for dev
+const API_URL = import.meta.env.VITE_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
 
 type Tab = 'pipeline' | 'gallery' | 'products' | 'platforms' | 'analytics' | 'settings';
 
