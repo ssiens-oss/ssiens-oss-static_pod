@@ -1,16 +1,24 @@
 """
-MashDeck GUI API - FastAPI backend for web interface
+Enhanced MashDeck GUI API with improved error handling, validation, and features
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from typing import Optional, List, Dict
+from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List, Dict, Any
 import asyncio
 import json
 import os
 import sys
+import logging
+from datetime import datetime
+from pathlib import Path
+import traceback
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -25,28 +33,37 @@ from marketplace.store import MarketplaceStore, Asset
 
 app = FastAPI(
     title="MashDeck GUI API",
-    description="Web interface for MashDeck AI Music Production System",
-    version="1.0.0"
+    description="Professional web interface for MashDeck AI Music Production System",
+    version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
 )
 
-# CORS for frontend
+# Enhanced CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure in production
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ===== Models =====
+# ===== Enhanced Models with Validation =====
 
 class SongGenerateRequest(BaseModel):
-    style: str = "edm"
-    bpm: Optional[int] = None
-    key: Optional[str] = None
-    title: Optional[str] = None
-    create_variants: bool = False
+    style: str = Field(..., description="Music style")
+    bpm: Optional[int] = Field(None, ge=60, le=200, description="Beats per minute")
+    key: Optional[str] = Field(None, description="Musical key")
+    title: Optional[str] = Field(None, max_length=100, description="Song title")
+    create_variants: bool = Field(False, description="Create platform variants")
+
+    @validator('style')
+    def validate_style(cls, v):
+        valid_styles = ['edm', 'lofi', 'trap', 'hiphop', 'ambient', 'rock']
+        if v not in valid_styles:
+            raise ValueError(f'Style must be one of {valid_styles}')
+        return v
 
 
 class VocalGenerateRequest(BaseModel):
@@ -66,20 +83,42 @@ class BattleStartRequest(BaseModel):
 
 
 class ChatMessageRequest(BaseModel):
-    side: str  # "A" or "B"
-    username: str
-    message: str
+    side: str = Field(..., description="A or B")
+    username: str = Field(..., min_length=1, max_length=50)
+    message: str = Field(..., min_length=1, max_length=500)
+
+    @validator('side')
+    def validate_side(cls, v):
+        if v not in ['A', 'B']:
+            raise ValueError('Side must be A or B')
+        return v.upper()
 
 
 class ReleaseRequest(BaseModel):
-    audio_path: str
-    title: str
-    artist: str = "MashDeck AI"
-    genre: str = "Electronic"
-    platforms: List[str] = ["spotify", "tiktok", "youtube"]
+    audio_path: str = Field(..., description="Path to audio file")
+    title: str = Field(..., min_length=1, max_length=200)
+    artist: str = Field("MashDeck AI", max_length=100)
+    genre: str = Field("Electronic", max_length=50)
+    platforms: List[str] = Field(default_factory=lambda: ["spotify", "tiktok", "youtube"])
+
+    @validator('platforms')
+    def validate_platforms(cls, v):
+        valid = ['spotify', 'tiktok', 'youtube']
+        for platform in v:
+            if platform not in valid:
+                raise ValueError(f'Invalid platform: {platform}')
+        return v
 
 
-# ===== State =====
+class SettingsUpdate(BaseModel):
+    theme: Optional[str] = Field(None, description="UI theme")
+    notifications_enabled: Optional[bool] = None
+    auto_save: Optional[bool] = None
+    default_style: Optional[str] = None
+    default_bpm: Optional[int] = Field(None, ge=60, le=200)
+
+
+# ===== Enhanced State Management =====
 
 class AppState:
     def __init__(self):
@@ -88,72 +127,137 @@ class AppState:
         self.marketplace = MarketplaceStore()
         self.active_generations: Dict[str, dict] = {}
         self.websocket_connections: List[WebSocket] = []
+        self.settings: Dict[str, Any] = {
+            "theme": "dark",
+            "notifications_enabled": True,
+            "auto_save": True,
+            "default_style": "edm",
+            "default_bpm": 120
+        }
+        self.projects: Dict[str, dict] = {}
+
+    def add_generation(self, job_id: str, data: dict):
+        self.active_generations[job_id] = {
+            **data,
+            "created_at": datetime.utcnow().isoformat(),
+            "status": "queued"
+        }
+
+    def update_generation(self, job_id: str, updates: dict):
+        if job_id in self.active_generations:
+            self.active_generations[job_id].update(updates)
+            self.active_generations[job_id]["updated_at"] = datetime.utcnow().isoformat()
 
 
 state = AppState()
 
 
-# ===== WebSocket Manager =====
+# ===== Exception Handlers =====
 
-async def broadcast_update(message: dict):
-    """Broadcast update to all connected clients"""
-    dead_connections = []
+@app.exception_handler(ValueError)
+async def value_error_handler(request, exc):
+    logger.error(f"ValueError: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content={"error": "Validation Error", "detail": str(exc)}
+    )
 
-    for ws in state.websocket_connections:
-        try:
-            await ws.send_json(message)
-        except:
-            dead_connections.append(ws)
 
-    # Remove dead connections
-    for ws in dead_connections:
-        if ws in state.websocket_connections:
-            state.websocket_connections.remove(ws)
+@app.exception_handler(FileNotFoundError)
+async def file_not_found_handler(request, exc):
+    logger.error(f"FileNotFoundError: {exc}")
+    return JSONResponse(
+        status_code=404,
+        content={"error": "File Not Found", "detail": str(exc)}
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    logger.error(f"Unhandled exception: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "detail": "An unexpected error occurred. Check server logs."
+        }
+    )
+
+
+# ===== Enhanced WebSocket Manager =====
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logger.info(f"WebSocket connected. Total: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        logger.info(f"WebSocket disconnected. Total: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        dead_connections = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.error(f"Error broadcasting: {e}")
+                dead_connections.append(connection)
+
+        for connection in dead_connections:
+            self.disconnect(connection)
+
+
+manager = ConnectionManager()
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time updates"""
-    await websocket.accept()
-    state.websocket_connections.append(websocket)
-
+    """WebSocket endpoint with enhanced error handling"""
+    await manager.connect(websocket)
     try:
         while True:
             data = await websocket.receive_text()
-            # Echo back for now
-            await websocket.send_json({"type": "pong", "data": data})
+            message = json.loads(data)
+            await manager.broadcast({"type": "message", "data": message})
     except WebSocketDisconnect:
-        if websocket in state.websocket_connections:
-            state.websocket_connections.remove(websocket)
+        manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        manager.disconnect(websocket)
 
 
-# ===== Song Generation Endpoints =====
+# ===== Song Generation Endpoints (Enhanced) =====
 
-@app.post("/api/generate/song")
+@app.post("/api/generate/song", tags=["Generation"])
 async def generate_song_endpoint(
     request: SongGenerateRequest,
     background_tasks: BackgroundTasks
 ):
-    """Generate a full-length song"""
+    """
+    Generate a full-length AI song with structure and vocals
 
-    job_id = f"song_{len(state.active_generations)}"
+    Returns job_id for status tracking via WebSocket or polling
+    """
+    job_id = f"song_{len(state.active_generations)}_{int(datetime.utcnow().timestamp())}"
 
-    # Track generation
-    state.active_generations[job_id] = {
-        "status": "queued",
-        "progress": 0,
-        "request": request.dict()
-    }
+    state.add_generation(job_id, {"request": request.dict()})
 
-    # Start generation in background
     async def generate_task():
         try:
-            await broadcast_update({
+            await manager.broadcast({
                 "type": "generation_started",
-                "job_id": job_id
+                "job_id": job_id,
+                "timestamp": datetime.utcnow().isoformat()
             })
 
-            # Generate song (this runs sync code in executor)
+            state.update_generation(job_id, {"status": "generating", "progress": 0.1})
+
             loop = asyncio.get_event_loop()
             output = await loop.run_in_executor(
                 None,
@@ -166,23 +270,31 @@ async def generate_song_endpoint(
                 request.create_variants
             )
 
-            state.active_generations[job_id]["status"] = "completed"
-            state.active_generations[job_id]["output"] = output
-
-            await broadcast_update({
-                "type": "generation_completed",
-                "job_id": job_id,
+            state.update_generation(job_id, {
+                "status": "completed",
+                "progress": 1.0,
                 "output": output
             })
 
-        except Exception as e:
-            state.active_generations[job_id]["status"] = "failed"
-            state.active_generations[job_id]["error"] = str(e)
+            await manager.broadcast({
+                "type": "generation_completed",
+                "job_id": job_id,
+                "output": output,
+                "timestamp": datetime.utcnow().isoformat()
+            })
 
-            await broadcast_update({
+        except Exception as e:
+            logger.error(f"Generation failed for {job_id}: {e}\n{traceback.format_exc()}")
+            state.update_generation(job_id, {
+                "status": "failed",
+                "error": str(e)
+            })
+
+            await manager.broadcast({
                 "type": "generation_failed",
                 "job_id": job_id,
-                "error": str(e)
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
             })
 
     background_tasks.add_task(generate_task)
@@ -190,7 +302,8 @@ async def generate_song_endpoint(
     return {
         "job_id": job_id,
         "status": "queued",
-        "message": "Song generation started"
+        "message": "Song generation started",
+        "estimated_duration": "2-5 minutes"
     }
 
 
@@ -400,3 +513,33 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+# ===== Settings Endpoints =====
+
+@app.get("/api/settings", tags=["Settings"])
+async def get_settings():
+    """Get current user settings"""
+    return state.settings
+
+
+@app.patch("/api/settings", tags=["Settings"])
+async def update_settings(settings: SettingsUpdate):
+    """Update user settings"""
+    updates = settings.dict(exclude_unset=True)
+    state.settings.update(updates)
+    await manager.broadcast({"type": "settings_updated", "settings": state.settings})
+    return {"settings": state.settings, "message": "Settings updated"}
+
+
+@app.get("/api/stats", tags=["System"])
+async def get_stats():
+    """Get system statistics"""
+    jobs = state.active_generations.values()
+    return {
+        "total_generations": len(jobs),
+        "completed": len([j for j in jobs if j["status"] == "completed"]),
+        "failed": len([j for j in jobs if j["status"] == "failed"]),
+        "in_progress": len([j for j in jobs if j["status"] in ["queued", "generating"]]),
+        "websocket_connections": len(manager.active_connections)
+    }
