@@ -13,7 +13,7 @@ import { LogEntry, LogType } from './types';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -123,10 +123,17 @@ app.get('/health', (req: Request, res: Response) => {
  * Start pipeline
  */
 app.post('/api/pipeline/start', async (req: Request, res: Response) => {
-  const { dropName, designCount, theme, style, niche, productTypes } = req.body;
+  const { dropName, designCount, theme, style, niche, productTypes, customPrompt } = req.body;
 
   if (!dropName || !designCount) {
     return res.status(400).json({ error: 'Missing required fields: dropName, designCount' });
+  }
+
+  // Validate prompt mode - must have either (theme+style+niche) OR customPrompt
+  if (!customPrompt && (!theme || !style)) {
+    return res.status(400).json({
+      error: 'Missing prompt configuration: provide either customPrompt or (theme, style, niche)'
+    });
   }
 
   // Generate unique pipeline ID
@@ -160,14 +167,24 @@ app.post('/api/pipeline/start', async (req: Request, res: Response) => {
     pipeline.status = 'running';
 
     try {
-      const result = await orchestrator.run({
-        theme,
-        style,
-        niche,
+      // Prepare request based on prompt mode
+      const pipelineRequest: any = {
         productTypes: productTypes || ['tshirt', 'hoodie'],
         count: designCount,
         autoPublish: true
-      });
+      };
+
+      if (customPrompt) {
+        // Manual mode: use custom prompt directly
+        pipelineRequest.prompt = customPrompt;
+      } else {
+        // Claude AI mode: use theme/style/niche for AI generation
+        pipelineRequest.theme = theme;
+        pipelineRequest.style = style;
+        pipelineRequest.niche = niche;
+      }
+
+      const result = await orchestrator.run(pipelineRequest);
 
       pipeline.status = result.success ? 'completed' : 'failed';
       pipeline.result = result;
