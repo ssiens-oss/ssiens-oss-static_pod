@@ -368,7 +368,7 @@ function PipelineTab({ config, setConfig, isRunning, progress, logs, onStart, on
         {/* Configuration */}
         <div className="bg-slate-900/50 rounded-xl border border-slate-800 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Configuration</h3>
+            <h3 className="text-lg font-semibold">Configuration ⚡ NEW</h3>
 
             {/* Prompt Mode Toggle */}
             <div className="flex items-center gap-3">
