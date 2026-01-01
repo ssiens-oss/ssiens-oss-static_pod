@@ -1,0 +1,109 @@
+{
+  "massProduction": {
+    "enabled": true,
+    "oneImageMultipleProducts": true,
+    "description": "Create multiple product types from a single design"
+  },
+  "tiktokReadyProducts": [
+    {
+      "name": "Unisex Heavy Cotton Tee",
+      "blueprintId": 6,
+      "printProviderId": 1,
+      "price": 24.99,
+      "shipping": "Fast (2-5 days)",
+      "tiktokReady": true,
+      "margin": "High"
+    },
+    {
+      "name": "Unisex Heavy Blend Hoodie",
+      "blueprintId": 77,
+      "printProviderId": 1,
+      "price": 44.99,
+      "shipping": "Fast (2-5 days)",
+      "tiktokReady": true,
+      "margin": "Very High"
+    },
+    {
+      "name": "Unisex Crewneck Sweatshirt",
+      "blueprintId": 49,
+      "printProviderId": 1,
+      "price": 39.99,
+      "shipping": "Fast (2-5 days)",
+      "tiktokReady": true,
+      "margin": "High"
+    },
+    {
+      "name": "Unisex Tank Top",
+      "blueprintId": 39,
+      "printProviderId": 1,
+      "price": 22.99,
+      "shipping": "Fast (2-5 days)",
+      "tiktokReady": true,
+      "margin": "Medium"
+    },
+    {
+      "name": "Mug 11oz",
+      "blueprintId": 68,
+      "printProviderId": 4,
+      "price": 16.99,
+      "shipping": "Medium (3-7 days)",
+      "tiktokReady": true,
+      "margin": "Medium"
+    },
+    {
+      "name": "Tote Bag",
+      "blueprintId": 22,
+      "printProviderId": 1,
+      "price": 19.99,
+      "shipping": "Fast (2-5 days)",
+      "tiktokReady": true,
+      "margin": "High"
+    },
+    {
+      "name": "Phone Case (iPhone)",
+      "blueprintId": 167,
+      "printProviderId": 15,
+      "price": 21.99,
+      "shipping": "Medium (3-7 days)",
+      "tiktokReady": true,
+      "margin": "Medium"
+    },
+    {
+      "name": "Stainless Steel Water Bottle",
+      "blueprintId": 215,
+      "printProviderId": 11,
+      "price": 27.99,
+      "shipping": "Medium (3-7 days)",
+      "tiktokReady": true,
+      "margin": "Medium"
+    },
+    {
+      "name": "Sticker (3x3 inch)",
+      "blueprintId": 334,
+      "printProviderId": 4,
+      "price": 4.99,
+      "shipping": "Fast (2-4 days)",
+      "tiktokReady": true,
+      "margin": "Low (But viral potential)"
+    },
+    {
+      "name": "Canvas Print 16x20",
+      "blueprintId": 145,
+      "printProviderId": 2,
+      "price": 49.99,
+      "shipping": "Medium (5-10 days)",
+      "tiktokReady": false,
+      "margin": "Very High"
+    }
+  ],
+  "recommendedBundle": {
+    "name": "TikTok Starter Bundle",
+    "products": [6, 77, 49, 68, 22],
+    "description": "T-Shirt + Hoodie + Sweatshirt + Mug + Tote Bag"
+  },
+  "viralBundle": {
+    "name": "Maximum Reach Bundle",
+    "products": [6, 77, 39, 68, 22, 334],
+    "description": "Apparel + Accessories + Stickers for viral marketing"
+  }
+}
