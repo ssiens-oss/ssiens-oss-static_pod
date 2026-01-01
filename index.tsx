@@ -1,15 +1,19 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import ProductionApp from './ProductionApp';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
+// Detect mode from environment or URL
+const isProduction = import.meta.env.MODE === 'production' ||
+                     window.location.search.includes('mode=production');
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
+const isDevelopment = window.location.search.includes('mode=development');
+
+// Choose which app to render
+const AppComponent = (isDevelopment || !isProduction) ? App : ProductionApp;
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <AppComponent />
   </React.StrictMode>
 );

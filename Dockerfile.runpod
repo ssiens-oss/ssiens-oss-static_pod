@@ -1,5 +1,5 @@
-# RunPod Dockerfile with ComfyUI and POD Pipeline
-# This Dockerfile sets up a complete environment for the POD automation pipeline
+# RunPod Production Dockerfile - POD Pipeline with Printify Integration
+# Complete environment for AI image generation + multi-platform publishing
 
 FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV COMFYUI_PATH=/workspace/ComfyUI
 ENV POD_APP_PATH=/workspace/app
+ENV NODE_ENV=production
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -17,35 +18,43 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     nginx \
-    chromium-browser \
-    chromium-chromedriver \
     nodejs \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20
+# Install Node.js 20 (latest LTS)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
 # Create workspace directories
 WORKDIR /workspace
-RUN mkdir -p ${COMFYUI_PATH} ${POD_APP_PATH} /data/designs /data/chrome-profile
+RUN mkdir -p ${COMFYUI_PATH} ${POD_APP_PATH} /data/designs /data/comfyui/output
 
-# Install ComfyUI
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git ${COMFYUI_PATH}
+# ==========================================
+# COMFYUI INSTALLATION
+# ==========================================
 WORKDIR ${COMFYUI_PATH}
-RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
-    && pip3 install -r requirements.txt
 
-# Download SDXL model (optional - can be downloaded at runtime)
-# RUN mkdir -p models/checkpoints && \
-#     wget -O models/checkpoints/sd_xl_base_1.0.safetensors \
-#     https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
+# Clone ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git . && \
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    pip3 install -r requirements.txt
 
-# Copy POD application
+# Download SDXL model (critical for image generation)
+RUN mkdir -p models/checkpoints && \
+    wget -O models/checkpoints/sd_xl_base_1.0.safetensors \
+    https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
+
+# ==========================================
+# POD APPLICATION
+# ==========================================
 WORKDIR ${POD_APP_PATH}
+
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
+
+# Install ALL dependencies (including devDependencies for build)
+RUN npm install
 
 # Copy application files
 COPY . .
@@ -53,34 +62,189 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Configure Nginx
-COPY nginx.conf /etc/nginx/nginx.conf
+# Install production dependencies only (clean install)
+RUN npm ci --only=production
 
-# Expose ports
-# 80: Frontend web UI
-# 8188: ComfyUI API
-# 3000: Backend API (if needed)
-EXPOSE 80 8188 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost/health && curl -f http://localhost:8188/system_stats || exit 1
-
-# Create startup script
-RUN echo '#!/bin/bash\n\
-# Start ComfyUI\n\
-cd /workspace/ComfyUI\n\
-python3 main.py --listen 0.0.0.0 --port 8188 &\n\
+# ==========================================
+# NGINX CONFIGURATION
+# ==========================================
+RUN echo 'user www-data;\n\
+worker_processes auto;\n\
+pid /run/nginx.pid;\n\
 \n\
-# Wait for ComfyUI to start\n\
-echo "Waiting for ComfyUI to start..."\n\
-sleep 10\n\
+events {\n\
+    worker_connections 768;\n\
+}\n\
+\n\
+http {\n\
+    sendfile on;\n\
+    tcp_nopush on;\n\
+    tcp_nodelay on;\n\
+    keepalive_timeout 65;\n\
+    types_hash_max_size 2048;\n\
+\n\
+    include /etc/nginx/mime.types;\n\
+    default_type application/octet-stream;\n\
+\n\
+    access_log /var/log/nginx/access.log;\n\
+    error_log /var/log/nginx/error.log;\n\
+\n\
+    gzip on;\n\
+\n\
+    server {\n\
+        listen 80;\n\
+        server_name _;\n\
+\n\
+        # Frontend\n\
+        location / {\n\
+            root /workspace/app/dist;\n\
+            try_files $uri $uri/ /index.html;\n\
+        }\n\
+\n\
+        # Backend API\n\
+        location /api {\n\
+            proxy_pass http://localhost:3000;\n\
+            proxy_http_version 1.1;\n\
+            proxy_set_header Upgrade $http_upgrade;\n\
+            proxy_set_header Connection "upgrade";\n\
+            proxy_set_header Host $host;\n\
+            proxy_set_header X-Real-IP $remote_addr;\n\
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
+            proxy_set_header X-Forwarded-Proto $scheme;\n\
+        }\n\
+\n\
+        # Health check\n\
+        location /health {\n\
+            proxy_pass http://localhost:3000/health;\n\
+        }\n\
+\n\
+        # ComfyUI API\n\
+        location /comfyui {\n\
+            proxy_pass http://localhost:8188;\n\
+            proxy_http_version 1.1;\n\
+            proxy_set_header Upgrade $http_upgrade;\n\
+            proxy_set_header Connection "upgrade";\n\
+            proxy_set_header Host $host;\n\
+        }\n\
+    }\n\
+}\n\
+' > /etc/nginx/nginx.conf
+
+# ==========================================
+# STARTUP SCRIPT
+# ==========================================
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "======================================"\n\
+echo "  StaticWaves POD Studio - RunPod"\n\
+echo "======================================"\n\
+echo ""\n\
+\n\
+# Start ComfyUI\n\
+echo "🎨 Starting ComfyUI..."\n\
+cd /workspace/ComfyUI\n\
+python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &\n\
+COMFYUI_PID=$!\n\
+echo "   ComfyUI PID: $COMFYUI_PID"\n\
+\n\
+# Wait for ComfyUI to be ready\n\
+echo "⏳ Waiting for ComfyUI to start..."\n\
+for i in {1..30}; do\n\
+  if curl -s http://localhost:8188/system_stats > /dev/null 2>&1; then\n\
+    echo "✅ ComfyUI is ready!"\n\
+    break\n\
+  fi\n\
+  echo "   Attempt $i/30..."\n\
+  sleep 2\n\
+done\n\
+\n\
+# Start Backend API\n\
+echo "🚀 Starting POD Studio API Server..."\n\
+cd /workspace/app\n\
+npx tsx server.ts > /var/log/api.log 2>&1 &\n\
+API_PID=$!\n\
+echo "   API Server PID: $API_PID"\n\
+\n\
+# Wait for API to be ready\n\
+echo "⏳ Waiting for API Server..."\n\
+for i in {1..20}; do\n\
+  if curl -s http://localhost:3000/health > /dev/null 2>&1; then\n\
+    echo "✅ API Server is ready!"\n\
+    break\n\
+  fi\n\
+  echo "   Attempt $i/20..."\n\
+  sleep 1\n\
+done\n\
 \n\
 # Start Nginx\n\
-nginx -g "daemon off;" &\n\
+echo "🌐 Starting Nginx..."\n\
+nginx -g "daemon off;" > /var/log/nginx.log 2>&1 &\n\
+NGINX_PID=$!\n\
+echo "   Nginx PID: $NGINX_PID"\n\
 \n\
-# Keep container running\n\
-tail -f /dev/null\n\
+echo ""\n\
+echo "======================================"\n\
+echo "✅ All services started!"\n\
+echo "======================================"\n\
+echo "  Web UI:      http://localhost"\n\
+echo "  API:         http://localhost:3000"\n\
+echo "  ComfyUI:     http://localhost:8188"\n\
+echo "  Health:      http://localhost/health"\n\
+echo "======================================"\n\
+echo ""\n\
+echo "📋 Logs:"\n\
+echo "  ComfyUI: /var/log/comfyui.log"\n\
+echo "  API:     /var/log/api.log"\n\
+echo "  Nginx:   /var/log/nginx.log"\n\
+echo ""\n\
+\n\
+# Monitor processes\n\
+while true; do\n\
+  if ! kill -0 $COMFYUI_PID 2>/dev/null; then\n\
+    echo "❌ ComfyUI died! Restarting..."\n\
+    cd /workspace/ComfyUI\n\
+    python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &\n\
+    COMFYUI_PID=$!\n\
+  fi\n\
+  \n\
+  if ! kill -0 $API_PID 2>/dev/null; then\n\
+    echo "❌ API Server died! Restarting..."\n\
+    cd /workspace/app\n\
+    npx tsx server.ts > /var/log/api.log 2>&1 &\n\
+    API_PID=$!\n\
+  fi\n\
+  \n\
+  if ! kill -0 $NGINX_PID 2>/dev/null; then\n\
+    echo "❌ Nginx died! Restarting..."\n\
+    nginx -g "daemon off;" > /var/log/nginx.log 2>&1 &\n\
+    NGINX_PID=$!\n\
+  fi\n\
+  \n\
+  sleep 10\n\
+done\n\
 ' > /start.sh && chmod +x /start.sh
 
+# ==========================================
+# EXPOSE PORTS
+# ==========================================
+# 80: Frontend web UI (Nginx)
+# 8188: ComfyUI API
+# 3000: Backend API
+EXPOSE 80 8188 3000
+
+# ==========================================
+# HEALTH CHECK
+# ==========================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# ==========================================
+# VOLUME FOR PERSISTENT DATA
+# ==========================================
+VOLUME ["/data"]
+
+# ==========================================
+# START COMMAND
+# ==========================================
 CMD ["/start.sh"]
