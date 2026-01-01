@@ -1,0 +1,43 @@
+{
+  "name": "staticwaves-forge",
+  "version": "1.0.0",
+  "description": "AI 3D Asset + Animation Generation Platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "web": "cd apps/web && npm run dev",
+    "api": "cd apps/api && uvicorn main:app --reload",
+    "worker": "cd infra/runpod && docker build -t forge-worker .",
+    "generate": "python scripts/generate_batch.py"
+  },
+  "devDependencies": {
+    "turbo": "^1.10.16"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ssiens-oss/staticwaves-forge"
+  },
+  "keywords": [
+    "3D",
+    "AI",
+    "game-assets",
+    "blender",
+    "automation",
+    "unity",
+    "unreal",
+    "roblox"
+  ],
+  "author": "StaticWaves",
+  "license": "MIT"
+}
