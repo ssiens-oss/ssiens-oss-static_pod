@@ -31,7 +31,11 @@ export default function ProductionApp() {
     designCount: 10,
     blueprintId: 6,
     providerId: 1,
-    batchList: ''
+    batchList: '',
+    useClaudePrompts: true,
+    customPrompt: '',
+    theme: 'Modern streetwear',
+    style: 'Bold graphic design'
   });
 
   const [isRunning, setIsRunning] = useState(false);
@@ -132,19 +136,29 @@ export default function ProductionApp() {
     try {
       addLog('🚀 Starting POD automation pipeline...', LogType.INFO);
 
+      // Prepare payload based on prompt mode
+      const payload = config.useClaudePrompts
+        ? {
+            dropName: config.dropName,
+            designCount: config.designCount,
+            theme: config.theme || 'Modern streetwear',
+            style: config.style || 'Bold graphic design',
+            niche: 'Urban fashion',
+            productTypes: ['tshirt', 'hoodie']
+          }
+        : {
+            dropName: config.dropName,
+            designCount: config.designCount,
+            customPrompt: config.customPrompt,
+            productTypes: ['tshirt', 'hoodie']
+          };
+
       const response = await fetch(`${API_URL}/api/pipeline/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          dropName: config.dropName,
-          designCount: config.designCount,
-          theme: 'Modern streetwear',
-          style: 'Bold graphic design',
-          niche: 'Urban fashion',
-          productTypes: ['tshirt', 'hoodie']
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -224,7 +238,21 @@ export default function ProductionApp() {
 
           {/* Main Controls Form */}
           <div className="space-y-4">
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Configuration</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Configuration</label>
+              {/* Prompt Mode Toggle */}
+              <button
+                onClick={() => setConfig({...config, useClaudePrompts: !config.useClaudePrompts})}
+                disabled={isRunning}
+                className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                  config.useClaudePrompts
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-700 text-slate-300'
+                } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {config.useClaudePrompts ? '✨ AI' : '✏️ Manual'}
+              </button>
+            </div>
 
             <div className="space-y-3">
               <div>
@@ -237,6 +265,44 @@ export default function ProductionApp() {
                   disabled={isRunning}
                 />
               </div>
+
+              {/* Conditional rendering based on prompt mode */}
+              {config.useClaudePrompts ? (
+                <>
+                  <div>
+                    <span className="text-xs text-slate-400 mb-1 block">Theme</span>
+                    <input
+                      type="text"
+                      value={config.theme}
+                      onChange={e => setConfig({...config, theme: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                      disabled={isRunning}
+                    />
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 mb-1 block">Style</span>
+                    <input
+                      type="text"
+                      value={config.style}
+                      onChange={e => setConfig({...config, style: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                      disabled={isRunning}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span className="text-xs text-slate-400 mb-1 block">Custom Prompt</span>
+                  <textarea
+                    value={config.customPrompt}
+                    onChange={e => setConfig({...config, customPrompt: e.target.value})}
+                    placeholder="Enter custom design prompt..."
+                    rows={3}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none"
+                    disabled={isRunning}
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-2">
                  <div>

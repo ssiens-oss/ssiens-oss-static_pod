@@ -78,7 +78,9 @@ export default function DashboardApp() {
     designCount: 10,
     theme: 'Urban streetwear',
     style: 'Bold graphics',
-    productTypes: ['tshirt', 'hoodie']
+    productTypes: ['tshirt', 'hoodie'],
+    useClaudePrompts: true,
+    customPrompt: ''
   });
 
   // Check API status
@@ -124,10 +126,27 @@ export default function DashboardApp() {
     setProgress(0);
 
     try {
+      // Prepare payload based on prompt mode
+      const payload = pipelineConfig.useClaudePrompts
+        ? {
+            dropName: pipelineConfig.dropName,
+            designCount: pipelineConfig.designCount,
+            theme: pipelineConfig.theme,
+            style: pipelineConfig.style,
+            niche: 'Urban fashion',
+            productTypes: pipelineConfig.productTypes
+          }
+        : {
+            dropName: pipelineConfig.dropName,
+            designCount: pipelineConfig.designCount,
+            customPrompt: pipelineConfig.customPrompt,
+            productTypes: pipelineConfig.productTypes
+          };
+
       const response = await fetch(`${API_URL}/api/pipeline/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pipelineConfig)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -348,7 +367,25 @@ function PipelineTab({ config, setConfig, isRunning, progress, logs, onStart, on
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Configuration */}
         <div className="bg-slate-900/50 rounded-xl border border-slate-800 p-6">
-          <h3 className="text-lg font-semibold mb-4">Configuration</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold">Configuration</h3>
+
+            {/* Prompt Mode Toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-400">Prompt Mode:</span>
+              <button
+                onClick={() => setConfig({ ...config, useClaudePrompts: !config.useClaudePrompts })}
+                disabled={isRunning}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  config.useClaudePrompts
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {config.useClaudePrompts ? '✨ Claude AI' : '✏️ Manual'}
+              </button>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -373,27 +410,47 @@ function PipelineTab({ config, setConfig, isRunning, progress, logs, onStart, on
               />
             </div>
 
-            <div>
-              <label className="text-sm text-slate-400 mb-2 block">Theme</label>
-              <input
-                type="text"
-                value={config.theme}
-                onChange={e => setConfig({ ...config, theme: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
-                disabled={isRunning}
-              />
-            </div>
+            {/* Conditional rendering based on prompt mode */}
+            {config.useClaudePrompts ? (
+              <>
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Theme</label>
+                  <input
+                    type="text"
+                    value={config.theme}
+                    onChange={e => setConfig({ ...config, theme: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
+                    disabled={isRunning}
+                  />
+                </div>
 
-            <div>
-              <label className="text-sm text-slate-400 mb-2 block">Style</label>
-              <input
-                type="text"
-                value={config.style}
-                onChange={e => setConfig({ ...config, style: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
-                disabled={isRunning}
-              />
-            </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Style</label>
+                  <input
+                    type="text"
+                    value={config.style}
+                    onChange={e => setConfig({ ...config, style: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
+                    disabled={isRunning}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2">
+                <label className="text-sm text-slate-400 mb-2 block">Custom Prompt</label>
+                <textarea
+                  value={config.customPrompt}
+                  onChange={e => setConfig({ ...config, customPrompt: e.target.value })}
+                  placeholder="Enter your custom design prompt here... (e.g., 'A minimalist mountain landscape with geometric patterns in black and white')"
+                  rows={4}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 resize-none"
+                  disabled={isRunning}
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  💡 Tip: Be specific about style, colors, and composition for best results
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Product Types */}

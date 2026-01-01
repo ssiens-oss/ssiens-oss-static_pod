@@ -24,6 +24,10 @@ export interface EngineConfig {
   blueprintId: number;
   providerId: number;
   batchList: string;
+  useClaudePrompts?: boolean;
+  customPrompt?: string;
+  theme?: string;
+  style?: string;
 }
 
 export interface EditorState {
