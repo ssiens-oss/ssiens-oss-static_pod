@@ -1,0 +1,1 @@
+"""Singing and melody generation"""
