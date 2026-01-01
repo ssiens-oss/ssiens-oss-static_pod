@@ -63,7 +63,7 @@ async def process_generation_job(job_id: str, request: GenerationRequest):
             poly_count=request.poly_budget or 10000,
             vertex_count=(request.poly_budget or 10000) * 3,
             has_rig=request.include_rig,
-            animations=[anim.value for anim in request.include_animations],
+            animations=[str(anim) for anim in request.include_animations],
             file_size_mb=2.5,
             created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             seed=request.seed or 42
@@ -71,7 +71,7 @@ async def process_generation_job(job_id: str, request: GenerationRequest):
 
         # Mock output files
         output_files = {
-            fmt.value: f"/output/{job_id}/{job_id}.{fmt.value}"
+            str(fmt): f"/output/{job_id}/{job_id}.{str(fmt)}"
             for fmt in request.export_formats
         }
 
