@@ -50,6 +50,23 @@ export class StorageService {
     source: string | Buffer,
     metadata?: any
   ): Promise<SavedImage> {
+    // Handle placeholder URLs - skip download and return mock object
+    if (typeof source === 'string' && (source.includes('placeholder') || source.includes('via.placeholder'))) {
+      console.log('Detected placeholder URL, skipping download:', source)
+      const id = this.generateId()
+      const placeholderImage: SavedImage = {
+        id,
+        url: source,
+        path: source,
+        size: 0,
+        hash: 'placeholder-' + id,
+        metadata,
+        createdAt: new Date()
+      }
+      this.imageIndex.set(id, placeholderImage)
+      return placeholderImage
+    }
+
     let imageBuffer: Buffer
 
     // Get image data

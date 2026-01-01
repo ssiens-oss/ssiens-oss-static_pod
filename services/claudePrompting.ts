@@ -29,7 +29,7 @@ export class ClaudePromptingService {
 
   constructor(config: ClaudeConfig) {
     this.config = {
-      model: 'claude-3-5-sonnet-20241022',
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022',
       ...config
     }
   }
@@ -73,7 +73,8 @@ export class ClaudePromptingService {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(`Claude API error: ${error.error?.message || response.statusText}`)
+        console.error('Claude API full error response:', JSON.stringify(error, null, 2))
+        throw new Error(`Claude API error: ${error.error?.message || error.message || JSON.stringify(error) || response.statusText}`)
       }
 
       const data = await response.json()
