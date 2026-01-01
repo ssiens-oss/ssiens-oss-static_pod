@@ -22,7 +22,7 @@ const INITIAL_EDITOR_STATE: EditorState = {
   translateY: 0
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function ProductionApp() {
   // --- State ---
