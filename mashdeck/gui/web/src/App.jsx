@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Music, Mic, Sword, Store, Upload, Home, Settings } from 'lucide-react'
+import { Music, Mic, Sword, Store, Upload, Home, Settings, FolderOpen } from 'lucide-react'
 import GeneratePage from './pages/GeneratePage'
 import FreestylePage from './pages/FreestylePage'
 import BattlePage from './pages/BattlePage'
@@ -8,6 +8,7 @@ import MarketplacePage from './pages/MarketplacePage'
 import ReleasePage from './pages/ReleasePage'
 import HomePage from './pages/HomePage'
 import SettingsPage from './pages/SettingsPage'
+import ProjectsPage from './pages/ProjectsPage'
 import { ToastContainer } from './components'
 import useStore from './store'
 
@@ -24,6 +25,7 @@ function App() {
 
   const navigation = [
     { path: '/', icon: Home, label: 'Home' },
+    { path: '/projects', icon: FolderOpen, label: 'Projects' },
     { path: '/generate', icon: Music, label: 'Generate' },
     { path: '/freestyle', icon: Mic, label: 'Freestyle' },
     { path: '/battle', icon: Sword, label: 'Battle' },
@@ -92,6 +94,7 @@ function App() {
         <main className="flex-1 p-8">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/generate" element={<GeneratePage />} />
             <Route path="/freestyle" element={<FreestylePage />} />
             <Route path="/battle" element={<BattlePage />} />
