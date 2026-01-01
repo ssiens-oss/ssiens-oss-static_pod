@@ -415,24 +415,48 @@ function PipelineTab({ config, setConfig, isRunning, progress, logs, onStart, on
               <>
                 <div>
                   <label className="text-sm text-slate-400 mb-2 block">Theme</label>
-                  <input
-                    type="text"
+                  <select
                     value={config.theme}
                     onChange={e => setConfig({ ...config, theme: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
                     disabled={isRunning}
-                  />
+                  >
+                    <option value="Urban streetwear">Urban Streetwear</option>
+                    <option value="Minimalist modern">Minimalist Modern</option>
+                    <option value="Vintage retro">Vintage Retro</option>
+                    <option value="Nature & wildlife">Nature & Wildlife</option>
+                    <option value="Abstract geometric">Abstract Geometric</option>
+                    <option value="Pop culture">Pop Culture</option>
+                    <option value="Typography quotes">Typography Quotes</option>
+                    <option value="Anime & manga">Anime & Manga</option>
+                    <option value="Sports & fitness">Sports & Fitness</option>
+                    <option value="Gaming">Gaming</option>
+                    <option value="Music & bands">Music & Bands</option>
+                    <option value="Travel & adventure">Travel & Adventure</option>
+                  </select>
                 </div>
 
                 <div>
                   <label className="text-sm text-slate-400 mb-2 block">Style</label>
-                  <input
-                    type="text"
+                  <select
                     value={config.style}
                     onChange={e => setConfig({ ...config, style: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
                     disabled={isRunning}
-                  />
+                  >
+                    <option value="Bold graphics">Bold Graphics</option>
+                    <option value="Subtle & clean">Subtle & Clean</option>
+                    <option value="Hand-drawn illustration">Hand-Drawn Illustration</option>
+                    <option value="Vector art">Vector Art</option>
+                    <option value="Watercolor">Watercolor</option>
+                    <option value="Grunge & distressed">Grunge & Distressed</option>
+                    <option value="Photorealistic">Photorealistic</option>
+                    <option value="Line art">Line Art</option>
+                    <option value="Pixel art">Pixel Art</option>
+                    <option value="3D rendered">3D Rendered</option>
+                    <option value="Psychedelic">Psychedelic</option>
+                    <option value="Neon & cyberpunk">Neon & Cyberpunk</option>
+                  </select>
                 </div>
               </>
             ) : (
