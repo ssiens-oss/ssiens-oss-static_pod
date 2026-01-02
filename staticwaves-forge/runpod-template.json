@@ -1,0 +1,52 @@
+{
+  "name": "StaticWaves Forge - AI 3D Asset Generation",
+  "description": "Complete StaticWaves Forge platform with unified boot system. Includes Web GUI, API backend, and asset generation pipeline.",
+  "version": "1.0.0",
+  "category": "AI/ML",
+  "image": "runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04",
+  "env": [
+    {
+      "key": "NODE_ENV",
+      "value": "production"
+    },
+    {
+      "key": "ENVIRONMENT",
+      "value": "production"
+    },
+    {
+      "key": "WORKSPACE_DIR",
+      "value": "/workspace"
+    }
+  ],
+  "ports": [
+    {
+      "port": 3000,
+      "protocol": "http",
+      "description": "Forge Web GUI"
+    },
+    {
+      "port": 8000,
+      "protocol": "http",
+      "description": "Forge API & Docs"
+    },
+    {
+      "port": 6379,
+      "protocol": "tcp",
+      "description": "Redis Queue (internal)"
+    }
+  ],
+  "volumeMounts": [
+    {
+      "containerPath": "/workspace",
+      "volumePath": "/workspace"
+    }
+  ],
+  "startScript": "#!/bin/bash\ncd /workspace\n\nif [ ! -d 'staticwaves-forge' ]; then\n  git clone -b claude/ai-3d-asset-engine-Q6XOw https://github.com/ssiens-oss/ssiens-oss-static_pod.git staticwaves-forge\nfi\n\ncd staticwaves-forge/staticwaves-forge\nbash start-unified.sh start\n\n# Keep container alive\ntail -f /tmp/staticwaves-logs/*.log",
+  "requirements": {
+    "gpu": "Any",
+    "minVRAM": 8,
+    "minDisk": 50,
+    "minRAM": 16
+  },
+  "readme": "# StaticWaves Forge - One-Click Deployment\n\n## Quick Start\n\n1. Start your RunPod pod with this template\n2. Wait 2-3 minutes for initialization\n3. Access the services:\n\n### Web GUI\n`https://YOUR-POD-ID-3000.proxy.runpod.net`\n\n### API Documentation\n`https://YOUR-POD-ID-8000.proxy.runpod.net/docs`\n\n## Features\n\n- ✨ AI-powered 3D asset generation\n- 🎨 Interactive web GUI with toast notifications\n- 📦 Asset pack creation wizard\n- 📊 Analytics dashboard with charts\n- 🔄 Asset library management\n- ⚙️ Complete settings interface\n\n## Management\n\nSSH into your pod and run:\n\n```bash\n# View status\nbash /workspace/staticwaves-forge/staticwaves-forge/start-unified.sh status\n\n# View logs\nbash /workspace/staticwaves-forge/staticwaves-forge/start-unified.sh logs\n\n# Restart all services\nbash /workspace/staticwaves-forge/staticwaves-forge/start-unified.sh restart\n\n# Stop all services\nbash /workspace/staticwaves-forge/staticwaves-forge/start-unified.sh stop\n```\n\n## Troubleshooting\n\nIf services don't start:\n\n1. Check logs: `tail -f /tmp/staticwaves-logs/*.log`\n2. Restart: `bash start-unified.sh restart`\n3. Manual start: Navigate to `/workspace/staticwaves-forge/staticwaves-forge` and run `bash start-unified.sh`\n\n## Support\n\nGitHub: https://github.com/ssiens-oss/ssiens-oss-static_pod\n"
+}
