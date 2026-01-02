@@ -144,6 +144,55 @@ export RUNPOD_API_KEY=your-runpod-api-key
 - **Instagram Business** - [Setup](https://business.instagram.com/)
 - **Facebook Page** - [Create](https://www.facebook.com/pages/create)
 
+## AI Code Review & Automation
+
+**New: GitHub Actions automation with GPT↔Claude collaboration**
+
+### Features
+- 🤖 Auto code review on every PR
+- ✅ Auto-merge safe changes
+- 🧠 Multi-agent reasoning (Plan → Execute → Critique)
+- 💰 Budget guards ($5-10/day default)
+- 📊 Web dashboard for AI control
+- 🔄 Local code review scripts
+
+### Quick Start
+
+```bash
+# Install AI agent
+cd ai-agent
+npm install
+
+# Set API keys
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Start agent
+npm start
+```
+
+**See [ai-agent/README.md](ai-agent/README.md) and [SETUP.md](SETUP.md) for details.**
+
+### GitHub Actions
+
+Add to repo secrets:
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+
+Workflows auto-run on PRs:
+- `.github/workflows/ai-review.yml` - Code review
+- `.github/workflows/ai-auto-merge.yml` - Safe auto-merge
+
+### Local Usage
+
+```bash
+# Code review
+node scripts/claude-review.js backend/src
+
+# GPT↔Claude bridge
+node scripts/ai-bridge.js arbiter "Review this design"
+```
+
 ## Cost Estimates
 
 **Per Design (1 T-shirt + 1 Hoodie):**
@@ -153,6 +202,11 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 **100 Designs: ~$6.00**
 
+**AI Code Review:**
+- ~$0.01 per single review
+- ~$0.06 per multi-agent review
+- Budget guard enforced (default $5-10/day)
+
 ---
 
-**Need help?** See [SETUP_GUIDE.md](SETUP_GUIDE.md) or open an issue.
+**Need help?** See [SETUP_GUIDE.md](SETUP_GUIDE.md), [SETUP.md](SETUP.md), or open an issue.

@@ -1,0 +1,17 @@
+{
+  "name": "staticwaves-ai-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node agent.js",
+    "ws": "node ws-server.js",
+    "dev": "node agent.js & node ws-server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.0",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3",
+    "ws": "^8.16.0"
+  }
+}

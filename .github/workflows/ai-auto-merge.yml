@@ -1,0 +1,109 @@
+name: AI Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install AI agent dependencies
+        run: |
+          cd ai-agent
+          npm install
+
+      - name: Run CI agent verdict
+        id: verdict
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_BUDGET_DAILY_USD: 10
+        run: |
+          # Start AI agent
+          cd ai-agent
+          nohup node agent.js > agent.log 2>&1 &
+          sleep 3
+
+          # Get PR diff
+          cd ..
+          git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
+
+          # Get verdict
+          cat > verdict_prompt.json <<EOF
+          {
+            "prompt": "Analyze this PR and provide a merge decision.\n\nRespond ONLY with valid JSON:\n{\n  \"verdict\": \"APPROVE\" | \"REQUEST_CHANGES\" | \"COMMENT\",\n  \"risk\": \"low\" | \"medium\" | \"high\",\n  \"issues\": [\"issue1\", \"issue2\"],\n  \"notes\": \"explanation\"\n}\n\nRules:\n- APPROVE only if safe, no bugs, no security issues\n- Flag all security issues as high risk\n- Be conservative\n\nDiff:\n$(cat pr_diff.txt)",
+            "role": "CI_AGENT"
+          }
+          EOF
+
+          curl -X POST http://localhost:8787/run \
+            -H "Content-Type: application/json" \
+            -d @verdict_prompt.json > verdict.json
+
+          cat verdict.json
+
+          # Extract verdict
+          VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('verdict.json')).result)" | grep -o '"verdict":"[^"]*"' | cut -d'"' -f4 || echo "COMMENT")
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+
+      - name: Auto-merge if approved
+        if: steps.verdict.outputs.verdict == 'APPROVE'
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --squash --auto
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment verdict
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const verdict = JSON.parse(fs.readFileSync('verdict.json', 'utf8'));
+            const result = JSON.parse(verdict.result || '{}');
+
+            const icon = {
+              'APPROVE': '✅',
+              'REQUEST_CHANGES': '❌',
+              'COMMENT': '💬'
+            }[result.verdict || 'COMMENT'];
+
+            const riskIcon = {
+              'low': '🟢',
+              'medium': '🟡',
+              'high': '🔴'
+            }[result.risk || 'medium'];
+
+            const body = `## ${icon} AI Merge Decision: ${result.verdict}
+
+            **Risk Level:** ${riskIcon} ${result.risk}
+
+            **Notes:** ${result.notes || 'No additional notes'}
+
+            ${result.issues?.length ? `**Issues:**\n${result.issues.map(i => `- ${i}`).join('\n')}` : ''}
+
+            ---
+
+            ${result.verdict === 'APPROVE' ? '🚀 Auto-merge enabled' : '⏸️  Manual review required'}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
