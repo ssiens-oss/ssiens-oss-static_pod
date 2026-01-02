@@ -73,21 +73,25 @@ npm run dev  # http://localhost:5173
 
 ## Deploy to RunPod
 
-### Automated Deployment
+Deploy the complete POD Pipeline GUI with ComfyUI to RunPod cloud infrastructure.
+
+### Quick Deploy (One Command)
 ```bash
 export DOCKER_USERNAME=your-dockerhub-username
 export RUNPOD_API_KEY=your-runpod-api-key
-./scripts/deploy-runpod.sh
+./deploy-to-runpod.sh
 ```
 
 ### What You Get on RunPod
-- ⚡ GPU-accelerated AI image generation (NVIDIA RTX A4000+)
-- 🌐 Public URL for accessing your pipeline
-- 💰 Pay-per-use pricing (only when generating)
-- 📦 Pre-configured ComfyUI + all integrations
-- 🔐 Secure environment variable management
+- 🎨 **POD Pipeline GUI** (Port 80) - Multi-platform automation interface
+- 📦 **Original POD Studio** (Port 8080) - Legacy interface
+- 🎵 **Music Studio** (Port 8081) - AI music generation
+- ⚡ **ComfyUI API** (Port 8188) - GPU-accelerated image generation
+- 🌐 **Public URLs** - Access all apps via RunPod proxy
+- 💰 **Pay-per-use** - Only charged when running (~$0.34/hour)
+- 🔐 **Secure** - Environment variable management
 
-**See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed deployment instructions.**
+**📖 [Complete RunPod Deployment Guide →](RUNPOD_DEPLOYMENT.md)**
 
 ## Pipeline Features
 
@@ -148,7 +152,8 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Documentation
 
-- **[POD_PIPELINE_GUI.md](POD_PIPELINE_GUI.md)** - ✨ New multi-platform POD pipeline GUI guide
+- **[POD_PIPELINE_GUI.md](POD_PIPELINE_GUI.md)** - ✨ Multi-platform POD pipeline GUI guide
+- **[RUNPOD_DEPLOYMENT.md](RUNPOD_DEPLOYMENT.md)** - ☁️ RunPod cloud deployment guide
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow

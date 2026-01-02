@@ -1,4 +1,4 @@
-# RunPod Dockerfile with ComfyUI and POD Pipeline
+# RunPod Dockerfile with ComfyUI and POD Pipeline GUI
 # This Dockerfile sets up a complete environment for the POD automation pipeline
 
 FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
@@ -19,8 +19,6 @@ RUN apt-get update && apt-get install -y \
     nginx \
     chromium-browser \
     chromium-chromedriver \
-    nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20
@@ -37,30 +35,90 @@ WORKDIR ${COMFYUI_PATH}
 RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
     && pip3 install -r requirements.txt
 
-# Download SDXL model (optional - can be downloaded at runtime)
-# RUN mkdir -p models/checkpoints && \
-#     wget -O models/checkpoints/sd_xl_base_1.0.safetensors \
-#     https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
-
 # Copy POD application
 WORKDIR ${POD_APP_PATH}
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy application files
 COPY . .
 
-# Build frontend
-RUN npm run build
+# Build all frontends
+RUN npm run build && \
+    npm run build:pod && \
+    npm run build:music
 
-# Configure Nginx
-COPY nginx.conf /etc/nginx/nginx.conf
+# Configure Nginx to serve multiple apps
+RUN echo 'events {\n\
+    worker_connections 1024;\n\
+}\n\
+\n\
+http {\n\
+    include /etc/nginx/mime.types;\n\
+    default_type application/octet-stream;\n\
+\n\
+    # POD Pipeline GUI (Main - Port 80)\n\
+    server {\n\
+        listen 80;\n\
+        server_name _;\n\
+\n\
+        root /workspace/app/dist-pod;\n\
+        index index.html;\n\
+\n\
+        location / {\n\
+            try_files $uri $uri/ /index.html;\n\
+        }\n\
+\n\
+        # Health check endpoint\n\
+        location /health {\n\
+            return 200 "OK";\n\
+            add_header Content-Type text/plain;\n\
+        }\n\
+\n\
+        # Proxy to ComfyUI API\n\
+        location /comfyui/ {\n\
+            proxy_pass http://localhost:8188/;\n\
+            proxy_http_version 1.1;\n\
+            proxy_set_header Upgrade $http_upgrade;\n\
+            proxy_set_header Connection "upgrade";\n\
+            proxy_set_header Host $host;\n\
+        }\n\
+    }\n\
+\n\
+    # Original POD Studio (Port 8080)\n\
+    server {\n\
+        listen 8080;\n\
+        server_name _;\n\
+\n\
+        root /workspace/app/dist;\n\
+        index index.html;\n\
+\n\
+        location / {\n\
+            try_files $uri $uri/ /index.html;\n\
+        }\n\
+    }\n\
+\n\
+    # Music Studio (Port 8081)\n\
+    server {\n\
+        listen 8081;\n\
+        server_name _;\n\
+\n\
+        root /workspace/app/dist-music;\n\
+        index index.html;\n\
+\n\
+        location / {\n\
+            try_files $uri $uri/ /index.html;\n\
+        }\n\
+    }\n\
+}\n\
+' > /etc/nginx/nginx.conf
 
 # Expose ports
-# 80: Frontend web UI
+# 80: POD Pipeline GUI (main)
+# 8080: Original POD Studio
+# 8081: Music Studio
 # 8188: ComfyUI API
-# 3000: Backend API (if needed)
-EXPOSE 80 8188 3000
+EXPOSE 80 8080 8081 8188
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
@@ -68,19 +126,64 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "🚀 Starting StaticWaves POD Pipeline on RunPod..."\n\
+echo ""\n\
+\n\
 # Start ComfyUI\n\
+echo "📦 Starting ComfyUI..."\n\
 cd /workspace/ComfyUI\n\
-python3 main.py --listen 0.0.0.0 --port 8188 &\n\
+python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &\n\
+COMFYUI_PID=$!\n\
+echo "ComfyUI started (PID: $COMFYUI_PID)"\n\
 \n\
 # Wait for ComfyUI to start\n\
-echo "Waiting for ComfyUI to start..."\n\
-sleep 10\n\
+echo "⏳ Waiting for ComfyUI to initialize..."\n\
+for i in {1..30}; do\n\
+    if curl -s http://localhost:8188/system_stats > /dev/null 2>&1; then\n\
+        echo "✅ ComfyUI is ready!"\n\
+        break\n\
+    fi\n\
+    echo "Waiting... ($i/30)"\n\
+    sleep 2\n\
+done\n\
 \n\
 # Start Nginx\n\
-nginx -g "daemon off;" &\n\
+echo "🌐 Starting Nginx web server..."\n\
+nginx -g "daemon off;" > /var/log/nginx.log 2>&1 &\n\
+NGINX_PID=$!\n\
+echo "Nginx started (PID: $NGINX_PID)"\n\
 \n\
-# Keep container running\n\
-tail -f /dev/null\n\
+echo ""\n\
+echo "✅ All services started successfully!"\n\
+echo ""\n\
+echo "📍 Access your applications:"\n\
+echo "   - POD Pipeline GUI: http://localhost:80 (Main)"\n\
+echo "   - Original POD Studio: http://localhost:8080"\n\
+echo "   - Music Studio: http://localhost:8081"\n\
+echo "   - ComfyUI API: http://localhost:8188"\n\
+echo ""\n\
+echo "🔧 Logs:"\n\
+echo "   - ComfyUI: tail -f /var/log/comfyui.log"\n\
+echo "   - Nginx: tail -f /var/log/nginx.log"\n\
+echo ""\n\
+\n\
+# Monitor processes\n\
+while true; do\n\
+    if ! kill -0 $COMFYUI_PID 2>/dev/null; then\n\
+        echo "❌ ComfyUI process died, restarting..."\n\
+        cd /workspace/ComfyUI\n\
+        python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &\n\
+        COMFYUI_PID=$!\n\
+    fi\n\
+    if ! kill -0 $NGINX_PID 2>/dev/null; then\n\
+        echo "❌ Nginx process died, restarting..."\n\
+        nginx -g "daemon off;" > /var/log/nginx.log 2>&1 &\n\
+        NGINX_PID=$!\n\
+    fi\n\
+    sleep 10\n\
+done\n\
 ' > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]
