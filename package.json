@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "dev:music": "vite --config vite.music.config.ts",
+    "dev:pod": "vite --config vite.pod.config.ts",
     "build": "vite build",
     "build:music": "vite build --config vite.music.config.ts",
+    "build:pod": "vite build --config vite.pod.config.ts",
     "preview": "vite preview",
     "pipeline:single": "node scripts/run-pipeline.js",
     "pipeline:batch": "node scripts/run-batch.js",

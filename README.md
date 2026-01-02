@@ -6,6 +6,21 @@
 
 Complete end-to-end Print-on-Demand automation using AI image generation, multi-platform publishing, and intelligent product creation.
 
+## 🎯 Latest: POD Pipeline GUI - Multi-Platform Studio ✨
+
+New comprehensive web interface for complete POD automation:
+- **Multi-platform distribution UI**: Visual platform selection (Shopify, TikTok, Etsy, Instagram, Facebook)
+- **AI-powered design generation**: ComfyUI + Claude integration with custom prompts
+- **Real-time analytics**: Track designs, products, and success rates across all platforms
+- **Intuitive 3-tab interface**: Config, Platforms, Analytics
+
+**Quick Start:**
+```bash
+./start-pod-pipeline.sh  # Opens at http://localhost:5174
+```
+
+📖 [View Full POD Pipeline GUI Documentation →](POD_PIPELINE_GUI.md)
+
 **🚀 Full Pipeline Features:**
 - 🎨 **AI Image Generation** with Claude + ComfyUI
 - 🎵 **AI Music Generation** with user-controlled synths, vibe mixing & stems
@@ -39,12 +54,20 @@ cp .env.example .env
 cd ComfyUI
 python3 main.py --listen 0.0.0.0 --port 8188
 
-# Terminal 2: Start Web UI
-npm run dev
+# Terminal 2: Start POD Pipeline GUI (recommended)
+./start-pod-pipeline.sh  # http://localhost:5174
+
+# OR: Start Original POD Studio
+npm run dev  # http://localhost:5173
+
+# OR: Start Music Studio
+./start-music-studio.sh  # http://localhost:5173
 ```
 
 ### 5. Access Pipeline
-Open http://localhost:5173 in your browser
+- **POD Pipeline GUI**: http://localhost:5174 (Multi-Platform Studio)
+- **Original Studio**: http://localhost:5173 (StaticWaves POD Studio)
+- **Music Studio**: http://localhost:5173 (AI Music Generation)
 
 **See [SETUP_GUIDE.md](SETUP_GUIDE.md) for complete installation instructions.**
 
@@ -125,6 +148,7 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Documentation
 
+- **[POD_PIPELINE_GUI.md](POD_PIPELINE_GUI.md)** - ✨ New multi-platform POD pipeline GUI guide
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
