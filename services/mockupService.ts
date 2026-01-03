@@ -7,7 +7,11 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import * as path from 'path'
 import * as fs from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 const execAsync = promisify(exec)
 
 interface MockupConfig {
