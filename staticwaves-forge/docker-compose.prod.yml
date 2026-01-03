@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  web:
+    image: ghcr.io/${GITHUB_REPOSITORY:-ssiens-oss/ssiens-oss-static_pod}/web:${VERSION:-latest}
+    container_name: staticwaves-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:8000
+    restart: always
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - staticwaves
+    labels:
+      - "com.staticwaves.service=web"
+      - "com.staticwaves.version=${VERSION:-latest}"
+
+  api:
+    image: ghcr.io/${GITHUB_REPOSITORY:-ssiens-oss/ssiens-oss-static_pod}/api:${VERSION:-latest}
+    container_name: staticwaves-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./forge.db}
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - staticwaves
+    volumes:
+      - api-data:/app/data
+    labels:
+      - "com.staticwaves.service=api"
+      - "com.staticwaves.version=${VERSION:-latest}"
+
+  redis:
+    image: redis:7-alpine
+    container_name: staticwaves-redis
+    ports:
+      - "6379:6379"
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - staticwaves
+    volumes:
+      - redis-data:/data
+
+networks:
+  staticwaves:
+    driver: bridge
+
+volumes:
+  api-data:
+  redis-data:

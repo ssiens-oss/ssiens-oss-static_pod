@@ -1,0 +1,18 @@
+# StaticWaves Forge Worker Dependencies
+
+# Core Dependencies
+redis==5.0.1
+numpy==1.24.3
+trimesh==4.0.5
+
+# AI Models (Optional - install as needed)
+# Uncomment to enable AI generation
+# torch==2.1.0
+# transformers==4.35.0
+# diffusers==0.23.0
+# shap-e @ git+https://github.com/openai/shap-e.git
+# point-e @ git+https://github.com/openai/point-e.git
+
+# Utilities
+python-dotenv==1.0.0
+Pillow==10.1.0

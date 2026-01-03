@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # StaticWaves POD Service (Print-on-Demand)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  pod-service:
+    build:
+      context: ../../
+      dockerfile: ../pod/Dockerfile  # Your existing POD Dockerfile
+    container_name: staticwaves-pod
+    ports:
+      - "3000:3000"  # POD web UI
+      - "8001:8001"  # POD API
+    environment:
+      - NODE_ENV=production
+      - POD_API_PORT=8001
+      - DATABASE_URL=${DATABASE_URL}
+      - STRIPE_KEY=${STRIPE_KEY}
+      - PRINTFUL_API_KEY=${PRINTFUL_API_KEY}
+      - CLOUDFLARE_R2_ACCESS_KEY=${CLOUDFLARE_R2_ACCESS_KEY}
+      - CLOUDFLARE_R2_SECRET_KEY=${CLOUDFLARE_R2_SECRET_KEY}
+    volumes:
+      - pod_data:/app/data
+      - shared_assets:/app/assets  # Shared with Forge
+    restart: unless-stopped
+    networks:
+      - staticwaves
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # StaticWaves Forge (3D Asset Generation)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  forge-api:
+    build:
+      context: ../../staticwaves-forge
+      dockerfile: infra/runpod/Dockerfile.api
+    container_name: staticwaves-forge-api
+    ports:
+      - "8000:8000"  # Forge API
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - S3_BUCKET=${S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - POD_SERVICE_URL=http://pod-service:8001  # Integration
+    depends_on:
+      - redis
+    volumes:
+      - shared_assets:/output  # Shared with POD
+    restart: unless-stopped
+    networks:
+      - staticwaves
+
+  forge-web:
+    build:
+      context: ../../staticwaves-forge/apps/web
+      dockerfile: Dockerfile.web
+    container_name: staticwaves-forge-web
+    ports:
+      - "3001:3000"  # Forge web UI (different port than POD)
+    environment:
+      - NEXT_PUBLIC_API_URL=http://forge-api:8000
+      - NODE_ENV=production
+    depends_on:
+      - forge-api
+    restart: unless-stopped
+    networks:
+      - staticwaves
+
+  forge-worker:
+    build:
+      context: ../../staticwaves-forge
+      dockerfile: infra/runpod/Dockerfile
+    container_name: staticwaves-forge-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - S3_BUCKET=${S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BLENDER_PATH=/usr/bin/blender
+      - OUTPUT_DIR=/output
+      - WORKER_ID=worker-1
+    depends_on:
+      - redis
+      - forge-api
+    volumes:
+      - shared_assets:/output
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - staticwaves
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Shared Infrastructure
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  redis:
+    image: redis:7-alpine
+    container_name: staticwaves-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - staticwaves
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Nginx Reverse Proxy (Single Entry Point)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  nginx:
+    image: nginx:alpine
+    container_name: staticwaves-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - pod-service
+      - forge-api
+      - forge-web
+    restart: unless-stopped
+    networks:
+      - staticwaves
+
+volumes:
+  pod_data:
+    driver: local
+  redis_data:
+    driver: local
+  shared_assets:
+    driver: local
+    # This volume is shared between POD and Forge
+    # Forge generates 3D assets → POD uses them for merch
+
+networks:
+  staticwaves:
+    driver: bridge
