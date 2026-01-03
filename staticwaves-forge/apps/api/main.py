@@ -23,6 +23,21 @@ from common.schemas import (
 
 from routes import generate, jobs, packs
 
+# Check if Redis is available
+USE_REDIS = os.getenv('USE_REDIS', 'true').lower() == 'true'
+
+if USE_REDIS:
+    try:
+        from routes import generate_redis, jobs_redis
+        print("✅ Using Redis-backed job queue")
+        use_redis_routes = True
+    except ImportError:
+        print("⚠️  Redis modules not available, using in-memory storage")
+        use_redis_routes = False
+else:
+    print("ℹ️  Redis disabled via USE_REDIS=false, using in-memory storage")
+    use_redis_routes = False
+
 app = FastAPI(
     title="StaticWaves Forge API",
     description="AI-powered 3D asset generation platform",
@@ -40,9 +55,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(generate.router, prefix="/api/generate", tags=["Generation"])
-app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
+# Include routers (Redis or in-memory)
+if use_redis_routes:
+    app.include_router(generate_redis.router, prefix="/api/generate", tags=["Generation"])
+    app.include_router(jobs_redis.router, prefix="/api/jobs", tags=["Jobs"])
+else:
+    app.include_router(generate.router, prefix="/api/generate", tags=["Generation"])
+    app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
+
 app.include_router(packs.router, prefix="/api/packs", tags=["Packs"])
 
 @app.get("/")
