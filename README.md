@@ -29,25 +29,54 @@ View your app in AI Studio: https://ai.studio/apps/drive/1tFlXgUzuZqrOcLHGveQzS2
 
 ## Deploy to RunPod
 
-This application can be deployed to RunPod for cloud hosting.
+This application can be deployed to RunPod for cloud hosting with full Printify integration.
 
-### Quick Deploy
+### Full Stack Deployment (Recommended)
+
+**Complete pipeline: Local → Docker → RunPod → Printify**
 
 ```bash
-# Build and deploy using the automated script
+# 1. Copy environment template
+cp .env.deploy.example .env.deploy
+
+# 2. Configure your credentials
+nano .env.deploy
+
+# 3. Run full-stack deployment
+source .env.deploy
+./deploy-full-stack.sh
+```
+
+This automated script handles:
+- ✅ Local environment validation
+- ✅ Docker build and push
+- ✅ RunPod deployment
+- ✅ Health checks
+- ✅ Printify API integration
+- ✅ Auto-kill configuration
+
+### Quick Deploy (Simple)
+
+```bash
+# Build and deploy using the basic script
 ./deploy.sh
 
 # Or manually build the Docker image
 docker build -t staticwaves-pod-studio .
 ```
 
-### Full Deployment Guide
+### Deployment Guides
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for complete instructions on:
+- **[DEPLOY-GUIDE.md](DEPLOY-GUIDE.md)** - Full stack deployment with Printify integration
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Basic RunPod deployment instructions
+
+Includes:
 - Building the Docker image
-- Pushing to container registries (Docker Hub or GitHub Container Registry)
+- Pushing to container registries
 - Deploying to RunPod
-- Configuration options
+- Printify webhook configuration
+- Auto-kill cost optimization
+- SSH setup
 - Troubleshooting
 
 ## Features
@@ -62,15 +91,18 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for complete instructions on:
 
 ```
 .
-├── App.tsx                 # Main application component
+├── App.tsx                    # Main application component
 ├── components/
-│   ├── Terminal.tsx        # Log viewer component
-│   └── EditorControls.tsx  # Image editor controls
+│   ├── Terminal.tsx           # Log viewer component
+│   └── EditorControls.tsx     # Image editor controls
 ├── services/
-│   └── mockEngine.ts       # Simulation engine
-├── types.ts                # TypeScript type definitions
-├── Dockerfile              # Docker container configuration
-├── nginx.conf              # Nginx web server configuration
-├── deploy.sh               # Deployment automation script
-└── DEPLOYMENT.md           # Deployment guide
+│   └── mockEngine.ts          # Simulation engine
+├── types.ts                   # TypeScript type definitions
+├── Dockerfile                 # Docker container configuration
+├── nginx.conf                 # Nginx web server configuration
+├── deploy.sh                  # Basic deployment script
+├── deploy-full-stack.sh       # Full pipeline deployment script
+├── .env.deploy.example        # Environment variables template
+├── DEPLOYMENT.md              # Basic deployment guide
+└── DEPLOY-GUIDE.md            # Full stack deployment guide
 ```
