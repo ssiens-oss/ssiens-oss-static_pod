@@ -306,7 +306,7 @@ export class Orchestrator {
     promptData: any,
     productType: 'tshirt' | 'hoodie',
     autoPublish: boolean
-  ): Promise<Array<{ platform: string; productId: string; url: string; type: string }>> {
+  ): Promise<Array<{ platform: string; productId: string; url: string; type: 'tshirt' | 'hoodie' }>> {
     const products = []
     const enabledPlatforms = this.config.options?.enabledPlatforms || ['printify', 'shopify']
 
@@ -333,7 +333,7 @@ export class Orchestrator {
           platform: 'printify',
           productId: product.id,
           url: product.printifyUrl,
-          type: productType
+          type: productType as 'tshirt' | 'hoodie'
         })
       } catch (error) {
         this.log(`Printify error: ${error}`, 'WARNING')
@@ -356,7 +356,7 @@ export class Orchestrator {
           platform: 'shopify',
           productId: product.id,
           url: product.storeUrl,
-          type: productType
+          type: productType as 'tshirt' | 'hoodie'
         })
       } catch (error) {
         this.log(`Shopify error: ${error}`, 'WARNING')
@@ -379,7 +379,7 @@ export class Orchestrator {
             platform: 'tiktok',
             productId,
             url: `https://seller.tiktok.com/product/${productId}`,
-            type: productType
+            type: productType as 'tshirt' | 'hoodie'
           })
         }
       } catch (error) {
@@ -408,7 +408,7 @@ export class Orchestrator {
             platform: 'etsy',
             productId: listingId,
             url: `https://www.etsy.com/listing/${listingId}`,
-            type: productType
+            type: productType as 'tshirt' | 'hoodie'
           })
         }
       } catch (error) {
@@ -433,7 +433,7 @@ export class Orchestrator {
             platform: 'instagram',
             productId,
             url: `https://www.instagram.com/`,
-            type: productType
+            type: productType as 'tshirt' | 'hoodie'
           })
         }
       } catch (error) {
@@ -457,7 +457,7 @@ export class Orchestrator {
             platform: 'facebook',
             productId,
             url: `https://www.facebook.com/commerce/products/${productId}`,
-            type: productType
+            type: productType as 'tshirt' | 'hoodie'
           })
         }
       } catch (error) {

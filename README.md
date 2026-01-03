@@ -14,8 +14,34 @@ Complete end-to-end Print-on-Demand automation using AI image generation, multi-
 - 🛍️ **Multi-Platform Publishing** to Shopify, TikTok, Etsy, Instagram, Facebook
 - 📊 **Real-time Monitoring** with web UI
 - ☁️ **RunPod Deployment** for scalable cloud execution
+- ⚡ **Production POD Engine** with job queuing, state persistence, and REST API
 
 ## Quick Start
+
+### Option 1: Production POD Engine (Recommended)
+
+The production POD Engine provides a robust, scalable API for automating POD workflows with job queuing, monitoring, and error recovery.
+
+```bash
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys
+
+# Start the POD Engine
+./start-pod-engine.sh
+
+# Or use npm
+npm run engine
+```
+
+Access the API at http://localhost:3000
+
+**See [POD_ENGINE_README.md](POD_ENGINE_README.md) for complete documentation.**
+
+### Option 2: Web UI Development
 
 ### 1. Install Dependencies
 ```bash
@@ -125,6 +151,8 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Documentation
 
+- **[POD_ENGINE_README.md](POD_ENGINE_README.md)** - Production POD Engine guide (RECOMMENDED)
+- **[POD_ENGINE_API.md](POD_ENGINE_API.md)** - Complete API reference
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow

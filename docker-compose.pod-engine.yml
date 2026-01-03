@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  pod-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.pod-engine
+    container_name: pod-engine
+    ports:
+      - "3000:3000"  # POD Engine API
+      - "8188:8188"  # ComfyUI API
+    environment:
+      # ComfyUI
+      - COMFYUI_URL=http://localhost:8188
+      - COMFYUI_OUTPUT_DIR=/workspace/ComfyUI/output
+
+      # Claude API (set your key here)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # Storage
+      - STORAGE_TYPE=local
+      - STORAGE_PATH=/data/designs
+
+      # Platform APIs (optional - uncomment and set)
+      # - PRINTIFY_API_KEY=${PRINTIFY_API_KEY}
+      # - PRINTIFY_SHOP_ID=${PRINTIFY_SHOP_ID}
+      # - SHOPIFY_STORE_URL=${SHOPIFY_STORE_URL}
+      # - SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}
+      # - TIKTOK_APP_KEY=${TIKTOK_APP_KEY}
+      # - TIKTOK_APP_SECRET=${TIKTOK_APP_SECRET}
+      # - TIKTOK_SHOP_ID=${TIKTOK_SHOP_ID}
+      # - TIKTOK_ACCESS_TOKEN=${TIKTOK_ACCESS_TOKEN}
+      # - ETSY_API_KEY=${ETSY_API_KEY}
+      # - ETSY_SHOP_ID=${ETSY_SHOP_ID}
+      # - ETSY_ACCESS_TOKEN=${ETSY_ACCESS_TOKEN}
+
+      # POD Engine Configuration
+      - PORT=3000
+      - MAX_CONCURRENT_JOBS=2
+      - MAX_JOB_RETRIES=3
+      - RETRY_DELAY_MS=5000
+      - JOB_TIMEOUT_MS=600000
+      - ENABLE_PERSISTENCE=true
+      - STATE_FILE_PATH=/data/pod-engine-state.json
+      - AUTO_SAVE_STATE=true
+      - SAVE_INTERVAL_MS=30000
+      - ENABLE_MONITORING=true
+      - METRICS_INTERVAL_MS=10000
+      - ENABLED_PLATFORMS=printify,shopify
+      - TSHIRT_PRICE=19.99
+      - HOODIE_PRICE=34.99
+
+    volumes:
+      # Persist data
+      - pod-data:/data
+      # Mount ComfyUI models (optional)
+      # - ./models:/workspace/ComfyUI/models
+
+    restart: unless-stopped
+
+    # Resource limits (adjust based on your GPU)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  pod-data:
+    driver: local
