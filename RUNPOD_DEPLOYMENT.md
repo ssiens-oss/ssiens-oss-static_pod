@@ -7,7 +7,7 @@ Complete guide for deploying the POD Engine on RunPod with full GUI monitoring.
 ### Option 1: One-Line Setup
 
 ```bash
-git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app && \
+git clone -b claude/implement-pod-engine-IAaz2 https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app && \
 cd /workspace/app && \
 chmod +x runpod-start.sh && \
 ./runpod-start.sh
@@ -17,19 +17,19 @@ chmod +x runpod-start.sh && \
 
 ```bash
 # Option A: Use SSH (if you have SSH key set up)
-git clone git@github.com:ssiens-oss/ssiens-oss-static_pod.git /workspace/app
+git clone -b claude/implement-pod-engine-IAaz2 git@github.com:ssiens-oss/ssiens-oss-static_pod.git /workspace/app
 
-# Option B: Download and extract ZIP (no authentication needed)
+# Option B: Download and extract ZIP (no authentication needed, RECOMMENDED)
 wget https://github.com/ssiens-oss/ssiens-oss-static_pod/archive/refs/heads/claude/implement-pod-engine-IAaz2.zip
-unzip claude/implement-pod-engine-IAaz2.zip
-mv ssiens-oss-static_pod-* /workspace/app
+unzip implement-pod-engine-IAaz2.zip
+mv ssiens-oss-static_pod-claude-implement-pod-engine-IAaz2 /workspace/app
 ```
 
 ### Option 2: Docker Compose (Recommended)
 
 ```bash
-# Clone the repository
-git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app
+# Clone the repository (with correct branch)
+git clone -b claude/implement-pod-engine-IAaz2 https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app
 cd /workspace/app
 
 # Set your API key
@@ -90,8 +90,8 @@ ssh root@YOUR_POD_IP -p YOUR_SSH_PORT
 # Navigate to workspace
 cd /workspace
 
-# Clone repository
-git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git app
+# Clone repository (with correct branch)
+git clone -b claude/implement-pod-engine-IAaz2 https://github.com/ssiens-oss/ssiens-oss-static_pod.git app
 cd app
 
 # Copy environment template

@@ -7,9 +7,10 @@
 ## 🎯 One-Line Setup (Fresh RunPod Instance)
 
 ```bash
-git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app && \
+git clone -b claude/implement-pod-engine-IAaz2 https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app && \
 cd /workspace/app && \
 export ANTHROPIC_API_KEY="your-actual-api-key" && \
+chmod +x runpod-start.sh && \
 ./runpod-start.sh
 ```
 
@@ -59,23 +60,26 @@ If you encounter authentication errors with the standard `git clone` command, us
 
 **Option A: SSH (if you have SSH key configured on GitHub)**
 ```bash
-git clone git@github.com:ssiens-oss/ssiens-oss-static_pod.git /workspace/app
+git clone -b claude/implement-pod-engine-IAaz2 git@github.com:ssiens-oss/ssiens-oss-static_pod.git /workspace/app
+cd /workspace/app
+chmod +x runpod-start.sh
 ```
 
-**Option B: Download ZIP (no authentication needed)**
+**Option B: Download ZIP (no authentication needed, RECOMMENDED)**
 ```bash
 wget https://github.com/ssiens-oss/ssiens-oss-static_pod/archive/refs/heads/claude/implement-pod-engine-IAaz2.zip
 unzip implement-pod-engine-IAaz2.zip
-mv ssiens-oss-static_pod-* /workspace/app
+mv ssiens-oss-static_pod-claude-implement-pod-engine-IAaz2 /workspace/app
 cd /workspace/app
+chmod +x runpod-start.sh
 ```
 
 ### Step 3: Clone and Configure
 
 ```bash
-# Clone the repo
+# Clone the repo (with correct branch)
 cd /workspace
-git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git app
+git clone -b claude/implement-pod-engine-IAaz2 https://github.com/ssiens-oss/ssiens-oss-static_pod.git app
 cd app
 
 # Set your API key
