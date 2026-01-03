@@ -54,18 +54,23 @@ if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "sk-ant-your-api-key-
     log_warning "Set it in .env file or environment"
 fi
 
-# Start ComfyUI
-log "Starting ComfyUI..."
-cd ${COMFYUI_PATH:-/workspace/ComfyUI}
+# Install/Start ComfyUI
+COMFYUI_PATH=${COMFYUI_PATH:-/workspace/ComfyUI}
 
 if [ ! -d "$COMFYUI_PATH" ]; then
-    log_error "ComfyUI not found at $COMFYUI_PATH"
-    log "Cloning ComfyUI..."
-    git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
-    cd /workspace/ComfyUI
+    log "ComfyUI not found. Installing..."
+    cd /workspace
+    git clone https://github.com/comfyanonymous/ComfyUI.git ComfyUI
+    cd ComfyUI
+    log "Installing ComfyUI dependencies..."
     pip install -r requirements.txt
+    log_success "ComfyUI installed"
+else
+    log "ComfyUI found at $COMFYUI_PATH"
 fi
 
+log "Starting ComfyUI..."
+cd $COMFYUI_PATH
 python main.py --listen 0.0.0.0 --port 8188 > /workspace/logs/comfyui.log 2>&1 &
 COMFYUI_PID=$!
 log_success "ComfyUI started (PID: $COMFYUI_PID)"
