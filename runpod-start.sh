@@ -54,6 +54,17 @@ if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "sk-ant-your-api-key-
     log_warning "Set it in .env file or environment"
 fi
 
+# Check and install Node.js if needed
+if ! command -v node &> /dev/null; then
+    log "Node.js not found. Installing Node.js 20.x..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+    log_success "Node.js installed: $(node --version)"
+    log_success "npm installed: $(npm --version)"
+else
+    log "Node.js found: $(node --version)"
+fi
+
 # Install/Start ComfyUI
 COMFYUI_PATH=${COMFYUI_PATH:-/workspace/ComfyUI}
 
