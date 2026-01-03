@@ -14,8 +14,27 @@ Complete end-to-end Print-on-Demand automation using AI image generation, multi-
 - 🛍️ **Multi-Platform Publishing** to Shopify, TikTok, Etsy, Instagram, Facebook
 - 📊 **Real-time Monitoring** with web UI
 - ☁️ **RunPod Deployment** for scalable cloud execution
+- ⚡ **Production POD Engine** with job queuing, state persistence, and REST API
 
-## Quick Start
+## 🚀 Quick Start - Production POD Engine (Recommended)
+
+**Deploy complete system to RunPod in one command:**
+
+```bash
+git clone -b claude/implement-pod-engine-IAaz2 https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app && \
+cd /workspace/app && \
+export ANTHROPIC_API_KEY="your-api-key" && \
+chmod +x runpod-start.sh && \
+./runpod-start.sh
+```
+
+**Then access your dashboard:** `http://YOUR_POD_IP:5173`
+
+📖 **[Complete RunPod Walkthrough →](RUNPOD_COMPLETE_WALKTHROUGH.md)**
+
+---
+
+## Quick Start - Local Development
 
 ### 1. Install Dependencies
 ```bash
@@ -125,6 +144,13 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Documentation
 
+### Production Deployment (Recommended)
+- **[RUNPOD_COMPLETE_WALKTHROUGH.md](RUNPOD_COMPLETE_WALKTHROUGH.md)** - 🌟 Complete RunPod deployment guide (START HERE)
+- **[POD_ENGINE_README.md](POD_ENGINE_README.md)** - Production POD Engine overview
+- **[POD_ENGINE_API.md](POD_ENGINE_API.md)** - Complete API reference
+- **[QUICK_START_RUNPOD.md](QUICK_START_RUNPOD.md)** - Quick reference guide
+
+### Legacy Documentation
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
