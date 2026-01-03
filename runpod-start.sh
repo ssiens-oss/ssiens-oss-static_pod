@@ -89,6 +89,41 @@ else
     log "ComfyUI found at $COMFYUI_PATH"
 fi
 
+# Install additional Python dependencies for ComfyUI and POD engine
+log "Verifying Python dependencies..."
+REQUIRED_PACKAGES="tqdm torch torchsde av transformers aiohttp"
+
+# Check if packages are installed
+MISSING_PACKAGES=""
+for pkg in $REQUIRED_PACKAGES; do
+    if ! python -c "import $pkg" 2>/dev/null; then
+        MISSING_PACKAGES="$MISSING_PACKAGES $pkg"
+    fi
+done
+
+# Install missing packages
+if [ ! -z "$MISSING_PACKAGES" ]; then
+    log "Installing missing packages:$MISSING_PACKAGES"
+    pip install -q $MISSING_PACKAGES
+    log_success "Python packages installed"
+else
+    log_success "All required Python packages are installed"
+fi
+
+# Install ComfyUI frontend package
+if ! python -c "import comfy_frontend" 2>/dev/null; then
+    log "Installing ComfyUI frontend package..."
+    pip install -q comfy-frontend-package 2>/dev/null || pip install -q git+https://github.com/comfyanonymous/ComfyUI-Frontend.git
+    log_success "ComfyUI frontend package installed"
+fi
+
+# Install rembg for background removal
+if ! python -c "import rembg" 2>/dev/null; then
+    log "Installing rembg for background removal..."
+    pip install -q "rembg[cpu]" pillow
+    log_success "Background removal package installed"
+fi
+
 # Download Stable Diffusion model if not present
 MODEL_DIR="$COMFYUI_PATH/models/checkpoints"
 MODEL_FILE="v1-5-pruned-emaonly.safetensors"
