@@ -1,0 +1,44 @@
+name: 'AI Code Review Pro'
+description: 'Multi-agent AI code review with GPT + Claude collaboration'
+author: 'StaticWaves'
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  anthropic_api_key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  openai_api_key:
+    description: 'OpenAI API key for GPT'
+    required: true
+  review_mode:
+    description: 'Review mode: single | multi | auto'
+    required: false
+    default: 'auto'
+  auto_comment:
+    description: 'Automatically comment on PR'
+    required: false
+    default: 'true'
+  check_compliance:
+    description: 'Run compliance checks'
+    required: false
+    default: 'true'
+  budget_limit:
+    description: 'Daily budget limit in USD'
+    required: false
+    default: '10'
+
+outputs:
+  verdict:
+    description: 'Review verdict: APPROVE | REQUEST_CHANGES | COMMENT'
+  risk_level:
+    description: 'Risk level: low | medium | high'
+  issues_count:
+    description: 'Number of issues found'
+  report_url:
+    description: 'URL to full review report'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
