@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # POD Engine with ComfyUI and full stack
+  pod-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.runpod-prod
+    container_name: pod-engine-prod
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"   # POD Engine API
+      - "8188:8188"   # ComfyUI
+      - "5173:5173"   # Monitoring GUI
+
+    environment:
+      # ComfyUI
+      - COMFYUI_URL=http://localhost:8188
+      - COMFYUI_OUTPUT_DIR=/workspace/data/comfyui/output
+
+      # Claude API (REQUIRED)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL=claude-3-5-sonnet-20241022
+
+      # Storage
+      - STORAGE_TYPE=local
+      - STORAGE_PATH=/workspace/data/designs
+
+      # POD Engine Configuration
+      - PORT=3000
+      - MAX_CONCURRENT_JOBS=2
+      - MAX_JOB_RETRIES=3
+      - RETRY_DELAY_MS=5000
+      - JOB_TIMEOUT_MS=600000
+      - ENABLE_PERSISTENCE=true
+      - STATE_FILE_PATH=/workspace/data/pod-engine-state/state.json
+      - AUTO_SAVE_STATE=true
+      - SAVE_INTERVAL_MS=30000
+
+      # Platform APIs (Optional - configure as needed)
+      - PRINTIFY_API_KEY=${PRINTIFY_API_KEY:-}
+      - PRINTIFY_SHOP_ID=${PRINTIFY_SHOP_ID:-}
+      - SHOPIFY_STORE_URL=${SHOPIFY_STORE_URL:-}
+      - SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN:-}
+      - TIKTOK_APP_KEY=${TIKTOK_APP_KEY:-}
+      - TIKTOK_APP_SECRET=${TIKTOK_APP_SECRET:-}
+      - TIKTOK_SHOP_ID=${TIKTOK_SHOP_ID:-}
+      - TIKTOK_ACCESS_TOKEN=${TIKTOK_ACCESS_TOKEN:-}
+      - ETSY_API_KEY=${ETSY_API_KEY:-}
+      - ETSY_SHOP_ID=${ETSY_SHOP_ID:-}
+      - ETSY_ACCESS_TOKEN=${ETSY_ACCESS_TOKEN:-}
+
+      # RunPod specific
+      - RUNPOD_POD_ID=${RUNPOD_POD_ID:-local}
+
+    volumes:
+      # Persist data across restarts
+      - pod-data:/workspace/data
+      - pod-logs:/workspace/logs
+      # Optional: Mount local code for development
+      # - ./:/workspace/app
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  pod-data:
+    driver: local
+  pod-logs:
+    driver: local
+
+networks:
+  default:
+    name: pod-engine-network

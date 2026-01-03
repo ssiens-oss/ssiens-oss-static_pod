@@ -1,0 +1,137 @@
+# Production POD Engine for RunPod
+# Complete setup with ComfyUI, POD Engine API, and monitoring GUI
+
+FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    NODE_VERSION=20.x \
+    COMFYUI_PATH=/workspace/ComfyUI \
+    APP_PATH=/workspace/app \
+    DATA_PATH=/workspace/data
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    vim \
+    build-essential \
+    python3-pip \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
+
+# Install ComfyUI
+WORKDIR /workspace
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git ${COMFYUI_PATH}
+WORKDIR ${COMFYUI_PATH}
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+    anthropic \
+    boto3 \
+    google-cloud-storage
+
+# Install ComfyUI custom nodes
+WORKDIR ${COMFYUI_PATH}/custom_nodes
+RUN git clone https://github.com/ltdrdata/ComfyUI-Manager.git
+
+# Setup application directory
+WORKDIR ${APP_PATH}
+COPY package*.json ./
+RUN npm install
+
+# Copy application files
+COPY . .
+
+# Create data directories
+RUN mkdir -p ${DATA_PATH}/designs \
+    ${DATA_PATH}/comfyui/output \
+    ${DATA_PATH}/chrome-profile \
+    ${DATA_PATH}/pod-engine-state
+
+# Build the GUI
+RUN npm run build
+
+# Expose ports
+EXPOSE 3000 8188 5173
+
+# Create startup script
+RUN cat > /start.sh << 'EOF'
+#!/bin/bash
+set -e
+
+echo "╔════════════════════════════════════════════════════╗"
+echo "║         POD Engine - RunPod Production            ║"
+echo "╚════════════════════════════════════════════════════╝"
+
+# Start ComfyUI in background
+echo "Starting ComfyUI..."
+cd ${COMFYUI_PATH}
+python main.py --listen 0.0.0.0 --port 8188 > /workspace/logs/comfyui.log 2>&1 &
+COMFYUI_PID=$!
+echo "ComfyUI started (PID: $COMFYUI_PID)"
+
+# Wait for ComfyUI to be ready
+echo "Waiting for ComfyUI to be ready..."
+for i in {1..30}; do
+    if curl -s http://localhost:8188 > /dev/null 2>&1; then
+        echo "✓ ComfyUI is ready"
+        break
+    fi
+    sleep 2
+done
+
+# Start POD Engine API
+echo "Starting POD Engine API..."
+cd ${APP_PATH}
+npm run engine > /workspace/logs/pod-engine.log 2>&1 &
+POD_ENGINE_PID=$!
+echo "POD Engine API started (PID: $POD_ENGINE_PID)"
+
+# Wait for POD Engine to be ready
+echo "Waiting for POD Engine to be ready..."
+for i in {1..15}; do
+    if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+        echo "✓ POD Engine is ready"
+        break
+    fi
+    sleep 2
+done
+
+echo ""
+echo "╔════════════════════════════════════════════════════╗"
+echo "║              All Services Running                  ║"
+echo "║                                                    ║"
+echo "║  ComfyUI:        http://localhost:8188            ║"
+echo "║  POD Engine API: http://localhost:3000            ║"
+echo "║  Monitoring GUI: http://localhost:5173            ║"
+echo "╚════════════════════════════════════════════════════╝"
+
+# Keep container running and show logs
+tail -f /workspace/logs/*.log
+EOF
+
+RUN chmod +x /start.sh
+
+# Create logs directory
+RUN mkdir -p /workspace/logs
+
+# Set working directory
+WORKDIR ${APP_PATH}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Start services
+CMD ["/start.sh"]
