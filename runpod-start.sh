@@ -59,8 +59,15 @@ if ! command -v node &> /dev/null; then
     log "Node.js not found. Installing Node.js 20.x..."
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
-    log_success "Node.js installed: $(node --version)"
-    log_success "npm installed: $(npm --version)"
+
+    # Verify installation succeeded
+    if command -v node &> /dev/null; then
+        log_success "Node.js installed: $(node --version)"
+        log_success "npm installed: $(npm --version)"
+    else
+        log_error "Node.js installation failed!"
+        exit 1
+    fi
 else
     log "Node.js found: $(node --version)"
 fi
@@ -82,20 +89,33 @@ fi
 
 # Download Stable Diffusion model if not present
 MODEL_DIR="$COMFYUI_PATH/models/checkpoints"
+MODEL_FILE="v1-5-pruned-emaonly.safetensors"
 mkdir -p "$MODEL_DIR"
 
-if [ -z "$(ls -A $MODEL_DIR 2>/dev/null)" ]; then
-    log "No AI models found. Downloading Stable Diffusion 1.5..."
+if [ ! -f "$MODEL_DIR/$MODEL_FILE" ]; then
+    log "Stable Diffusion model not found. Downloading..."
     log "This is a 4GB download and will take 2-3 minutes..."
     cd "$MODEL_DIR"
-    wget -q --show-progress https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors
-    if [ -f "v1-5-pruned-emaonly.safetensors" ]; then
-        log_success "Model downloaded: $(ls -lh v1-5-pruned-emaonly.safetensors | awk '{print $5}')"
+    wget -q --show-progress https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/$MODEL_FILE
+
+    # Verify download
+    if [ -f "$MODEL_FILE" ]; then
+        FILE_SIZE=$(ls -lh "$MODEL_FILE" | awk '{print $5}')
+        log_success "Model downloaded: $FILE_SIZE"
+
+        # Verify file is not corrupt (should be ~4GB)
+        ACTUAL_SIZE=$(stat -f%z "$MODEL_FILE" 2>/dev/null || stat -c%s "$MODEL_FILE" 2>/dev/null)
+        if [ "$ACTUAL_SIZE" -lt 4000000000 ]; then
+            log_warning "Model file seems smaller than expected. May be incomplete."
+        fi
     else
-        log_error "Model download failed"
+        log_error "Model download failed!"
+        log_error "You can download manually: wget https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/$MODEL_FILE"
     fi
 else
-    log "AI model(s) found: $(ls -1 $MODEL_DIR | wc -l) file(s)"
+    MODEL_COUNT=$(ls -1 $MODEL_DIR/*.safetensors 2>/dev/null | wc -l)
+    log "AI model(s) found: $MODEL_COUNT checkpoint(s)"
+    log "Using model: $MODEL_FILE"
 fi
 
 log "Starting ComfyUI..."
@@ -119,11 +139,34 @@ for i in {1..60}; do
 done
 
 # Install app dependencies if needed
-cd ${APP_PATH:-/workspace/app}
+APP_PATH=${APP_PATH:-/workspace/app}
+cd "$APP_PATH"
+
+# Check if node_modules exists and has required packages
+NEEDS_INSTALL=false
 if [ ! -d "node_modules" ]; then
-    log "Installing Node.js dependencies..."
+    NEEDS_INSTALL=true
+    log "node_modules not found. Installing dependencies..."
+elif [ ! -d "node_modules/express" ] || [ ! -d "node_modules/tsx" ]; then
+    NEEDS_INSTALL=true
+    log "Required packages missing. Reinstalling dependencies..."
+fi
+
+if [ "$NEEDS_INSTALL" = true ]; then
     npm install
-    log_success "Dependencies installed"
+
+    # Verify critical packages installed
+    if [ -d "node_modules/express" ] && [ -d "node_modules/tsx" ]; then
+        PACKAGE_COUNT=$(ls -1 node_modules | wc -l)
+        log_success "Dependencies installed: $PACKAGE_COUNT packages"
+    else
+        log_error "Dependency installation failed! Missing critical packages."
+        log_error "Try running: cd $APP_PATH && npm install"
+        exit 1
+    fi
+else
+    PACKAGE_COUNT=$(ls -1 node_modules | wc -l)
+    log "Dependencies found: $PACKAGE_COUNT packages"
 fi
 
 # Start POD Engine API
