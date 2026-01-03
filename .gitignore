@@ -48,3 +48,8 @@ env/
 /tmp/
 *.json.bak
 pod-engine-state.json
+
+# Generated mockups and designs
+/workspace/data/mockups/
+/workspace/data/designs/*_transparent.png
+/workspace/data/designs/*_mockup.png

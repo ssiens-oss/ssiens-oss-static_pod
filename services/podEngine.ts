@@ -98,7 +98,7 @@ export class PodEngine extends EventEmitter {
       },
       storage: {
         type: (process.env.STORAGE_TYPE as 'local' | 's3' | 'gcs') || 'local',
-        basePath: process.env.STORAGE_PATH || '/tmp/pod-storage'
+        basePath: process.env.STORAGE_PATH || '/workspace/data/designs'
       },
       printify: process.env.PRINTIFY_API_KEY ? {
         apiKey: process.env.PRINTIFY_API_KEY,
@@ -107,7 +107,15 @@ export class PodEngine extends EventEmitter {
       shopify: process.env.SHOPIFY_ACCESS_TOKEN ? {
         storeUrl: process.env.SHOPIFY_STORE_URL || '',
         accessToken: process.env.SHOPIFY_ACCESS_TOKEN
-      } : undefined
+      } : undefined,
+      mockup: {
+        templatesDir: process.env.MOCKUP_TEMPLATES_DIR || '/workspace/data/mockup-templates',
+        outputDir: process.env.MOCKUP_OUTPUT_DIR || '/workspace/data/mockups'
+      },
+      options: {
+        enableBackgroundRemoval: process.env.ENABLE_BACKGROUND_REMOVAL !== 'false',
+        enableMockups: process.env.ENABLE_MOCKUPS !== 'false'
+      }
     })
     this.startTime = Date.now()
 

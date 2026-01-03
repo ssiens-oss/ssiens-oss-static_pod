@@ -44,6 +44,8 @@ mkdir -p /workspace/data/designs
 mkdir -p /workspace/data/comfyui/output
 mkdir -p /workspace/data/chrome-profile
 mkdir -p /workspace/data/pod-engine-state
+mkdir -p /workspace/data/mockups
+mkdir -p /workspace/data/mockup-templates
 mkdir -p /workspace/logs
 log_success "Directories created"
 
@@ -116,6 +118,17 @@ else
     MODEL_COUNT=$(ls -1 $MODEL_DIR/*.safetensors 2>/dev/null | wc -l)
     log "AI model(s) found: $MODEL_COUNT checkpoint(s)"
     log "Using model: $MODEL_FILE"
+fi
+
+# Create mockup templates if they don't exist
+MOCKUP_TEMPLATES_DIR="/workspace/data/mockup-templates"
+if [ ! -f "$MOCKUP_TEMPLATES_DIR/tshirt_base.png" ] || [ ! -f "$MOCKUP_TEMPLATES_DIR/hoodie_base.png" ]; then
+    log "Mockup templates not found. Creating placeholders..."
+    python /workspace/app/services/create_mockup_templates.py
+    log_success "Placeholder mockup templates created"
+    log_warning "For production, replace placeholders with real product photos"
+else
+    log "Mockup templates found"
 fi
 
 log "Starting ComfyUI..."

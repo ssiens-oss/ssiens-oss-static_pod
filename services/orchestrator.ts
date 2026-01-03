@@ -12,6 +12,11 @@ import { TikTokShopService } from './platforms/tiktok'
 import { EtsyService } from './platforms/etsy'
 import { InstagramService } from './platforms/instagram'
 import { FacebookShopService } from './platforms/facebook'
+import { MockupService } from './mockupService'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 interface OrchestratorConfig {
   comfyui: {
@@ -58,6 +63,12 @@ interface OrchestratorConfig {
     autoPublish?: boolean
     tshirtPrice?: number
     hoodiePrice?: number
+    enableBackgroundRemoval?: boolean
+    enableMockups?: boolean
+  }
+  mockup?: {
+    templatesDir: string
+    outputDir: string
   }
 }
 
@@ -76,6 +87,11 @@ interface PipelineResult {
   generatedImages: Array<{
     id: string
     url: string
+    transparentUrl?: string
+    mockups?: {
+      tshirt?: string
+      hoodie?: string
+    }
     prompt: string
   }>
   products: Array<{
@@ -98,6 +114,7 @@ export class Orchestrator {
   private etsy?: EtsyService
   private instagram?: InstagramService
   private facebook?: FacebookShopService
+  private mockup?: MockupService
   private config: OrchestratorConfig
   private logCallback?: (message: string, type: string) => void
 
@@ -127,6 +144,9 @@ export class Orchestrator {
     }
     if (config.facebook) {
       this.facebook = new FacebookShopService(config.facebook)
+    }
+    if (config.mockup) {
+      this.mockup = new MockupService(config.mockup)
     }
   }
 
@@ -176,23 +196,31 @@ export class Orchestrator {
       // Step 3: Save images to storage
       this.log('💾 Saving images to storage...', 'INFO')
       const savedImages = await this.saveImages(images, prompts)
-      result.generatedImages = savedImages.map((img, i) => ({
-        id: img.id,
-        url: img.url,
-        prompt: prompts[i].prompt
-      }))
       this.log(`✓ Saved ${savedImages.length} images`, 'SUCCESS')
 
-      // Step 4: Create products on enabled platforms
-      for (const savedImage of savedImages) {
-        const promptData = prompts[savedImages.indexOf(savedImage)]
+      // Step 4: Process images (background removal + mockups)
+      const processedImages = await this.processImages(savedImages, prompts, request.productTypes)
+      result.generatedImages = processedImages
+      this.log(`✓ Processed ${processedImages.length} images`, 'SUCCESS')
+
+      // Step 5: Create products on enabled platforms
+      for (let i = 0; i < processedImages.length; i++) {
+        const processedImage = processedImages[i]
+        const savedImage = savedImages[i]
+        const promptData = prompts[i]
 
         for (const productType of request.productTypes) {
           this.log(`📦 Creating ${productType} products for: ${promptData.title}`, 'INFO')
 
           try {
+            // Use transparent image if available, otherwise use original
+            const imageToPublish = {
+              ...savedImage,
+              url: processedImage.transparentUrl || savedImage.url
+            }
+
             const products = await this.createProducts(
-              savedImage,
+              imageToPublish,
               promptData,
               productType,
               request.autoPublish ?? this.config.options?.autoPublish ?? true
@@ -296,6 +324,84 @@ export class Orchestrator {
     }
 
     return saved
+  }
+
+  /**
+   * Process images: background removal + mockup generation
+   */
+  private async processImages(
+    savedImages: any[],
+    prompts: any[],
+    productTypes: ('tshirt' | 'hoodie')[]
+  ): Promise<any[]> {
+    const processed = []
+
+    for (let i = 0; i < savedImages.length; i++) {
+      const savedImage = savedImages[i]
+      const prompt = prompts[i]
+
+      const result: any = {
+        id: savedImage.id,
+        url: savedImage.url,
+        prompt: prompt.prompt
+      }
+
+      // Background removal (if enabled)
+      if (this.config.options?.enableBackgroundRemoval !== false) {
+        try {
+          this.log(`🎨 Removing background for: ${prompt.title}`, 'INFO')
+          const transparentPath = savedImage.path.replace('.png', '_transparent.png')
+
+          const { stdout, stderr } = await execAsync(
+            `python /workspace/app/services/remove_bg.py "${savedImage.path}" "${transparentPath}"`
+          )
+
+          if (stderr && !stderr.includes('WARNING')) {
+            this.log(`Background removal stderr: ${stderr}`, 'WARNING')
+          }
+
+          // Check if file was created
+          const fs = require('fs')
+          if (fs.existsSync(transparentPath)) {
+            result.transparentUrl = `file://${transparentPath}`
+            this.log(`✓ Background removed: ${transparentPath}`, 'SUCCESS')
+          }
+        } catch (error) {
+          this.log(`Background removal failed: ${error}`, 'WARNING')
+          // Continue without transparent version
+        }
+      }
+
+      // Mockup generation (if enabled and mockup service available)
+      if (this.config.options?.enableMockups !== false && this.mockup) {
+        try {
+          this.log(`🖼️  Generating mockups for: ${prompt.title}`, 'INFO')
+
+          // Use transparent version if available, otherwise original
+          const designPath = result.transparentUrl
+            ? result.transparentUrl.replace('file://', '')
+            : savedImage.path
+
+          const mockups = await this.mockup.generateMockups(
+            designPath,
+            productTypes,
+            savedImage.id
+          )
+
+          if (Object.keys(mockups).length > 0) {
+            result.mockups = mockups
+            this.log(`✓ Generated ${Object.keys(mockups).length} mockup(s)`, 'SUCCESS')
+          }
+        } catch (error) {
+          this.log(`Mockup generation failed: ${error}`, 'WARNING')
+          // Continue without mockups
+        }
+      }
+
+      processed.push(result)
+    }
+
+    return processed
   }
 
   /**
