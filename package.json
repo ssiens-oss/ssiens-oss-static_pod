@@ -13,7 +13,8 @@
     "pipeline:batch": "node scripts/run-batch.js",
     "setup:platforms": "node scripts/setup-platforms.js",
     "setup:keys": "./setup-keys.sh",
-    "test:config": "npx tsx test-config.ts"
+    "test:config": "npx tsx test-config.ts",
+    "test:production": "npx tsx run-production-test.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
