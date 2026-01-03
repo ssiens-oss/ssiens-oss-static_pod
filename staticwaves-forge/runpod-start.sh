@@ -10,21 +10,23 @@ echo "🚀 RunPod Boot - Initializing StaticWaves Forge..."
 sleep 5
 
 # Clone/update repository if needed
-if [ ! -d "/workspace/staticwaves-forge" ]; then
+REPO_DIR="/workspace/ssiens-oss-static_pod"
+if [ ! -d "$REPO_DIR" ]; then
     echo "📥 Cloning StaticWaves Forge repository..."
     cd /workspace
     git clone -b claude/ai-3d-asset-engine-Q6XOw \
-        https://github.com/ssiens-oss/ssiens-oss-static_pod.git \
-        staticwaves-forge
+        https://github.com/ssiens-oss/ssiens-oss-static_pod.git
 fi
 
-# Run the unified startup script
-if [ -f "/workspace/staticwaves-forge/staticwaves-forge/start-unified.sh" ]; then
+# Find the start script
+SCRIPT_PATH="$REPO_DIR/staticwaves-forge/start-unified.sh"
+if [ -f "$SCRIPT_PATH" ]; then
     echo "▶️  Launching unified boot system..."
-    bash /workspace/staticwaves-forge/staticwaves-forge/start-unified.sh start
+    bash "$SCRIPT_PATH" start
 else
-    echo "❌ Startup script not found!"
-    echo "Run: git pull to update the repository"
+    echo "❌ Startup script not found at: $SCRIPT_PATH"
+    echo "Available files:"
+    ls -la "$REPO_DIR/staticwaves-forge/" || true
     exit 1
 fi
 

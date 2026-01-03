@@ -13,10 +13,9 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration
-WORKSPACE_DIR="/workspace"
-FORGE_DIR="$WORKSPACE_DIR/staticwaves-forge/staticwaves-forge"
-POD_DIR="$WORKSPACE_DIR/ssiens-oss-static_pod"
+# Configuration - Auto-detect base directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FORGE_DIR="$SCRIPT_DIR"
 LOG_DIR="/tmp/staticwaves-logs"
 PID_DIR="/tmp/staticwaves-pids"
 
