@@ -16,9 +16,10 @@
     "test:config": "npx tsx test-config.ts"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.556.0",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "lucide-react": "^0.556.0"
+    "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

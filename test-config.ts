@@ -4,8 +4,12 @@
  * Does NOT display actual keys for security
  */
 
+import { config as loadEnv } from 'dotenv'
 import { getConfigManager, ConfigurationError } from './services/config'
 import { getLogger, LogLevel } from './services/utils/logger'
+
+// Load environment variables from .env file
+loadEnv()
 
 // Initialize logger
 const logger = getLogger()
