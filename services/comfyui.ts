@@ -121,7 +121,7 @@ export class ComfyUIService {
       },
       "4": {
         "inputs": {
-          "ckpt_name": "sd_xl_base_1.0.safetensors"
+          "ckpt_name": "v1-5-pruned-emaonly.safetensors"
         },
         "class_type": "CheckpointLoaderSimple"
       },
