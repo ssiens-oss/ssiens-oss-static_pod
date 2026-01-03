@@ -3,10 +3,14 @@
  * Handles AI image generation via ComfyUI API
  */
 
+import { fetchWithRetry, withTimeout, RetryOptions } from './utils/errorHandler'
+import { Logger, getLogger } from './utils/logger'
+
 interface ComfyUIConfig {
   apiUrl: string
   outputDir: string
   timeout?: number
+  retryOptions?: RetryOptions
 }
 
 interface ComfyUIWorkflow {
@@ -29,43 +33,74 @@ interface GenerationResult {
 export class ComfyUIService {
   private config: ComfyUIConfig
   private ws: WebSocket | null = null
+  private logger: Logger
 
   constructor(config: ComfyUIConfig) {
     this.config = {
       timeout: 300000, // 5 minutes
+      retryOptions: {
+        maxRetries: 3,
+        initialDelay: 2000,
+        maxDelay: 16000
+      },
       ...config
     }
+    this.logger = getLogger()
   }
 
   /**
    * Submit a prompt to ComfyUI for image generation
    */
   async generate(workflow: ComfyUIWorkflow): Promise<GenerationResult> {
+    this.logger.info('Starting ComfyUI image generation', { prompt: workflow.prompt.substring(0, 100) })
+
     try {
       // Build workflow JSON for ComfyUI
       const workflowData = this.buildWorkflow(workflow)
 
-      // Submit to queue
-      const response = await fetch(`${this.config.apiUrl}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: workflowData,
-          client_id: this.getClientId()
-        })
-      })
+      // Submit to queue with retry logic
+      const response = await fetchWithRetry(
+        `${this.config.apiUrl}/prompt`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: workflowData,
+            client_id: this.getClientId()
+          })
+        },
+        {
+          ...this.config.retryOptions,
+          onRetry: (error, attempt) => {
+            this.logger.warn(`Retrying ComfyUI prompt submission (attempt ${attempt})`, {
+              error: error.message
+            })
+          }
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`ComfyUI API error: ${response.statusText}`)
       }
 
       const { prompt_id } = await response.json()
+      this.logger.debug('ComfyUI prompt queued', { promptId: prompt_id })
 
-      // Wait for generation to complete
-      const result = await this.waitForCompletion(prompt_id)
+      // Wait for generation to complete with timeout
+      const result = await withTimeout(
+        this.waitForCompletion(prompt_id),
+        this.config.timeout!,
+        'ComfyUI generation timed out'
+      )
+
+      this.logger.info('ComfyUI generation completed', {
+        promptId: result.promptId,
+        imageCount: result.images.length
+      })
 
       return result
     } catch (error) {
+      this.logger.error('ComfyUI generation failed', error as Error)
       return {
         images: [],
         promptId: '',
