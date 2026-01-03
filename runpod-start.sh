@@ -80,6 +80,24 @@ else
     log "ComfyUI found at $COMFYUI_PATH"
 fi
 
+# Download Stable Diffusion model if not present
+MODEL_DIR="$COMFYUI_PATH/models/checkpoints"
+mkdir -p "$MODEL_DIR"
+
+if [ -z "$(ls -A $MODEL_DIR 2>/dev/null)" ]; then
+    log "No AI models found. Downloading Stable Diffusion 1.5..."
+    log "This is a 4GB download and will take 2-3 minutes..."
+    cd "$MODEL_DIR"
+    wget -q --show-progress https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors
+    if [ -f "v1-5-pruned-emaonly.safetensors" ]; then
+        log_success "Model downloaded: $(ls -lh v1-5-pruned-emaonly.safetensors | awk '{print $5}')"
+    else
+        log_error "Model download failed"
+    fi
+else
+    log "AI model(s) found: $(ls -1 $MODEL_DIR | wc -l) file(s)"
+fi
+
 log "Starting ComfyUI..."
 cd $COMFYUI_PATH
 python main.py --listen 0.0.0.0 --port 8188 > /workspace/logs/comfyui.log 2>&1 &
