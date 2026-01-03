@@ -7,11 +7,13 @@
 ## 🎯 One-Line Setup (Fresh RunPod Instance)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ssiens-oss-static_pod.git /workspace/app && \
+git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git /workspace/app && \
 cd /workspace/app && \
 export ANTHROPIC_API_KEY="your-actual-api-key" && \
 ./runpod-start.sh
 ```
+
+**Note:** If you get authentication errors, see [alternative clone methods](#alternative-clone-methods) below.
 
 **That's it!** All services will start automatically.
 
@@ -51,12 +53,29 @@ You'll see:
 ssh root@YOUR_POD_IP -p YOUR_SSH_PORT
 ```
 
+### Alternative Clone Methods
+
+If you encounter authentication errors with the standard `git clone` command, use one of these alternatives:
+
+**Option A: SSH (if you have SSH key configured on GitHub)**
+```bash
+git clone git@github.com:ssiens-oss/ssiens-oss-static_pod.git /workspace/app
+```
+
+**Option B: Download ZIP (no authentication needed)**
+```bash
+wget https://github.com/ssiens-oss/ssiens-oss-static_pod/archive/refs/heads/claude/implement-pod-engine-IAaz2.zip
+unzip implement-pod-engine-IAaz2.zip
+mv ssiens-oss-static_pod-* /workspace/app
+cd /workspace/app
+```
+
 ### Step 3: Clone and Configure
 
 ```bash
 # Clone the repo
 cd /workspace
-git clone https://github.com/YOUR_USERNAME/ssiens-oss-static_pod.git app
+git clone https://github.com/ssiens-oss/ssiens-oss-static_pod.git app
 cd app
 
 # Set your API key
