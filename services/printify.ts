@@ -334,24 +334,12 @@ export class PrintifyService {
    */
   async uploadImage(imageUrl: string, filename: string): Promise<string> {
     try {
-      let uploadPayload: any = { file_name: filename }
-
-      // If it's a local file (file:// or absolute path), convert to base64
+      // If it's a local file, upload as multipart form data
       if (imageUrl.startsWith('file://') || imageUrl.startsWith('/')) {
-        const fs = await import('fs')
-        const filePath = imageUrl.replace('file://', '')
-
-        // Read file and convert to base64
-        const fileBuffer = fs.readFileSync(filePath)
-        const base64Data = fileBuffer.toString('base64')
-
-        // Printify expects base64 with data URI format
-        uploadPayload.contents = `data:image/png;base64,${base64Data}`
-      } else {
-        // It's a public URL, use it directly
-        uploadPayload.url = imageUrl
+        return await this.uploadLocalImage(imageUrl, filename)
       }
 
+      // It's a public URL, use the URL upload endpoint
       const response = await fetch(
         `${this.baseUrl}/uploads/images.json`,
         {
@@ -360,7 +348,10 @@ export class PrintifyService {
             'Authorization': `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(uploadPayload)
+          body: JSON.stringify({
+            file_name: filename,
+            url: imageUrl
+          })
         }
       )
 
@@ -373,6 +364,47 @@ export class PrintifyService {
       return data.id
     } catch (error) {
       console.error('Error uploading image to Printify:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Upload local image file to Printify using multipart form data
+   */
+  private async uploadLocalImage(imageUrl: string, filename: string): Promise<string> {
+    try {
+      const fs = await import('fs')
+      const FormData = (await import('form-data')).default
+      const filePath = imageUrl.replace('file://', '')
+
+      // Create form data
+      const form = new FormData()
+      form.append('file', fs.createReadStream(filePath), {
+        filename: filename,
+        contentType: 'image/png'
+      })
+
+      const response = await fetch(
+        `${this.baseUrl}/uploads/images.json`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.config.apiKey}`,
+            ...form.getHeaders()
+          },
+          body: form as any
+        }
+      )
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        throw new Error(`Failed to upload local image: ${response.statusText} - ${errorBody}`)
+      }
+
+      const data = await response.json()
+      return data.id
+    } catch (error) {
+      console.error('Error uploading local image to Printify:', error)
       throw error
     }
   }
