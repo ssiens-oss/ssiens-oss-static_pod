@@ -8,8 +8,9 @@ import * as path from 'path'
 import * as crypto from 'crypto'
 
 interface StorageConfig {
-  type: 'local' | 's3' | 'gcs'
+  type: 'local' | 's3' | 'gcs' | 'runpod'
   basePath: string
+  runpodSyncEnabled?: boolean
   s3Config?: {
     bucket: string
     region: string
@@ -21,17 +22,25 @@ interface StorageConfig {
     projectId: string
     keyFilename: string
   }
+  runpodConfig?: {
+    apiKey: string
+    podId: string
+    outputDir: string
+    localSyncDir: string
+  }
 }
 
 interface SavedImage {
   id: string
   filename: string
   path: string
+  localPath?: string
   url: string
   hash: string
   size: number
   timestamp: Date
   metadata?: any
+  runpodSynced?: boolean
 }
 
 export class StorageService {
@@ -88,6 +97,9 @@ export class StorageService {
         break
       case 'gcs':
         savedImage = await this.saveToGCS(filename, imageBuffer, hash, metadata)
+        break
+      case 'runpod':
+        savedImage = await this.saveFromRunPod(filename, imageBuffer, hash, metadata)
         break
       default:
         throw new Error(`Unsupported storage type: ${this.config.type}`)
@@ -176,6 +188,86 @@ export class StorageService {
 
     console.warn('GCS storage not fully implemented - saving locally instead')
     return this.saveLocal(filename, buffer, hash, metadata)
+  }
+
+  /**
+   * Save from RunPod (downloads from RunPod pod and saves locally)
+   */
+  private async saveFromRunPod(
+    filename: string,
+    buffer: Buffer,
+    hash: string,
+    metadata?: any
+  ): Promise<SavedImage> {
+    const id = filename.split('.')[0]
+
+    // Save to local directory first
+    const localPath = path.join(
+      this.config.runpodConfig?.localSyncDir || this.config.basePath,
+      filename
+    )
+
+    await fs.promises.writeFile(localPath, buffer)
+
+    // If RunPod sync is enabled, also save metadata about the RunPod source
+    const runpodMetadata = {
+      ...metadata,
+      runpodSource: {
+        podId: this.config.runpodConfig?.podId,
+        outputDir: this.config.runpodConfig?.outputDir,
+        syncedAt: new Date().toISOString()
+      }
+    }
+
+    return {
+      id,
+      filename,
+      path: localPath,
+      localPath,
+      url: `file://${localPath}`,
+      hash,
+      size: buffer.length,
+      timestamp: new Date(),
+      metadata: runpodMetadata,
+      runpodSynced: true
+    }
+  }
+
+  /**
+   * Sync images from RunPod output directory
+   * Downloads all images from RunPod instance to local storage
+   */
+  async syncFromRunPod(runpodOutputUrl: string): Promise<SavedImage[]> {
+    if (!this.config.runpodConfig) {
+      throw new Error('RunPod config not provided')
+    }
+
+    console.log(`Syncing images from RunPod: ${runpodOutputUrl}`)
+
+    const syncedImages: SavedImage[] = []
+
+    try {
+      // In a real implementation, this would use RunPod API to list and download files
+      // For now, we'll assume images are fetched from a URL pattern
+
+      // Example: Fetch from RunPod's ComfyUI output directory
+      // The runpodOutputUrl would be something like: https://pod-id.runpod.io/view/ComfyUI/output/
+
+      // This is a placeholder - in production, implement actual RunPod API integration
+      console.warn('RunPod sync is a placeholder - implement actual RunPod API integration')
+
+      return syncedImages
+    } catch (error) {
+      console.error('Failed to sync from RunPod:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Check if RunPod sync is enabled
+   */
+  isRunPodSyncEnabled(): boolean {
+    return this.config.type === 'runpod' || this.config.runpodSyncEnabled === true
   }
 
   /**

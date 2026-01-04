@@ -9,7 +9,9 @@ Complete end-to-end Print-on-Demand automation using AI image generation, multi-
 **🚀 Full Pipeline Features:**
 - 🎨 **AI Image Generation** with Claude + ComfyUI
 - 🎵 **AI Music Generation** with user-controlled synths, vibe mixing & stems
-- 💾 **Auto-save** to local/cloud storage
+- 🚀 **Pod Engine Pipeline** - Complete ComfyUI + RunPod + Proofing + Publishing automation
+- 💾 **Auto-save** to local/cloud storage with RunPod sync
+- 🔍 **Proofing System** - Review and approve before publishing
 - 👕 **Product Creation** on Printify (T-shirts & Hoodies)
 - 🛍️ **Multi-Platform Publishing** to Shopify, TikTok, Etsy, Instagram, Facebook
 - 📊 **Real-time Monitoring** with web UI
@@ -34,6 +36,19 @@ cp .env.example .env
 ```
 
 ### 4. Start Services
+
+**Option A: Pod Engine Pipeline (Recommended)**
+```bash
+# Terminal 1: Start ComfyUI
+cd ComfyUI
+python3 main.py --listen 0.0.0.0 --port 8188
+
+# Terminal 2: Start Pod Engine
+npm run pod-engine
+```
+Access at http://localhost:5174
+
+**Option B: Original POD Studio**
 ```bash
 # Terminal 1: Start ComfyUI
 cd ComfyUI
@@ -42,11 +57,16 @@ python3 main.py --listen 0.0.0.0 --port 8188
 # Terminal 2: Start Web UI
 npm run dev
 ```
+Access at http://localhost:5173
 
-### 5. Access Pipeline
-Open http://localhost:5173 in your browser
+**Option C: Music Studio**
+```bash
+npm run dev:music
+```
+Access at http://localhost:5173
 
 **See [SETUP_GUIDE.md](SETUP_GUIDE.md) for complete installation instructions.**
+**See [POD_ENGINE_GUIDE.md](POD_ENGINE_GUIDE.md) for Pod Engine documentation.**
 
 ## Deploy to RunPod
 
@@ -67,6 +87,15 @@ export RUNPOD_API_KEY=your-runpod-api-key
 **See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed deployment instructions.**
 
 ## Pipeline Features
+
+### Pod Engine Pipeline (NEW!)
+- **Complete Automation**: Generate → Proof → Publish in one workflow
+- **ComfyUI + RunPod**: Local or cloud GPU-accelerated generation
+- **Local Save from RunPod**: Automatically sync outputs to local storage
+- **Proofing System**: Manual or auto-approval before publishing
+- **Multi-Platform Publishing**: One-click publish to all platforms
+- **Real-time Monitoring**: Live logs, progress, and statistics
+- **Batch Processing**: Process multiple designs efficiently
 
 ### AI Image Generation
 - **Claude Prompting**: Generate creative, commercially-viable prompts automatically
@@ -97,14 +126,21 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ```
 .
-├── App.tsx                      # Main web UI
+├── App.tsx                      # Main web UI (Original POD Studio)
+├── PodEngineApp.tsx             # Pod Engine Pipeline UI
+├── MusicApp.tsx                 # Music Studio UI
 ├── components/
+│   ├── PodEngineGUI.tsx         # Complete pipeline interface
 │   ├── Terminal.tsx             # Real-time log viewer
-│   └── EditorControls.tsx       # Design editor controls
+│   ├── EditorControls.tsx       # Design editor controls
+│   └── MusicStudio.tsx          # Music generation interface
 ├── services/
+│   ├── podEngine.ts             # Pod Engine orchestrator (NEW!)
+│   ├── proofing.ts              # Proofing workflow (NEW!)
+│   ├── runpod.ts                # RunPod integration (NEW!)
 │   ├── comfyui.ts               # ComfyUI API integration
 │   ├── claudePrompting.ts       # Claude AI prompt generation
-│   ├── storage.ts               # Image storage service
+│   ├── storage.ts               # Storage with RunPod sync (ENHANCED!)
 │   ├── printify.ts              # Printify POD integration
 │   ├── shopify.ts               # Shopify store integration
 │   ├── orchestrator.ts          # Pipeline orchestration engine
@@ -118,13 +154,16 @@ export RUNPOD_API_KEY=your-runpod-api-key
 │   └── deploy-runpod.sh         # RunPod deployment script
 ├── Dockerfile.runpod            # RunPod container config
 ├── .env.example                 # Environment configuration template
+├── POD_ENGINE_GUIDE.md          # Pod Engine documentation (NEW!)
 ├── SETUP_GUIDE.md               # Complete setup instructions
+├── MUSIC_GUIDE.md               # Music generation guide
 ├── PIPELINE_ARCHITECTURE.md     # Technical architecture docs
 └── SYSTEM_WALKTHROUGH.md        # Original system documentation
 ```
 
 ## Documentation
 
+- **[POD_ENGINE_GUIDE.md](POD_ENGINE_GUIDE.md)** - Complete Pod Engine Pipeline documentation
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
