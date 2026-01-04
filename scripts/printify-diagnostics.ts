@@ -23,24 +23,8 @@ async function diagnose() {
   }
 
   try {
-    // Test 1: Verify shop access
-    console.log('📋 Test 1: Verifying shop access...')
-    const shopResponse = await fetch(`${baseUrl}/shops/${shopId}.json`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    })
-
-    if (!shopResponse.ok) {
-      const error = await shopResponse.json()
-      console.error(`❌ Shop verification failed:`, error)
-      console.log('\n💡 Tip: Double-check your PRINTIFY_SHOP_ID in .env')
-      process.exit(1)
-    }
-
-    const shop = await shopResponse.json()
-    console.log(`✅ Shop verified: ${shop.title || 'Unnamed Shop'}`)
-
-    // Test 2: List available blueprints
-    console.log('\n📋 Test 2: Fetching available blueprints...')
+    // Test 1: List available blueprints (skipping shop verification since we know it works from find-shop)
+    console.log('📋 Test 1: Fetching available blueprints...')
     const blueprintsResponse = await fetch(`${baseUrl}/catalog/blueprints.json`, {
       headers: { 'Authorization': `Bearer ${apiKey}` }
     })
@@ -70,10 +54,10 @@ async function diagnose() {
       console.log(`   ID: ${b.id} - ${b.title}`)
     })
 
-    // Test 3: Check providers for a common T-shirt blueprint
+    // Test 2: Check providers for a common T-shirt blueprint
     if (tshirts.length > 0) {
       const tshirtId = tshirts[0].id
-      console.log(`\n📋 Test 3: Checking providers for blueprint ${tshirtId}...`)
+      console.log(`\n📋 Test 2: Checking providers for blueprint ${tshirtId}...`)
 
       const providersResponse = await fetch(
         `${baseUrl}/catalog/blueprints/${tshirtId}/print_providers.json`,
