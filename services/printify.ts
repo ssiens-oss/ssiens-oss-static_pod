@@ -369,30 +369,30 @@ export class PrintifyService {
   }
 
   /**
-   * Upload local image file to Printify using multipart form data
+   * Upload local image file to Printify as base64
    */
   private async uploadLocalImage(imageUrl: string, filename: string): Promise<string> {
     try {
       const fs = await import('fs')
-      const FormData = (await import('form-data')).default
       const filePath = imageUrl.replace('file://', '')
 
-      // Create form data
-      const form = new FormData()
-      form.append('file', fs.createReadStream(filePath), {
-        filename: filename,
-        contentType: 'image/png'
-      })
+      // Read file and convert to base64
+      const fileBuffer = fs.readFileSync(filePath)
+      const base64Data = fileBuffer.toString('base64')
 
+      // Printify expects JSON with file_name and contents (base64 without data URI prefix)
       const response = await fetch(
         `${this.baseUrl}/uploads/images.json`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.config.apiKey}`,
-            ...form.getHeaders()
+            'Content-Type': 'application/json'
           },
-          body: form as any
+          body: JSON.stringify({
+            file_name: filename,
+            contents: base64Data
+          })
         }
       )
 
