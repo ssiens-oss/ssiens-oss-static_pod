@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Push Printify Products Script
- * Reads images from comfyui/output/failed and creates T-shirt and Hoodie products in Printify
+ * Reads images from output/image/failed and creates T-shirt and Hoodie products in Printify
  */
 
 import { readdir, readFile } from 'fs/promises'
@@ -47,7 +47,7 @@ class PrintifyPusher {
     }
 
     this.printify = new PrintifyService({ apiKey, shopId })
-    this.imageDir = process.env.COMFYUI_FAILED_DIR || 'comfyui/output/failed'
+    this.imageDir = process.env.COMFYUI_FAILED_DIR || 'output/image/failed'
   }
 
   /**
