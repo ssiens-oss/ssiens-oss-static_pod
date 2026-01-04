@@ -70,14 +70,14 @@ export class PrintifyService {
       sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL']
     } = options
 
-    // Blueprint 3: Unisex Heavy Cotton Tee (Gildan 5000)
-    // Provider 99: SwiftPOD
+    // Blueprint 6: Unisex Heavy Cotton Tee
+    // Provider 42: Drive Fulfillment
     return this.createProduct({
       title,
       description,
-      blueprintId: 3,
-      providerId: 99,
-      variants: this.generateVariants(3, 99, colors, sizes, price),
+      blueprintId: 6,
+      providerId: 42,
+      variants: this.generateVariants(6, 42, colors, sizes, price),
       images: [{
         src: imageUrl,
         position: 'front',
@@ -111,14 +111,14 @@ export class PrintifyService {
       sizes = ['S', 'M', 'L', 'XL', '2XL']
     } = options
 
-    // Blueprint 165: Unisex Heavy Blend Hoodie (Gildan 18500)
-    // Provider 99: SwiftPOD
+    // Blueprint 92: Unisex College Hoodie
+    // Provider 42: Drive Fulfillment
     return this.createProduct({
       title,
       description,
-      blueprintId: 165,
-      providerId: 99,
-      variants: this.generateVariants(165, 99, colors, sizes, price),
+      blueprintId: 92,
+      providerId: 42,
+      variants: this.generateVariants(92, 42, colors, sizes, price),
       images: [{
         src: imageUrl,
         position: 'front',
