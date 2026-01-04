@@ -54,25 +54,21 @@ async function diagnose() {
       console.log(`   ID: ${b.id} - ${b.title}`)
     })
 
-    // Test 2: Check providers for a common T-shirt blueprint
-    if (tshirts.length > 0) {
-      const tshirtId = tshirts[0].id
-      console.log(`\n📋 Test 2: Checking providers for blueprint ${tshirtId}...`)
-
-      const providersResponse = await fetch(
-        `${baseUrl}/catalog/blueprints/${tshirtId}/print_providers.json`,
-        {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        }
-      )
-
-      if (providersResponse.ok) {
-        const providers = await providersResponse.json()
-        console.log(`\n🏭 Available Print Providers for ${tshirts[0].title}:`)
-        providers.slice(0, 5).forEach((p: any) => {
-          console.log(`   ID: ${p.id} - ${p.title}`)
-        })
+    // Test 2: Check providers for hoodies (blueprint 92)
+    console.log(`\n📋 Test 2: Checking providers for Hoodie (blueprint 92)...`)
+    const hoodieProvidersResponse = await fetch(
+      `${baseUrl}/catalog/blueprints/92/print_providers.json`,
+      {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
       }
+    )
+
+    if (hoodieProvidersResponse.ok) {
+      const providers = await hoodieProvidersResponse.json()
+      console.log(`\n🏭 Available Print Providers for Unisex College Hoodie (92):`)
+      providers.slice(0, 10).forEach((p: any) => {
+        console.log(`   ID: ${p.id} - ${p.title}`)
+      })
     }
 
     console.log('\n' + '='.repeat(60))
