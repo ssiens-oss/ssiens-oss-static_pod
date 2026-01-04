@@ -70,14 +70,16 @@ export class PrintifyService {
       sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL']
     } = options
 
-    // Blueprint 3: Unisex Heavy Cotton Tee (Gildan 5000)
-    // Provider 99: SwiftPOD
+    // Blueprint and Provider from environment variables
+    const blueprintId = parseInt(process.env.PRINTIFY_TEE_BLUEPRINT_ID || '12')
+    const providerId = parseInt(process.env.PRINTIFY_TEE_PROVIDER_ID || '50')
+
     return this.createProduct({
       title,
       description,
-      blueprintId: 3,
-      providerId: 99,
-      variants: this.generateVariants(3, 99, colors, sizes, price),
+      blueprintId,
+      providerId,
+      variants: this.generateVariants(blueprintId, providerId, colors, sizes, price),
       images: [{
         src: imageUrl,
         position: 'front',
@@ -111,14 +113,16 @@ export class PrintifyService {
       sizes = ['S', 'M', 'L', 'XL', '2XL']
     } = options
 
-    // Blueprint 165: Unisex Heavy Blend Hoodie (Gildan 18500)
-    // Provider 99: SwiftPOD
+    // Blueprint and Provider from environment variables
+    const blueprintId = parseInt(process.env.PRINTIFY_HOODIE_BLUEPRINT_ID || '77')
+    const providerId = parseInt(process.env.PRINTIFY_HOODIE_PROVIDER_ID || '50')
+
     return this.createProduct({
       title,
       description,
-      blueprintId: 165,
-      providerId: 99,
-      variants: this.generateVariants(165, 99, colors, sizes, price),
+      blueprintId,
+      providerId,
+      variants: this.generateVariants(blueprintId, providerId, colors, sizes, price),
       images: [{
         src: imageUrl,
         position: 'front',
