@@ -11,17 +11,31 @@ interface PrintifyConfig {
 interface Product {
   title: string
   description: string
-  blueprintId: number
-  providerId: number
+  blueprint_id: number
+  print_provider_id: number
   variants: ProductVariant[]
-  images: PrintifyImage[]
+  print_areas: PrintArea[]
   tags?: string[]
 }
 
 interface ProductVariant {
   id: number
   price: number
-  isEnabled: boolean
+  is_enabled: boolean
+}
+
+interface PrintArea {
+  variant_ids: number[]
+  placeholders: Array<{
+    position: string
+    images: Array<{
+      id: string
+      x: number
+      y: number
+      scale: number
+      angle: number
+    }>
+  }>
 }
 
 interface PrintifyImage {
@@ -70,21 +84,33 @@ export class PrintifyService {
       sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL']
     } = options
 
+    // Upload image to Printify first
+    const uploadedImageId = await this.uploadImage(imageUrl, `${title.replace(/[^a-z0-9]/gi, '_')}.png`)
+
     // Blueprint 3: Unisex Heavy Cotton Tee (Gildan 5000)
     // Provider 99: SwiftPOD
+    // Get variants for this blueprint
+    const variants = await this.getBlueprintVariants(3, 99, price)
+    const variantIds = variants.map(v => v.id)
+
     return this.createProduct({
       title,
       description,
-      blueprintId: 3,
-      providerId: 99,
-      variants: this.generateVariants(3, 99, colors, sizes, price),
-      images: [{
-        src: imageUrl,
-        position: 'front',
-        x: 0.5,
-        y: 0.5,
-        scale: 1,
-        angle: 0
+      blueprint_id: 3,
+      print_provider_id: 99,
+      variants,
+      print_areas: [{
+        variant_ids: variantIds,
+        placeholders: [{
+          position: 'front',
+          images: [{
+            id: uploadedImageId,
+            x: 0.5,
+            y: 0.5,
+            scale: 1,
+            angle: 0
+          }]
+        }]
       }],
       tags
     })
@@ -111,21 +137,33 @@ export class PrintifyService {
       sizes = ['S', 'M', 'L', 'XL', '2XL']
     } = options
 
+    // Upload image to Printify first
+    const uploadedImageId = await this.uploadImage(imageUrl, `${title.replace(/[^a-z0-9]/gi, '_')}.png`)
+
     // Blueprint 165: Unisex Heavy Blend Hoodie (Gildan 18500)
     // Provider 99: SwiftPOD
+    // Get variants for this blueprint
+    const variants = await this.getBlueprintVariants(165, 99, price)
+    const variantIds = variants.map(v => v.id)
+
     return this.createProduct({
       title,
       description,
-      blueprintId: 165,
-      providerId: 99,
-      variants: this.generateVariants(165, 99, colors, sizes, price),
-      images: [{
-        src: imageUrl,
-        position: 'front',
-        x: 0.5,
-        y: 0.5,
-        scale: 1,
-        angle: 0
+      blueprint_id: 165,
+      print_provider_id: 99,
+      variants,
+      print_areas: [{
+        variant_ids: variantIds,
+        placeholders: [{
+          position: 'front',
+          images: [{
+            id: uploadedImageId,
+            x: 0.5,
+            y: 0.5,
+            scale: 1,
+            angle: 0
+          }]
+        }]
       }],
       tags
     })
@@ -247,12 +285,48 @@ export class PrintifyService {
         variants.push({
           id: variantId++,
           price: Math.round(basePrice * 100), // Price in cents
-          isEnabled: true
+          is_enabled: true
         })
       }
     }
 
     return variants
+  }
+
+  /**
+   * Get blueprint variants from Printify API
+   */
+  private async getBlueprintVariants(
+    blueprintId: number,
+    providerId: number,
+    price: number
+  ): Promise<ProductVariant[]> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.apiKey}`
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch blueprint variants: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Transform variants to include price and enable all
+      return data.variants.map((variant: any) => ({
+        id: variant.id,
+        price: Math.round(price * 100), // Price in cents
+        is_enabled: true
+      }))
+    } catch (error) {
+      console.error('Error fetching blueprint variants:', error)
+      throw error
+    }
   }
 
   /**

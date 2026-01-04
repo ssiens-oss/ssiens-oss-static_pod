@@ -15,6 +15,7 @@ import { FacebookShopService } from './platforms/facebook'
 import { MockupService } from './mockupService'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import fs from 'fs'
 
 const execAsync = promisify(exec)
 
@@ -361,7 +362,6 @@ export class Orchestrator {
           }
 
           // Check if file was created
-          const fs = require('fs')
           if (fs.existsSync(transparentPath)) {
             result.transparentUrl = `file://${transparentPath}`
             this.log(`✓ Background removed: ${transparentPath}`, 'SUCCESS')

@@ -195,9 +195,27 @@ fi
 
 echo ""
 
-# Step 4: Start POD Engine API
+# Step 4: Create Mockup Templates
 echo "════════════════════════════════════════════════════"
-echo "Step 4: Starting POD Engine API"
+echo "Step 4: Creating Mockup Templates"
+echo "════════════════════════════════════════════════════"
+echo ""
+
+# Check if mockup templates exist
+if [ ! -f "/workspace/data/mockup-templates/tshirt_base.png" ] || [ ! -f "/workspace/data/mockup-templates/hoodie_base.png" ]; then
+    echo "Creating placeholder mockup templates..."
+    cd "$APP_DIR"
+    python create-mockup-templates.py
+    echo -e "${GREEN}✓${NC} Mockup templates created"
+else
+    echo -e "${GREEN}✓${NC} Mockup templates already exist"
+fi
+
+echo ""
+
+# Step 5: Start POD Engine API
+echo "════════════════════════════════════════════════════"
+echo "Step 5: Starting POD Engine API"
 echo "════════════════════════════════════════════════════"
 echo ""
 
@@ -237,9 +255,9 @@ fi
 
 echo ""
 
-# Step 5: Verify Installation
+# Step 6: Verify Installation
 echo "════════════════════════════════════════════════════"
-echo "Step 5: Verifying Installation"
+echo "Step 6: Verifying Installation"
 echo "════════════════════════════════════════════════════"
 echo ""
 
