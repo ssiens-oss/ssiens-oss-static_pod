@@ -334,6 +334,24 @@ export class PrintifyService {
    */
   async uploadImage(imageUrl: string, filename: string): Promise<string> {
     try {
+      let uploadPayload: any = { file_name: filename }
+
+      // If it's a local file (file:// or absolute path), convert to base64
+      if (imageUrl.startsWith('file://') || imageUrl.startsWith('/')) {
+        const fs = await import('fs')
+        const filePath = imageUrl.replace('file://', '')
+
+        // Read file and convert to base64
+        const fileBuffer = fs.readFileSync(filePath)
+        const base64Data = fileBuffer.toString('base64')
+
+        // Printify expects base64 with data URI format
+        uploadPayload.contents = `data:image/png;base64,${base64Data}`
+      } else {
+        // It's a public URL, use it directly
+        uploadPayload.url = imageUrl
+      }
+
       const response = await fetch(
         `${this.baseUrl}/uploads/images.json`,
         {
@@ -342,15 +360,13 @@ export class PrintifyService {
             'Authorization': `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            file_name: filename,
-            url: imageUrl
-          })
+          body: JSON.stringify(uploadPayload)
         }
       )
 
       if (!response.ok) {
-        throw new Error(`Failed to upload image: ${response.statusText}`)
+        const errorBody = await response.text()
+        throw new Error(`Failed to upload image: ${response.statusText} - ${errorBody}`)
       }
 
       const data = await response.json()
