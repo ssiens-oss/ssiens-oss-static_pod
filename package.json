@@ -12,7 +12,8 @@
     "pipeline:single": "node scripts/run-pipeline.js",
     "pipeline:batch": "node scripts/run-batch.js",
     "setup:platforms": "node scripts/setup-platforms.js",
-    "printify:push": "tsx scripts/push-printify.ts"
+    "printify:push": "tsx scripts/push-printify.ts",
+    "printify:diagnostics": "tsx scripts/printify-diagnostics.ts"
   },
   "dependencies": {
     "lucide-react": "^0.556.0",
