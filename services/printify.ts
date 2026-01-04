@@ -115,8 +115,8 @@ export class PrintifyService {
   ): Promise<CreatedProduct> {
     const { price = 34.99, tags = [] } = options
 
-    // Blueprint 92: Unisex College Hoodie, Provider 42: Drive Fulfillment
-    return this.createProductWithImage(92, 42, imageBase64, title, description, price, tags)
+    // Blueprint 92: Unisex College Hoodie, Provider 99: Printify Choice
+    return this.createProductWithImage(92, 99, imageBase64, title, description, price, tags)
   }
 
   /**
