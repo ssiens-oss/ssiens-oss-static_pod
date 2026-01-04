@@ -13,7 +13,8 @@
     "pipeline:batch": "node scripts/run-batch.js",
     "setup:platforms": "node scripts/setup-platforms.js",
     "printify:push": "tsx scripts/push-printify.ts",
-    "printify:diagnostics": "tsx scripts/printify-diagnostics.ts"
+    "printify:diagnostics": "tsx scripts/printify-diagnostics.ts",
+    "printify:find-shop": "tsx scripts/find-shop-id.ts"
   },
   "dependencies": {
     "lucide-react": "^0.556.0",
