@@ -7,7 +7,8 @@ import React, { useState, useEffect } from 'react'
 import {
   Wand2, Sparkles, Image as ImageIcon, Settings, Download,
   Loader2, CheckCircle, XCircle, Copy, Shuffle, Zap,
-  Palette, Maximize2, Play, Pause, Trash2, RefreshCw
+  Palette, Maximize2, Play, Pause, Trash2, RefreshCw,
+  Grid, Layers
 } from 'lucide-react'
 
 interface GenerationJob {
@@ -25,6 +26,7 @@ interface GenerationPreset {
   prompt: string
   style: string
   category: string
+  genre: string
 }
 
 const STYLE_PRESETS = [
@@ -33,43 +35,195 @@ const STYLE_PRESETS = [
   'Sketch', 'Pop Art', 'Minimalist', 'Retro', 'Cyberpunk'
 ]
 
+const GENRES = [
+  { id: 'all', name: 'All Genres', icon: '🎨', color: 'bg-gray-100' },
+  { id: 'fantasy', name: 'Fantasy', icon: '🧙', color: 'bg-purple-100' },
+  { id: 'scifi', name: 'Sci-Fi', icon: '🚀', color: 'bg-blue-100' },
+  { id: 'nature', name: 'Nature', icon: '🌿', color: 'bg-green-100' },
+  { id: 'urban', name: 'Urban', icon: '🏙️', color: 'bg-gray-100' },
+  { id: 'horror', name: 'Horror', icon: '👻', color: 'bg-red-100' },
+  { id: 'cute', name: 'Cute', icon: '🐱', color: 'bg-pink-100' },
+  { id: 'abstract', name: 'Abstract', icon: '🎭', color: 'bg-indigo-100' },
+  { id: 'vintage', name: 'Vintage', icon: '📻', color: 'bg-amber-100' }
+]
+
 const PROMPT_TEMPLATES: GenerationPreset[] = [
+  // Fantasy
   {
-    name: 'Nature Scene',
-    prompt: 'A beautiful landscape with mountains and a lake at sunset, vibrant colors, highly detailed',
-    style: 'Photorealistic',
-    category: 'Nature'
+    name: 'Dragon Castle',
+    prompt: 'Majestic dragon perched on ancient castle, fantasy landscape, magical atmosphere, epic composition',
+    style: 'Digital Art',
+    category: 'Characters',
+    genre: 'fantasy'
   },
   {
-    name: 'Abstract Art',
-    prompt: 'Abstract geometric shapes with bold colors and dynamic composition, modern art',
-    style: 'Abstract',
-    category: 'Art'
+    name: 'Magical Forest',
+    prompt: 'Enchanted forest with glowing mushrooms, fairy lights, mystical atmosphere, fantasy art',
+    style: 'Digital Art',
+    category: 'Nature',
+    genre: 'fantasy'
   },
   {
-    name: 'Cute Animal',
-    prompt: 'Adorable fluffy animal character with big eyes, colorful and cheerful, kawaii style',
-    style: 'Cartoon',
-    category: 'Characters'
+    name: 'Wizard Portrait',
+    prompt: 'Wise wizard with long beard and magical staff, fantasy character, detailed illustration',
+    style: 'Oil Painting',
+    category: 'Characters',
+    genre: 'fantasy'
+  },
+
+  // Sci-Fi
+  {
+    name: 'Cyberpunk City',
+    prompt: 'Futuristic cyberpunk cityscape, neon lights, flying cars, rainy night, blade runner style',
+    style: 'Cyberpunk',
+    category: 'Urban',
+    genre: 'scifi'
   },
   {
-    name: 'Space Scene',
-    prompt: 'Cosmic nebula with stars and planets, deep space, vibrant purple and blue colors',
+    name: 'Space Explorer',
+    prompt: 'Astronaut floating in space, cosmic background, nebula and stars, sci-fi illustration',
     style: '3D Render',
-    category: 'Space'
+    category: 'Space',
+    genre: 'scifi'
   },
   {
-    name: 'Floral Design',
-    prompt: 'Elegant floral pattern with roses and leaves, detailed botanical illustration',
+    name: 'Robot Character',
+    prompt: 'Futuristic robot with glowing eyes, mechanical details, sci-fi character design',
+    style: 'Digital Art',
+    category: 'Characters',
+    genre: 'scifi'
+  },
+
+  // Nature
+  {
+    name: 'Mountain Sunset',
+    prompt: 'Majestic mountain landscape at golden hour, dramatic clouds, vibrant colors, nature photography',
+    style: 'Photorealistic',
+    category: 'Nature',
+    genre: 'nature'
+  },
+  {
+    name: 'Ocean Waves',
+    prompt: 'Powerful ocean waves crashing, turquoise water, tropical beach, dynamic seascape',
+    style: 'Photorealistic',
+    category: 'Nature',
+    genre: 'nature'
+  },
+  {
+    name: 'Flower Garden',
+    prompt: 'Beautiful flower garden with roses and butterflies, colorful blooms, spring atmosphere',
     style: 'Watercolor',
-    category: 'Nature'
+    category: 'Nature',
+    genre: 'nature'
+  },
+
+  // Urban
+  {
+    name: 'City Skyline',
+    prompt: 'Modern city skyline at dusk, skyscrapers, city lights, urban landscape photography',
+    style: 'Photorealistic',
+    category: 'Urban',
+    genre: 'urban'
   },
   {
-    name: 'Typography Art',
-    prompt: 'Motivational quote in beautiful typography, modern design with decorative elements',
-    style: 'Minimalist',
-    category: 'Typography'
+    name: 'Street Art',
+    prompt: 'Colorful street art mural, graffiti style, urban wall art, vibrant colors',
+    style: 'Pop Art',
+    category: 'Art',
+    genre: 'urban'
+  },
+  {
+    name: 'Coffee Shop',
+    prompt: 'Cozy coffee shop interior, warm lighting, vintage aesthetic, urban lifestyle',
+    style: 'Photorealistic',
+    category: 'Lifestyle',
+    genre: 'urban'
+  },
+
+  // Horror
+  {
+    name: 'Haunted House',
+    prompt: 'Spooky haunted mansion at night, fog, full moon, eerie atmosphere, horror art',
+    style: 'Digital Art',
+    category: 'Dark',
+    genre: 'horror'
+  },
+  {
+    name: 'Dark Forest',
+    prompt: 'Creepy dark forest with twisted trees, mysterious fog, horror atmosphere',
+    style: 'Digital Art',
+    category: 'Nature',
+    genre: 'horror'
+  },
+
+  // Cute
+  {
+    name: 'Kawaii Animal',
+    prompt: 'Adorable fluffy animal character with big eyes, pastel colors, kawaii style, cute illustration',
+    style: 'Cartoon',
+    category: 'Characters',
+    genre: 'cute'
+  },
+  {
+    name: 'Chibi Character',
+    prompt: 'Cute chibi character, big head, small body, colorful outfit, kawaii anime style',
+    style: 'Anime',
+    category: 'Characters',
+    genre: 'cute'
+  },
+  {
+    name: 'Baby Animals',
+    prompt: 'Cute baby animals playing together, fluffy and adorable, heartwarming scene',
+    style: 'Cartoon',
+    category: 'Animals',
+    genre: 'cute'
+  },
+
+  // Abstract
+  {
+    name: 'Geometric Shapes',
+    prompt: 'Abstract geometric shapes with bold colors, modern composition, minimalist design',
+    style: 'Abstract',
+    category: 'Art',
+    genre: 'abstract'
+  },
+  {
+    name: 'Color Explosion',
+    prompt: 'Abstract paint splashes, vibrant rainbow colors, dynamic composition, modern art',
+    style: 'Abstract',
+    category: 'Art',
+    genre: 'abstract'
+  },
+  {
+    name: 'Fluid Art',
+    prompt: 'Abstract fluid art, swirling colors, marble texture, organic patterns',
+    style: 'Abstract',
+    category: 'Art',
+    genre: 'abstract'
+  },
+
+  // Vintage
+  {
+    name: 'Retro Poster',
+    prompt: 'Vintage travel poster, retro colors, classic design, nostalgic atmosphere',
+    style: 'Retro',
+    category: 'Design',
+    genre: 'vintage'
+  },
+  {
+    name: 'Old Photo',
+    prompt: 'Vintage photograph aesthetic, sepia tones, old film grain, nostalgic mood',
+    style: 'Retro',
+    category: 'Photography',
+    genre: 'vintage'
   }
+]
+
+const BATCH_SIZES = [
+  { value: 1, label: '1 image', icon: '1️⃣' },
+  { value: 2, label: '2 images', icon: '2️⃣' },
+  { value: 4, label: '4 images', icon: '4️⃣' },
+  { value: 8, label: '8 images', icon: '8️⃣' }
 ]
 
 export default function ImageGenerator() {
@@ -86,6 +240,7 @@ export default function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [selectedGenre, setSelectedGenre] = useState('all')
 
   const API_BASE = 'http://localhost:8000/api'
   const token = localStorage.getItem('token')
@@ -258,12 +413,41 @@ export default function ImageGenerator() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Generation Settings Panel */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Genre Selection */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-indigo-600" />
+              Choose Genre
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {GENRES.map((genre) => (
+                <button
+                  key={genre.id}
+                  onClick={() => setSelectedGenre(genre.id)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                    selectedGenre === genre.id
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                      : `${genre.color} text-gray-700 hover:shadow-md`
+                  }`}
+                >
+                  <span className="mr-2">{genre.icon}</span>
+                  {genre.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Prompt Templates */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-600" />
                 Quick Start Templates
+                {selectedGenre !== 'all' && (
+                  <span className="text-sm font-normal text-gray-500">
+                    ({PROMPT_TEMPLATES.filter(t => t.genre === selectedGenre).length} templates)
+                  </span>
+                )}
               </h3>
               <button
                 onClick={handleRandomPrompt}
@@ -274,21 +458,28 @@ export default function ImageGenerator() {
               </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {PROMPT_TEMPLATES.map((template) => (
-                <button
-                  key={template.name}
-                  onClick={() => handleTemplateSelect(template)}
-                  className={`p-3 rounded-lg border-2 transition text-left ${
-                    selectedTemplate === template.name
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300 bg-white'
-                  }`}
-                >
-                  <div className="font-medium text-sm">{template.name}</div>
-                  <div className="text-xs text-gray-500 mt-1">{template.category}</div>
-                </button>
-              ))}
+              {PROMPT_TEMPLATES
+                .filter(template => selectedGenre === 'all' || template.genre === selectedGenre)
+                .map((template) => (
+                  <button
+                    key={template.name}
+                    onClick={() => handleTemplateSelect(template)}
+                    className={`p-3 rounded-lg border-2 transition text-left ${
+                      selectedTemplate === template.name
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-purple-300 bg-white'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">{template.name}</div>
+                    <div className="text-xs text-gray-500 mt-1">{template.category}</div>
+                  </button>
+                ))}
             </div>
+            {selectedGenre !== 'all' && PROMPT_TEMPLATES.filter(t => t.genre === selectedGenre).length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-8">
+                No templates available for this genre yet.
+              </p>
+            )}
           </div>
 
           {/* Prompt Input */}
@@ -346,6 +537,37 @@ export default function ImageGenerator() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Batch Size Toggle */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Grid className="w-5 h-5 text-green-600" />
+              Batch Size
+            </h3>
+            <div className="grid grid-cols-4 gap-3">
+              {BATCH_SIZES.map((batch) => (
+                <button
+                  key={batch.value}
+                  onClick={() => setBatchSize(batch.value)}
+                  className={`p-4 rounded-lg border-2 transition text-center ${
+                    batchSize === batch.value
+                      ? 'border-green-500 bg-green-50 shadow-md'
+                      : 'border-gray-200 hover:border-green-300 bg-white hover:shadow-sm'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{batch.icon}</div>
+                  <div className={`text-sm font-medium ${
+                    batchSize === batch.value ? 'text-green-700' : 'text-gray-700'
+                  }`}>
+                    {batch.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Generate multiple variations at once for comparison
+            </p>
           </div>
 
           {/* Advanced Settings */}
@@ -429,22 +651,6 @@ export default function ImageGenerator() {
                   <p className="text-xs text-gray-500 mt-1">
                     How closely to follow the prompt (7-9 recommended)
                   </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Batch Size
-                  </label>
-                  <select
-                    value={batchSize}
-                    onChange={(e) => setBatchSize(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value={1}>1 image</option>
-                    <option value={2}>2 images</option>
-                    <option value={4}>4 images</option>
-                    <option value={8}>8 images</option>
-                  </select>
                 </div>
               </div>
             )}
