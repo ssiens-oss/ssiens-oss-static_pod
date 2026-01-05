@@ -7,8 +7,9 @@ import React, { useState, useEffect } from 'react'
 import {
   BarChart3, TrendingUp, Package, DollarSign, Users, Settings,
   Calendar, Play, Pause, RefreshCw, Download, Upload, Eye,
-  CheckCircle, XCircle, Clock, AlertCircle
+  CheckCircle, XCircle, Clock, AlertCircle, Wand2
 } from 'lucide-react'
+import ImageGenerator from './ImageGenerator'
 
 interface DashboardStats {
   period_days: number
@@ -54,7 +55,7 @@ interface Campaign {
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'designs' | 'products' | 'campaigns' | 'analytics'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'generate' | 'designs' | 'products' | 'campaigns' | 'analytics'>('overview')
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [designs, setDesigns] = useState<Design[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -589,6 +590,7 @@ export default function Dashboard() {
           <div className="flex space-x-8">
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'generate', label: 'AI Generate', icon: Wand2 },
               { id: 'designs', label: 'Designs', icon: Package },
               { id: 'products', label: 'Products', icon: TrendingUp },
               { id: 'campaigns', label: 'Campaigns', icon: Calendar },
@@ -617,6 +619,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
+        {activeTab === 'generate' && <ImageGenerator />}
         {activeTab === 'designs' && <DesignsTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'campaigns' && <CampaignsTab />}

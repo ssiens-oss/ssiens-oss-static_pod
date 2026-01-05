@@ -753,6 +753,230 @@ async def run_campaign(campaign_id: str, user_id: str, db: Session):
     db.commit()
 
 # ============================================================================
+# API Endpoints - AI Image Generation
+# ============================================================================
+
+class GenerationJob(Base):
+    __tablename__ = "generation_jobs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+
+    # Generation parameters
+    prompt = Column(String, nullable=False)
+    negative_prompt = Column(String, nullable=True)
+    style = Column(String, nullable=True)
+    width = Column(Integer, default=4500)
+    height = Column(Integer, default=5400)
+    steps = Column(Integer, default=30)
+    guidance_scale = Column(Float, default=7.5)
+    batch_size = Column(Integer, default=1)
+
+    # Status tracking
+    status = Column(String, default="queued")  # queued, processing, completed, failed
+    progress = Column(Integer, default=0)
+    error = Column(String, nullable=True)
+
+    # Results
+    image_url = Column(String, nullable=True)
+    design_id = Column(String, nullable=True)  # If saved to library
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+# Create generation_jobs table
+Base.metadata.create_all(bind=engine)
+
+class GenerationRequest(BaseModel):
+    prompt: str
+    negative_prompt: Optional[str] = "blurry, low quality, distorted"
+    style: Optional[str] = "Photorealistic"
+    width: int = 4500
+    height: int = 5400
+    steps: int = 30
+    guidance_scale: float = 7.5
+    batch_size: int = 1
+
+class GenerationJobResponse(BaseModel):
+    id: str
+    prompt: str
+    status: str
+    progress: int
+    image_url: Optional[str]
+    error: Optional[str]
+    created_at: datetime
+
+@app.post("/api/generation/generate", response_model=GenerationJobResponse)
+async def generate_image(
+    request: GenerationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Start an AI image generation job"""
+    # Create generation job
+    job = GenerationJob(
+        user_id=current_user.id,
+        prompt=request.prompt,
+        negative_prompt=request.negative_prompt,
+        style=request.style,
+        width=request.width,
+        height=request.height,
+        steps=request.steps,
+        guidance_scale=request.guidance_scale,
+        batch_size=request.batch_size
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    # Start generation in background
+    background_tasks.add_task(process_generation_job, job.id, db)
+
+    return job
+
+@app.get("/api/generation/jobs", response_model=List[GenerationJobResponse])
+async def list_generation_jobs(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all generation jobs for current user"""
+    jobs = db.query(GenerationJob).filter(
+        GenerationJob.user_id == current_user.id
+    ).order_by(GenerationJob.created_at.desc()).offset(skip).limit(limit).all()
+
+    return jobs
+
+@app.get("/api/generation/jobs/{job_id}", response_model=GenerationJobResponse)
+async def get_generation_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get status of a specific generation job"""
+    job = db.query(GenerationJob).filter(
+        GenerationJob.id == job_id,
+        GenerationJob.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return job
+
+@app.post("/api/generation/jobs/{job_id}/save")
+async def save_generation_to_library(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Save generated image to design library"""
+    job = db.query(GenerationJob).filter(
+        GenerationJob.id == job_id,
+        GenerationJob.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status != "completed" or not job.image_url:
+        raise HTTPException(status_code=400, detail="Job not completed or no image available")
+
+    # Create design from generation
+    design = Design(
+        user_id=current_user.id,
+        filename=f"ai_generated_{job.id}.png",
+        filepath=job.image_url,
+        width=job.width,
+        height=job.height,
+        file_size=0,  # Will be updated if we download the file
+        format="PNG",
+        prompt=job.prompt,
+        tags=["ai-generated", job.style.lower() if job.style else ""]
+    )
+
+    db.add(design)
+    job.design_id = design.id
+    current_user.designs_created += 1
+    db.commit()
+
+    return {"message": "Image saved to library", "design_id": design.id}
+
+async def process_generation_job(job_id: str, db: Session):
+    """Background task to process image generation using ComfyUI"""
+    from comfyui_service import get_comfyui_service
+
+    job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+    if not job:
+        return
+
+    try:
+        job.status = "processing"
+        db.commit()
+
+        # Get ComfyUI service
+        comfyui = get_comfyui_service()
+
+        # Start generation
+        result = await comfyui.generate_image(
+            prompt=job.prompt,
+            negative_prompt=job.negative_prompt or "",
+            width=job.width,
+            height=job.height,
+            steps=job.steps,
+            cfg_scale=job.guidance_scale,
+            style=job.style or "Photorealistic"
+        )
+
+        prompt_id = result.get("prompt_id")
+        job.progress = 10
+        db.commit()
+
+        # Poll for completion
+        max_attempts = 60  # 5 minutes max (60 * 5 seconds)
+        attempt = 0
+
+        while attempt < max_attempts:
+            await asyncio.sleep(5)  # Check every 5 seconds
+
+            status = await comfyui.get_job_status(prompt_id)
+
+            if status.get("status") == "completed":
+                # Get the generated image path
+                image_path = await comfyui.get_generated_image(prompt_id)
+
+                if image_path:
+                    job.image_url = f"/uploads/{Path(image_path).name}"
+                    job.status = "completed"
+                    job.progress = 100
+                    job.completed_at = datetime.utcnow()
+                    db.commit()
+                    break
+                else:
+                    raise Exception("No image generated")
+
+            elif status.get("status") == "failed":
+                raise Exception(status.get("error", "ComfyUI generation failed"))
+
+            else:
+                # Update progress
+                job.progress = min(90, 10 + (attempt * 2))
+                db.commit()
+
+            attempt += 1
+
+        if attempt >= max_attempts:
+            raise Exception("Generation timeout - exceeded maximum wait time")
+
+    except Exception as e:
+        job.status = "failed"
+        job.error = str(e)
+        db.commit()
+
+# ============================================================================
 # Health Check
 # ============================================================================
 

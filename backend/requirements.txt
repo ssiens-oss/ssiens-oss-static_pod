@@ -20,6 +20,7 @@ Pillow==10.2.0
 # HTTP Requests
 requests==2.31.0
 httpx==0.26.0
+websocket-client==1.7.0
 
 # Environment Variables
 python-dotenv==1.0.0
