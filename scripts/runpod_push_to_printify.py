@@ -32,6 +32,9 @@ PRINT_PROVIDER_ID = 99  # Printify Choice - automatically selects best provider
 # Supported image extensions
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 
+# Cache for variant IDs to avoid repeated API calls
+_variant_cache = {}
+
 
 def find_local_images() -> List[Path]:
     """Find all image files in the ComfyUI output directory."""
@@ -158,14 +161,32 @@ def create_product(image_id: str, image_name: str, blueprint_id: int, price: flo
 
 
 def get_variant_ids(blueprint_id: int) -> List[int]:
-    """Get variant IDs for a blueprint (simplified - returns common sizes)."""
-    # These are common variant IDs for Gildan products
-    # In production, you'd fetch these from the Printify API
-    if blueprint_id == TSHIRT_BLUEPRINT_ID:  # T-Shirt
-        return [4011, 4012, 4013, 4014, 4015]  # S, M, L, XL, 2XL
-    elif blueprint_id == HOODIE_BLUEPRINT_ID:  # Hoodie
-        return [4197, 4198, 4199, 4200, 4201]  # S, M, L, XL, 2XL
-    return []
+    """Fetch actual variant IDs from Printify API for the blueprint and print provider."""
+    # Check cache first
+    cache_key = f"{blueprint_id}_{PRINT_PROVIDER_ID}"
+    if cache_key in _variant_cache:
+        return _variant_cache[cache_key]
+
+    url = f"{PRINTIFY_API_BASE}/catalog/blueprints/{blueprint_id}/print_providers/{PRINT_PROVIDER_ID}/variants.json"
+    headers = {
+        "Authorization": f"Bearer {PRINTIFY_API_KEY}",
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        variants = response.json()
+
+        # Extract variant IDs
+        variant_ids = [variant['id'] for variant in variants.get('variants', [])]
+
+        # Cache the result
+        _variant_cache[cache_key] = variant_ids
+
+        return variant_ids
+    except Exception as e:
+        print(f"  ⚠ Warning: Could not fetch variants for blueprint {blueprint_id}: {e}")
+        return []
 
 
 def publish_product(product_id: str) -> bool:
