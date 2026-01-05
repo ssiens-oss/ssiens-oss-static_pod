@@ -100,6 +100,11 @@ def main():
         print("Set it with: export PRINTIFY_SHOP_ID='your-shop-id'")
         sys.exit(1)
 
+    # Debug output
+    print(f"\nCredentials loaded:")
+    print(f"  API Key: {PRINTIFY_API_KEY[:20]}... (length: {len(PRINTIFY_API_KEY)})")
+    print(f"  Shop ID: {PRINTIFY_SHOP_ID}")
+
     # Find local images
     images = find_local_images()
     if not images:
