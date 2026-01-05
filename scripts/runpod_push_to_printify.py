@@ -177,33 +177,15 @@ def get_variant_ids(blueprint_id: int) -> List[int]:
         response.raise_for_status()
         data = response.json()
 
-        # Filter to common sizes only (S, M, L, XL, 2XL) to stay under 100 variant limit
-        # Prioritize black/white colors for TikTok compatibility
-        filtered_variants = []
-        common_sizes = ['S', 'M', 'L', 'XL', '2XL', 'Small', 'Medium', 'Large']
-        preferred_colors = ['Black', 'White', 'Navy', 'Dark Heather']
-
-        for variant in data.get('variants', []):
-            options = variant.get('options', {})
-            size = options.get('size', '')
-            color = options.get('color', '')
-
-            # Include if it's a common size and preferred color
-            if any(s.lower() in size.lower() for s in common_sizes):
-                if any(c.lower() in color.lower() for c in preferred_colors):
-                    filtered_variants.append(variant['id'])
-
-        # If we didn't get enough variants, just take the first 20 to be safe
-        if len(filtered_variants) == 0:
-            filtered_variants = [v['id'] for v in data.get('variants', [])[:20]]
-
-        # Limit to 50 variants max for safety
-        variant_ids = filtered_variants[:50]
+        # SIMPLE FIX: Just use first 20 variants to stay well under 100 limit
+        # This ensures we always stay under the limit
+        all_variants = data.get('variants', [])
+        variant_ids = [v['id'] for v in all_variants[:20]]
 
         # Cache the result
         _variant_cache[cache_key] = variant_ids
 
-        print(f"  → Using {len(variant_ids)} variants (from {len(data.get('variants', []))} available)")
+        print(f"  → Using {len(variant_ids)} variants (from {len(all_variants)} available)")
         return variant_ids
     except Exception as e:
         print(f"  ⚠ Warning: Could not fetch variants for blueprint {blueprint_id}: {e}")
