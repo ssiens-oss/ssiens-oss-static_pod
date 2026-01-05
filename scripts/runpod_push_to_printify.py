@@ -10,6 +10,7 @@ import base64
 import requests
 from pathlib import Path
 from typing import List, Optional
+from PIL import Image
 
 # Configuration - can be overridden by environment variables
 COMFY_OUTPUT_DIR = os.getenv("COMFYUI_OUTPUT_DIR", "/workspace/ComfyUI/output")
@@ -49,13 +50,26 @@ def find_local_images() -> List[Path]:
         all_images.extend(Path(COMFY_OUTPUT_DIR).rglob(f"*{ext}"))
 
     # Filter out files containing 'comfyui' in their name
-    filtered_images = [
+    name_filtered = [
         img for img in all_images
         if 'comfyui' not in img.name.lower()
     ]
 
-    print(f"Found {len(all_images)} total images, {len(filtered_images)} after filtering")
-    return filtered_images
+    # Filter to only 4500x5400 images
+    dimension_filtered = []
+    for img_path in name_filtered:
+        try:
+            with Image.open(img_path) as img:
+                width, height = img.size
+                if width == 4500 and height == 5400:
+                    dimension_filtered.append(img_path)
+        except Exception as e:
+            print(f"  Warning: Could not read {img_path.name}: {e}")
+
+    print(f"Found {len(all_images)} total images")
+    print(f"  After name filter: {len(name_filtered)}")
+    print(f"  After dimension filter (4500x5400): {len(dimension_filtered)}")
+    return dimension_filtered
 
 
 def upload_to_printify(image_path: Path) -> Optional[dict]:
