@@ -6,6 +6,7 @@ Excludes any files with 'comfyui' in their names.
 
 import os
 import sys
+import base64
 import requests
 from pathlib import Path
 from typing import List, Optional
@@ -51,34 +52,27 @@ def upload_to_printify(image_path: Path) -> Optional[dict]:
     url = f"{PRINTIFY_API_BASE}/uploads/images.json"
     headers = {
         "Authorization": f"Bearer {PRINTIFY_API_KEY}",
+        "Content-Type": "application/json"
     }
 
     try:
+        # Read and base64 encode the image
         with open(image_path, 'rb') as f:
-            # Determine mime type from extension
-            ext = image_path.suffix.lower()
-            mime_types = {
-                '.png': 'image/png',
-                '.jpg': 'image/jpeg',
-                '.jpeg': 'image/jpeg',
-                '.webp': 'image/webp',
-                '.gif': 'image/gif'
-            }
-            mime_type = mime_types.get(ext, 'image/png')
+            image_data = f.read()
+            base64_image = base64.b64encode(image_data).decode('utf-8')
 
-            files = {
-                'file': (image_path.name, f, mime_type)
-            }
-            data = {
-                'file_name': image_path.name
-            }
+        # Prepare JSON payload
+        payload = {
+            "file_name": image_path.name,
+            "contents": base64_image
+        }
 
-            response = requests.post(url, headers=headers, files=files, data=data)
-            response.raise_for_status()
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
 
-            result = response.json()
-            print(f"✓ Uploaded: {image_path.name} (ID: {result.get('id')})")
-            return result
+        result = response.json()
+        print(f"✓ Uploaded: {image_path.name} (ID: {result.get('id')})")
+        return result
     except requests.exceptions.RequestException as e:
         print(f"✗ Failed to upload {image_path.name}: {e}")
         if hasattr(e, 'response') and e.response is not None:
