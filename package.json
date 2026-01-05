@@ -8,14 +8,17 @@
     "dev:music": "vite --config vite.music.config.ts",
     "build": "vite build",
     "build:music": "vite build --config vite.music.config.ts",
+    "build:watch": "tsc --watch --noEmit",
     "preview": "vite preview",
     "pipeline:single": "node scripts/run-pipeline.js",
     "pipeline:batch": "node scripts/run-batch.js",
     "setup:platforms": "node scripts/setup-platforms.js",
     "engine": "tsx pod-engine-api.ts",
     "engine:dev": "tsx watch pod-engine-api.ts",
+    "engine:watch": "tsx watch pod-engine-api.ts",
     "monitor": "vite --config vite.monitor.config.ts",
-    "monitor:build": "vite build --config vite.monitor.config.ts"
+    "monitor:build": "vite build --config vite.monitor.config.ts",
+    "watch": "bash watch.sh"
   },
   "dependencies": {
     "cors": "^2.8.5",
