@@ -31,6 +31,11 @@ scp -i ~/.ssh/id_ed25519 scripts/runpod_push_to_printify.py \
 ```bash
 export PRINTIFY_API_KEY='your-printify-api-key'
 export PRINTIFY_SHOP_ID='your-shop-id'
+
+# Optional: Configure product creation
+export AUTO_PUBLISH='true'  # Set to 'false' to save as drafts
+export DEFAULT_TSHIRT_PRICE='19.99'
+export DEFAULT_HOODIE_PRICE='34.99'
 ```
 
 ### Usage on RunPod:
@@ -91,7 +96,10 @@ Or use the convenience wrapper:
 1. Find all images in `/workspace/ComfyUI/output` (or configured directory)
 2. Filter out any files containing "comfyui" in their name
 3. Upload each image to Printify via their API
-4. Provide a summary of successful and failed uploads
+4. **Auto-create products**: Automatically creates T-Shirts and Hoodies for each image
+5. **TikTok-compatible**: Uses Printify Choice provider for optimal TikTok Shop compatibility
+6. **Auto-publish**: Optionally publishes products immediately based on AUTO_PUBLISH setting
+7. Provide a detailed summary of uploads and product creations
 
 ## Notes
 
