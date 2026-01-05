@@ -64,42 +64,65 @@ class PrintifyUploader:
         return data['id']
 
     def get_blueprint_variants(self, blueprint_id, provider_id):
-        """Get all variants for a blueprint"""
+        """Get all variants for a blueprint/provider combination"""
+        # Correct endpoint format for Printify v1 API
         response = requests.get(
             f"{self.base_url}/catalog/blueprints/{blueprint_id}/print_providers/{provider_id}/variants.json",
             headers={'Authorization': f'Bearer {self.api_key}'}
         )
 
         if response.ok:
-            return response.json().get('variants', [])
-        else:
-            # If API call fails, return empty list and we'll use basic variants
-            print(f"⚠️  Could not fetch variants, using defaults")
-            return []
+            data = response.json()
+            variants = data.get('variants', [])
+            if variants:
+                print(f"✓ Found {len(variants)} variants")
+                return variants
+
+        print(f"⚠️  API call failed ({response.status_code}), fetching blueprint details...")
+
+        # Fallback: Get blueprint details
+        response2 = requests.get(
+            f"{self.base_url}/catalog/blueprints/{blueprint_id}.json",
+            headers={'Authorization': f'Bearer {self.api_key}'}
+        )
+
+        if response2.ok:
+            blueprint = response2.json()
+            # Find the print provider in the blueprint
+            for provider in blueprint.get('print_providers', []):
+                if provider['id'] == provider_id:
+                    variants = provider.get('variants', [])
+                    if variants:
+                        print(f"✓ Found {len(variants)} variants from blueprint")
+                        return variants
+
+        print(f"❌ Could not fetch variants. Status: {response.status_code}")
+        print(f"   Response: {response.text[:200]}")
+        return []
 
     def create_product(self, image_id, title, blueprint_id, provider_id, price):
         """Create a product on Printify"""
         print(f"🎨 Creating {title} (blueprint {blueprint_id})...")
 
-        # Try to get variants from API
+        # Get variants from API
         variants_data = self.get_blueprint_variants(blueprint_id, provider_id)
 
-        if variants_data:
-            # Use real variant IDs from API
-            variants = [
-                {
-                    'id': v['id'],
-                    'price': int(price * 100),
-                    'is_enabled': True
-                }
-                for v in variants_data[:20]  # Limit to first 20 variants
-            ]
-            variant_ids = [v['id'] for v in variants]
-        else:
-            # Fallback: create basic variant structure
-            # Note: This might fail if Printify requires real variant IDs
-            variants = []
-            variant_ids = []
+        if not variants_data:
+            print(f"❌ Cannot create product without variants")
+            return None
+
+        # Use all available variants
+        variants = [
+            {
+                'id': v['id'],
+                'price': int(price * 100),
+                'is_enabled': True
+            }
+            for v in variants_data
+        ]
+        variant_ids = [v['id'] for v in variants]
+
+        print(f"   Using {len(variants)} variants")
 
         payload = {
             'title': title,
@@ -108,7 +131,7 @@ class PrintifyUploader:
             'print_provider_id': provider_id,
             'variants': variants,
             'print_areas': [{
-                'variant_ids': variant_ids if variant_ids else [0],  # Use 0 as placeholder if no variants
+                'variant_ids': variant_ids,
                 'placeholders': [{
                     'position': 'front',
                     'images': [{
