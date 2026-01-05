@@ -1,18 +1,22 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Terminal } from './components/Terminal';
 import { EditorControls } from './components/EditorControls';
+import { ConnectionStatus } from './components/ConnectionStatus';
 import { runSimulation } from './services/mockEngine';
+import { ComfyUIService } from './services/comfyui';
+import { config } from './services/config';
 import { LogEntry, LogType, QueueItem, EngineConfig, EditorState } from './types';
-import { 
-  Rocket, 
-  Layers, 
-  Box, 
-  Settings, 
-  Play, 
+import {
+  Rocket,
+  Layers,
+  Box,
+  Settings,
+  Play,
   Image as ImageIcon,
   CheckCircle2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 
 const INITIAL_EDITOR_STATE: EditorState = {
@@ -23,13 +27,16 @@ const INITIAL_EDITOR_STATE: EditorState = {
 
 export default function App() {
   // --- State ---
-  const [config, setConfig] = useState<EngineConfig>({
+  const [engineConfig, setEngineConfig] = useState<EngineConfig>({
     dropName: 'Drop7',
     designCount: 10,
     blueprintId: 6,
     providerId: 1,
     batchList: ''
   });
+
+  // ComfyUI Service
+  const [comfyService, setComfyService] = useState<ComfyUIService | null>(null);
 
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -45,6 +52,22 @@ export default function App() {
 
   // Stop Signal
   const stopRef = useRef(false);
+
+  // Initialize ComfyUI Service
+  useEffect(() => {
+    const service = new ComfyUIService({
+      apiUrl: config.comfyui.apiUrl,
+      outputDir: config.comfyui.outputDir,
+      timeout: config.comfyui.timeout
+    });
+    setComfyService(service);
+
+    addLog(`ComfyUI configured: ${config.comfyui.apiUrl}`, LogType.INFO);
+
+    return () => {
+      service.disconnectWebSocket();
+    };
+  }, []);
 
   // --- Handlers ---
   const addLog = useCallback((message: string, type: LogType = LogType.INFO) => {
@@ -70,9 +93,9 @@ export default function App() {
     setMockupImage(null);
     setEditorState(INITIAL_EDITOR_STATE);
 
-    const drops = isBatch 
-      ? config.batchList.split(',').map(d => d.trim()).filter(Boolean)
-      : [config.dropName];
+    const drops = isBatch
+      ? engineConfig.batchList.split(',').map(d => d.trim()).filter(Boolean)
+      : [engineConfig.dropName];
 
     if (drops.length === 0) {
       addLog("No drops specified!", LogType.ERROR);
@@ -142,14 +165,17 @@ export default function App() {
       <div className="w-96 flex flex-col border-r border-slate-800 bg-slate-900/50">
         
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
-            <Layers className="text-white" size={24} />
+        <div className="p-4 border-b border-slate-800">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
+              <Layers className="text-white" size={24} />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-100 leading-tight">StaticWaves</h1>
+              <p className="text-xs text-indigo-400 font-mono">POD STUDIO v6.0</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-slate-100 leading-tight">StaticWaves</h1>
-            <p className="text-xs text-indigo-400 font-mono">POD STUDIO v6.0</p>
-          </div>
+          <ConnectionStatus comfyService={comfyService} />
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
@@ -161,10 +187,10 @@ export default function App() {
             <div className="space-y-3">
               <div>
                 <span className="text-xs text-slate-400 mb-1 block">Drop Name</span>
-                <input 
-                  type="text" 
-                  value={config.dropName}
-                  onChange={e => setConfig({...config, dropName: e.target.value})}
+                <input
+                  type="text"
+                  value={engineConfig.dropName}
+                  onChange={e => setEngineConfig({...engineConfig, dropName: e.target.value})}
                   className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
@@ -172,25 +198,25 @@ export default function App() {
               <div className="grid grid-cols-3 gap-2">
                  <div>
                     <span className="text-xs text-slate-400 mb-1 block">Count</span>
-                    <input type="number" value={config.designCount} onChange={e => setConfig({...config, designCount: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                    <input type="number" value={engineConfig.designCount} onChange={e => setEngineConfig({...engineConfig, designCount: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                  </div>
                  <div>
                     <span className="text-xs text-slate-400 mb-1 block">Blueprint</span>
-                    <input type="number" value={config.blueprintId} onChange={e => setConfig({...config, blueprintId: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                    <input type="number" value={engineConfig.blueprintId} onChange={e => setEngineConfig({...engineConfig, blueprintId: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                  </div>
                  <div>
                     <span className="text-xs text-slate-400 mb-1 block">Provider</span>
-                    <input type="number" value={config.providerId} onChange={e => setConfig({...config, providerId: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                    <input type="number" value={engineConfig.providerId} onChange={e => setEngineConfig({...engineConfig, providerId: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                  </div>
               </div>
 
               <div>
                 <span className="text-xs text-slate-400 mb-1 block">Batch List (Comma separated)</span>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Drop1, Drop2, Drop3"
-                  value={config.batchList}
-                  onChange={e => setConfig({...config, batchList: e.target.value})}
+                  value={engineConfig.batchList}
+                  onChange={e => setEngineConfig({...engineConfig, batchList: e.target.value})}
                   className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
                 />
               </div>
