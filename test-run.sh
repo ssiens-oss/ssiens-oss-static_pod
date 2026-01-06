@@ -23,7 +23,7 @@ fi
 
 echo ""
 echo "2. Checking if frontend is running..."
-if curl -s http://localhost:5173 > /dev/null; then
+if curl -s http://localhost:7860 > /dev/null; then
     echo "   ✅ Frontend is running"
 else
     echo "   ❌ Frontend not running. Starting it now..."
@@ -39,7 +39,8 @@ echo "======================================"
 echo ""
 echo "📱 Open these URLs in your browser:"
 echo ""
-echo "   Main App:  http://localhost:5173"
+echo "   Main App:  http://localhost:7860"
+echo "   RunPod:    https://ckgp3l49rwtvjr-7860.proxy.runpod.net"
 echo "   API Docs:  http://localhost:8000/docs"
 echo ""
 echo "🧪 Test Workflow:"

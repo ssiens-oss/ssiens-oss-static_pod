@@ -6,12 +6,12 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 3000,
+        port: 7860,
         host: '0.0.0.0',
         strictPort: true,
         hmr: {
-          clientPort: 3000,
-          host: 'ckgp3l49rwtvjr-3000.proxy.runpod.net',
+          clientPort: 7860,
+          host: 'ckgp3l49rwtvjr-7860.proxy.runpod.net',
         },
       },
       plugins: [react()],
