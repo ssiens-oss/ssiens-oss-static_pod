@@ -35,20 +35,63 @@ apt install -y imagemagick
 ./scripts/comfyui/resize-for-printify.py
 ```
 
-### 5. Auto-Publish to Printify
+### 5. 🎨 **NEW: Gallery Proofing** (Review Before Publishing!)
+
+```bash
+# Start gallery server
+./scripts/comfyui/gallery-server.py
+```
+
+Open in browser: `http://<pod-ip>:8080`
+
+- ✅ Visual gallery of all generated designs
+- ✅ Select which designs to publish
+- ✅ Preview full-size images
+- ✅ One-click publish to Printify
+
+### 6. Auto-Publish to Printify (Alternative: Publish All)
 
 ```bash
 # Set your API credentials
 export PRINTIFY_API_TOKEN=your_token_here
 export PRINTIFY_STORE_ID=your_store_id
 
-# Publish hoodies + tees
+# Publish ALL designs (skip gallery)
 ./scripts/comfyui/push-to-printify.py
 ```
 
 ---
 
 ## Scripts Overview
+
+### 🎨 `gallery-server.py` **NEW!**
+
+Web-based gallery for reviewing designs before publishing.
+
+**Features:**
+- Visual grid gallery of all designs
+- Click to select/deselect designs
+- Full-size preview modal
+- Batch publish selected designs
+- Real-time stats (total, selected, products)
+
+**Usage:**
+```bash
+./scripts/comfyui/gallery-server.py
+
+# Custom port
+GALLERY_PORT=9000 ./scripts/comfyui/gallery-server.py
+```
+
+**Access:**
+- Local: `http://localhost:8080`
+- RunPod: `https://<pod-id>-8080.proxy.runpod.net`
+
+**Keyboard Shortcuts:**
+- `Ctrl+A` - Select all
+- `Esc` - Close preview modal
+
+---
 
 ### 📝 `queue-50-prompts.py`
 
@@ -159,23 +202,43 @@ COMFYUI_DIR=/custom/path ./scripts/comfyui/install-sdxl.sh
 
 ## Complete Automation Pipeline
 
-### Terminal 1: ComfyUI
+### Workflow A: Gallery Proofing (Recommended)
+
+**Terminal 1: ComfyUI**
 ```bash
 cd /workspace/ComfyUI
 python3 main.py --listen 0.0.0.0 --port 8188
 ```
 
-### Terminal 2: Auto-Resize Watcher
+**Terminal 2: Auto-Resize Watcher**
 ```bash
 ./scripts/comfyui/resize-for-printify.py
 ```
 
-### Terminal 3: Queue & Publish
+**Terminal 3: Gallery Server**
+```bash
+./scripts/comfyui/gallery-server.py
+```
+
+**Terminal 4: Queue Prompts**
+```bash
+./scripts/comfyui/queue-50-prompts.py
+```
+
+**Browser:** Open gallery at `http://<pod-ip>:8080`
+- Review designs visually
+- Select which to publish
+- Click "Publish to Printify"
+
+---
+
+### Workflow B: Fully Automated (No Proofing)
+
 ```bash
 # Queue all 50 prompts
 ./scripts/comfyui/queue-50-prompts.py
 
-# Wait for generation to complete, then publish
+# Wait for generation to complete, then publish ALL
 ./scripts/comfyui/push-to-printify.py
 ```
 

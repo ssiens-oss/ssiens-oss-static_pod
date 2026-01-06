@@ -7,6 +7,7 @@ Reads images from printify_ready/ and creates hoodie + tee products
 import os
 import sys
 import json
+import argparse
 import requests
 from pathlib import Path
 from typing import Dict, List
@@ -120,15 +121,21 @@ def publish_product(product_id: str):
     response.raise_for_status()
     print(f"🚀 Published product: {product_id}")
 
-def process_images():
+def process_images(selected_files=None):
     """Main processing loop"""
-    images = [f for f in os.listdir(IMG_DIR) if f.lower().endswith(".png")]
+    if selected_files:
+        # Process only selected files from gallery
+        images = [os.path.basename(f) for f in selected_files if os.path.exists(f)]
+        print(f"📦 Processing {len(images)} selected images from gallery")
+    else:
+        # Process all images in directory
+        images = [f for f in os.listdir(IMG_DIR) if f.lower().endswith(".png")]
+        print(f"📦 Found {len(images)} images to process")
 
     if not images:
-        print(f"⚠️  No PNG images found in {IMG_DIR}")
+        print(f"⚠️  No PNG images found")
         return
 
-    print(f"📦 Found {len(images)} images to process")
     print("")
 
     for image_file in images:
@@ -163,6 +170,10 @@ def process_images():
             print(f"❌ Error processing {image_file}: {e}")
 
 def main():
+    parser = argparse.ArgumentParser(description="Publish designs to Printify")
+    parser.add_argument('--files', help='Path to file containing list of images to publish')
+    args = parser.parse_args()
+
     print("╔════════════════════════════════════════════════════╗")
     print("║  StaticWaves → Printify Auto-Publisher           ║")
     print("╚════════════════════════════════════════════════════╝")
@@ -174,7 +185,15 @@ def main():
     print(f"🏪 Store ID: {STORE_ID}")
     print("")
 
-    process_images()
+    # Load selected files if provided
+    selected_files = None
+    if args.files:
+        with open(args.files, 'r') as f:
+            selected_files = [line.strip() for line in f if line.strip()]
+        print(f"📝 Loaded {len(selected_files)} selected files from gallery")
+        print("")
+
+    process_images(selected_files)
 
     print("")
     print("╔════════════════════════════════════════════════════╗")

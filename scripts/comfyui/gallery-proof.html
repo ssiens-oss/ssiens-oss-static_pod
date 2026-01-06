@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StaticWaves Design Gallery - Proof Before Publish</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e27;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #1a1f3a;
+            border-radius: 8px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-select-all {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-select-all:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-publish {
+            background: #10b981;
+            color: white;
+            font-size: 1.1rem;
+            padding: 14px 32px;
+        }
+
+        .btn-publish:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn-publish:disabled {
+            background: #374151;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .design-card {
+            background: #1a1f3a;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .design-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .design-card.selected {
+            border-color: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .image-container {
+            position: relative;
+            height: 300px;
+            background: #0f1629;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .select-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .design-card.selected .select-badge {
+            opacity: 1;
+        }
+
+        .select-badge svg {
+            width: 24px;
+            height: 24px;
+            stroke: white;
+            stroke-width: 3;
+        }
+
+        .card-info {
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2d3548;
+        }
+
+        .file-name {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .products-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+        }
+
+        .spinner {
+            border: 4px solid #1a1f3a;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            font-size: 3rem;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 StaticWaves Design Gallery</h1>
+        <p>Review your AI-generated designs before publishing to Printify</p>
+    </div>
+
+    <div class="controls">
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="total-count">0</div>
+                <div class="stat-label">Total Designs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="selected-count">0</div>
+                <div class="stat-label">Selected</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="products-count">0</div>
+                <div class="stat-label">Products (2× each)</div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-select-all" onclick="selectAll()">Select All</button>
+            <button class="btn-select-all" onclick="deselectAll()">Deselect All</button>
+            <button class="btn-publish" id="publish-btn" onclick="publishSelected()" disabled>
+                🚀 Publish to Printify
+            </button>
+        </div>
+    </div>
+
+    <div id="gallery" class="gallery">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading designs...</p>
+        </div>
+    </div>
+
+    <div id="modal" class="modal" onclick="closeModal()">
+        <span class="modal-close">&times;</span>
+        <div class="modal-content">
+            <img id="modal-image" src="" alt="Full size preview">
+        </div>
+    </div>
+
+    <script>
+        let designs = [];
+        let selectedDesigns = new Set();
+
+        async function loadDesigns() {
+            try {
+                const response = await fetch('/api/designs');
+                designs = await response.json();
+                renderGallery();
+            } catch (error) {
+                console.error('Error loading designs:', error);
+                document.getElementById('gallery').innerHTML = '<p>Error loading designs. Make sure the server is running.</p>';
+            }
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+
+            if (designs.length === 0) {
+                gallery.innerHTML = '<p style="text-align: center; padding: 60px;">No designs found. Generate some designs first!</p>';
+                return;
+            }
+
+            gallery.innerHTML = designs.map((design, index) => `
+                <div class="design-card ${selectedDesigns.has(design.filename) ? 'selected' : ''}"
+                     onclick="toggleSelect('${design.filename}')">
+                    <div class="image-container" onclick="event.stopPropagation(); showModal('${design.url}')">
+                        <img src="${design.url}" alt="${design.name}" loading="lazy">
+                        <div class="select-badge">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">${design.name}</div>
+                        <div class="card-details">
+                            <div class="file-name">${design.filename}</div>
+                            <div class="products-badge">Hoodie + Tee</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            updateStats();
+        }
+
+        function toggleSelect(filename) {
+            if (selectedDesigns.has(filename)) {
+                selectedDesigns.delete(filename);
+            } else {
+                selectedDesigns.add(filename);
+            }
+            renderGallery();
+        }
+
+        function selectAll() {
+            designs.forEach(d => selectedDesigns.add(d.filename));
+            renderGallery();
+        }
+
+        function deselectAll() {
+            selectedDesigns.clear();
+            renderGallery();
+        }
+
+        function updateStats() {
+            document.getElementById('total-count').textContent = designs.length;
+            document.getElementById('selected-count').textContent = selectedDesigns.size;
+            document.getElementById('products-count').textContent = selectedDesigns.size * 2;
+
+            const publishBtn = document.getElementById('publish-btn');
+            publishBtn.disabled = selectedDesigns.size === 0;
+        }
+
+        function showModal(url) {
+            document.getElementById('modal-image').src = url;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        async function publishSelected() {
+            if (selectedDesigns.size === 0) {
+                alert('Please select at least one design to publish');
+                return;
+            }
+
+            const confirmed = confirm(
+                `Ready to publish ${selectedDesigns.size} designs (${selectedDesigns.size * 2} products)?\n\n` +
+                'This will create hoodies and tees for each selected design on Printify.'
+            );
+
+            if (!confirmed) return;
+
+            const publishBtn = document.getElementById('publish-btn');
+            publishBtn.disabled = true;
+            publishBtn.textContent = '⏳ Publishing...';
+
+            try {
+                const response = await fetch('/api/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        designs: Array.from(selectedDesigns)
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ Success! Published ${result.published} products to Printify!`);
+                    selectedDesigns.clear();
+                    renderGallery();
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error publishing: ${error.message}`);
+            } finally {
+                publishBtn.disabled = false;
+                publishBtn.textContent = '🚀 Publish to Printify';
+            }
+        }
+
+        // Load designs on page load
+        loadDesigns();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+            if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                selectAll();
+            }
+        });
+    </script>
+</body>
+</html>
