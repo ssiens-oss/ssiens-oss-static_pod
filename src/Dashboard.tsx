@@ -10,6 +10,8 @@ import {
   CheckCircle, XCircle, Clock, AlertCircle, Wand2
 } from 'lucide-react'
 import ImageGenerator from './ImageGenerator'
+import SettingsPanel from './Settings'
+import EnhancedDesigns from './EnhancedDesigns'
 
 interface DashboardStats {
   period_days: number
@@ -55,7 +57,7 @@ interface Campaign {
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'generate' | 'designs' | 'products' | 'campaigns' | 'analytics'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'generate' | 'designs' | 'products' | 'campaigns' | 'analytics' | 'settings'>('overview')
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [designs, setDesigns] = useState<Design[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -594,7 +596,8 @@ export default function Dashboard() {
               { id: 'designs', label: 'Designs', icon: Package },
               { id: 'products', label: 'Products', icon: TrendingUp },
               { id: 'campaigns', label: 'Campaigns', icon: Calendar },
-              { id: 'analytics', label: 'Analytics', icon: Users }
+              { id: 'analytics', label: 'Analytics', icon: Users },
+              { id: 'settings', label: 'Settings', icon: Settings }
             ].map((tab) => {
               const Icon = tab.icon
               return (
@@ -620,10 +623,11 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'generate' && <ImageGenerator />}
-        {activeTab === 'designs' && <DesignsTab />}
+        {activeTab === 'designs' && <EnhancedDesigns />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'campaigns' && <CampaignsTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
+        {activeTab === 'settings' && <SettingsPanel />}
       </main>
     </div>
   )

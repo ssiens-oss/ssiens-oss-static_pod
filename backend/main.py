@@ -390,6 +390,33 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return current_user
 
+class UserSettingsUpdate(BaseModel):
+    printify_api_key: Optional[str] = None
+    printify_shop_id: Optional[str] = None
+    shopify_store_url: Optional[str] = None
+    shopify_access_token: Optional[str] = None
+
+@app.put("/api/users/me/settings")
+async def update_user_settings(
+    settings: UserSettingsUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user settings and API keys"""
+    if settings.printify_api_key is not None:
+        current_user.printify_api_key = settings.printify_api_key
+    if settings.printify_shop_id is not None:
+        current_user.printify_shop_id = settings.printify_shop_id
+    if settings.shopify_store_url is not None:
+        current_user.shopify_store_url = settings.shopify_store_url
+    if settings.shopify_access_token is not None:
+        current_user.shopify_access_token = settings.shopify_access_token
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {"message": "Settings updated successfully"}
+
 # ============================================================================
 # API Endpoints - Designs
 # ============================================================================
