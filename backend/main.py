@@ -5,7 +5,8 @@ Complete REST API for POD automation and management
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
@@ -1015,6 +1016,11 @@ async def health_check():
         "version": "2.0.0",
         "timestamp": datetime.utcnow()
     }
+
+# Mount static files (frontend)
+dist_path = Path(__file__).parent.parent / "dist"
+if dist_path.exists():
+    app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn

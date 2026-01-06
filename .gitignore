@@ -5,6 +5,7 @@
 
 # Vite build artifacts
 node_modules/.vite/
+dist/
 
 # Python cache
 __pycache__/
