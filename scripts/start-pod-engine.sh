@@ -110,7 +110,9 @@ if check_port $REDIS_PORT; then
     print_warning "Redis already running on port $REDIS_PORT"
 else
     print_step "Starting Redis on port $REDIS_PORT..."
-    redis-server --port $REDIS_PORT --daemonize yes --dir ./data --logfile logs/redis.log
+    # Use absolute path for logfile to avoid config file issues
+    REDIS_LOG="$(pwd)/logs/redis.log"
+    redis-server --port $REDIS_PORT --daemonize yes --dir ./data --logfile "$REDIS_LOG"
     sleep 2
 
     if check_port $REDIS_PORT; then
