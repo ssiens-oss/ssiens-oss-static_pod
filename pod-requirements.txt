@@ -15,7 +15,7 @@ safetensors>=0.3.0
 
 # ===== Music Generation - MusicGen =====
 transformers>=4.30.0
-audiocraft>=1.0.0
+# audiocraft>=1.0.0  # Optional - requires FFmpeg system libraries (apt-get install ffmpeg libavcodec-dev libavformat-dev libavdevice-dev)
 librosa>=0.10.0
 soundfile>=0.12.1
 pydub>=0.25.1
