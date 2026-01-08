@@ -42,6 +42,14 @@ MUSIC_API_PORT="${MUSIC_API_PORT:-8000}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 WEB_PORT="${WEB_PORT:-5173}"
 
+# Activate virtual environment if it exists
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+    print_success "Virtual environment activated"
+else
+    print_warning "Virtual environment not found. Run ./scripts/setup-pod-engine.sh first"
+fi
+
 # Banner
 cat << "EOF"
 ╔═══════════════════════════════════════════════════════════════╗
@@ -126,7 +134,7 @@ else
 
     print_step "Starting ComfyUI on port $COMFYUI_PORT..."
     cd "$COMFYUI_DIR"
-    nohup python3 main.py --listen 0.0.0.0 --port $COMFYUI_PORT > ../logs/comfyui.log 2>&1 &
+    nohup python main.py --listen 0.0.0.0 --port $COMFYUI_PORT > ../logs/comfyui.log 2>&1 &
     cd ..
 
     wait_for_service "http://localhost:$COMFYUI_PORT" "ComfyUI"
@@ -147,7 +155,7 @@ else
 
     mkdir -p ./data/output
 
-    nohup python3 -m uvicorn music-engine.api.main:app \
+    nohup python -m uvicorn music-engine.api.main:app \
         --host 0.0.0.0 \
         --port $MUSIC_API_PORT \
         > logs/music-api.log 2>&1 &
@@ -166,7 +174,7 @@ export REDIS_PORT=$REDIS_PORT
 export OUTPUT_DIR=./data/output
 export MUSICGEN_MODEL=facebook/musicgen-medium
 
-nohup python3 music-engine/worker/worker.py > logs/music-worker.log 2>&1 &
+nohup python music-engine/worker/worker.py > logs/music-worker.log 2>&1 &
 WORKER_PID=$!
 
 sleep 3

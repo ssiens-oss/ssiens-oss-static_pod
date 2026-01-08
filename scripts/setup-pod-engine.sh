@@ -129,33 +129,49 @@ else
     print_warning "ComfyUI directory already exists"
 fi
 
-# Step 5: Install PyTorch with CUDA support
-print_header "Step 5/8: Installing PyTorch with CUDA"
+# Step 5: Create and activate virtual environment
+print_header "Step 5/8: Setting up Python Virtual Environment"
+
+if [ ! -d ".venv" ]; then
+    print_step "Creating virtual environment..."
+    python3 -m venv .venv
+    print_success "Virtual environment created"
+else
+    print_warning "Virtual environment already exists"
+fi
+
+print_step "Activating virtual environment..."
+source .venv/bin/activate
+print_success "Virtual environment activated"
+
+# Step 6: Install PyTorch with CUDA support
+print_header "Step 6/8: Installing PyTorch with CUDA"
 
 print_step "Installing PyTorch 2.x with CUDA 12.1 support..."
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install --upgrade pip
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 print_success "PyTorch installed"
 
-# Step 6: Install ComfyUI dependencies
-print_header "Step 6/8: Installing ComfyUI Dependencies"
+# Step 7: Install ComfyUI dependencies
+print_header "Step 7/8: Installing ComfyUI Dependencies"
 
 if [ -f "$COMFYUI_DIR/requirements.txt" ]; then
     print_step "Installing ComfyUI requirements..."
-    pip3 install -r "$COMFYUI_DIR/requirements.txt"
+    pip install -r "$COMFYUI_DIR/requirements.txt"
     print_success "ComfyUI dependencies installed"
 fi
 
-# Step 7: Install Pod Engine dependencies
-print_header "Step 7/8: Installing Pod Engine Dependencies"
+# Step 8: Install Pod Engine dependencies
+print_header "Step 8/8: Installing Pod Engine Dependencies"
 
 print_step "Installing complete pod engine requirements..."
-pip3 install -r pod-requirements.txt
+pip install -r pod-requirements.txt
 
 print_success "Pod Engine dependencies installed"
 
-# Step 8: Download models
-print_header "Step 8/8: Downloading AI Models"
+# Step 9: Download models
+print_header "Step 9/9: Downloading AI Models"
 
 # Create models directory structure
 mkdir -p "${MODELS_DIR}/checkpoints"
