@@ -1,0 +1,22 @@
+# Optional Music Generation Requirements
+# Install these AFTER installing system dependencies
+
+# System dependencies required:
+# Ubuntu/Debian:
+#   sudo apt-get install ffmpeg libavcodec-dev libavformat-dev libavdevice-dev libavutil-dev libavfilter-dev libswscale-dev libswresample-dev
+# macOS:
+#   brew install ffmpeg
+
+# Then install these Python packages:
+audiocraft>=1.0.0
+
+# Optional TTS (requires Python 3.9-3.11):
+# TTS>=0.22.0
+# phonemizer>=3.2.1
+
+# Optional DDSP:
+# ddsp>=3.4.6
+# tensorflow>=2.15.0
+
+# Optional MIDI real-time:
+# python-rtmidi>=1.4.9
