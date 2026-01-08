@@ -1,0 +1,52 @@
+# Pod Engine Complete Requirements
+# Combines all dependencies for ComfyUI, Music Engine, and MashDeck
+
+# ===== Core Python Dependencies =====
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+scipy>=1.12.0
+
+# ===== ComfyUI Dependencies =====
+# (ComfyUI has its own requirements.txt that will be installed separately)
+Pillow>=9.0.0
+safetensors>=0.3.0
+
+# ===== Music Generation - MusicGen =====
+transformers>=4.30.0
+audiocraft>=1.0.0
+librosa>=0.10.0
+soundfile>=0.12.1
+pydub>=0.25.1
+
+# ===== Music Generation - DDSP (Optional) =====
+# ddsp>=3.4.6
+# tensorflow>=2.15.0
+
+# ===== TTS/Vocals =====
+TTS>=0.22.0
+phonemizer>=3.2.1
+
+# ===== MIDI =====
+mido>=1.2.10
+python-rtmidi>=1.4.9
+
+# ===== API/Web =====
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.1
+websockets>=11.0
+requests>=2.31.0
+pydantic>=2.6.1
+python-multipart>=0.0.9
+
+# ===== Redis =====
+redis[asyncio]>=5.0.1
+
+# ===== AI Integration =====
+anthropic>=0.39.0
+
+# ===== Utilities =====
+argparse
+aiofiles>=23.0.0
+python-dotenv>=1.0.0

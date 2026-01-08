@@ -1,5 +1,5 @@
-# RunPod Dockerfile with ComfyUI and POD Pipeline
-# This Dockerfile sets up a complete environment for the POD automation pipeline
+# RunPod Dockerfile - Complete Pod Engine with ComfyUI and Music Generation
+# This creates a production-ready container with all services and auto-downloads
 
 FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
@@ -8,44 +8,97 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV COMFYUI_PATH=/workspace/ComfyUI
 ENV POD_APP_PATH=/workspace/app
+ENV DATA_PATH=/workspace/data
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3.10 \
     python3-pip \
+    python3-dev \
     git \
     wget \
     curl \
     nginx \
+    redis-server \
     chromium-browser \
     chromium-chromedriver \
-    nodejs \
-    npm \
+    build-essential \
+    ffmpeg \
+    libsndfile1 \
+    libportaudio2 \
+    portaudio19-dev \
+    lsof \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip3 install --upgrade pip setuptools wheel
 
 # Create workspace directories
 WORKDIR /workspace
-RUN mkdir -p ${COMFYUI_PATH} ${POD_APP_PATH} /data/designs /data/chrome-profile
+RUN mkdir -p ${COMFYUI_PATH} ${POD_APP_PATH} ${DATA_PATH}/designs ${DATA_PATH}/output ${DATA_PATH}/models /workspace/logs
 
-# Install ComfyUI
+# ===== INSTALL COMFYUI =====
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git ${COMFYUI_PATH}
+
 WORKDIR ${COMFYUI_PATH}
-RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
-    && pip3 install -r requirements.txt
 
-# Download SDXL model (optional - can be downloaded at runtime)
-# RUN mkdir -p models/checkpoints && \
-#     wget -O models/checkpoints/sd_xl_base_1.0.safetensors \
-#     https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
+# Install PyTorch with CUDA 12.1 support
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Copy POD application
+# Install ComfyUI requirements
+RUN pip3 install -r requirements.txt
+
+# Create models directory structure
+RUN mkdir -p models/checkpoints models/vae models/loras models/embeddings models/controlnet models/upscale_models
+
+# Download SDXL Base Model (6.94 GB)
+RUN echo "Downloading SDXL Base Model..." && \
+    wget -q --show-progress --progress=bar:force:noscroll \
+    -O models/checkpoints/sd_xl_base_1.0.safetensors \
+    "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+
+# Download SDXL VAE (335 MB)
+RUN echo "Downloading SDXL VAE..." && \
+    wget -q --show-progress --progress=bar:force:noscroll \
+    -O models/vae/sdxl_vae.safetensors \
+    "https://huggingface.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors"
+
+# Optional: Download SDXL Refiner (6.08 GB) - Commented out to save space/time
+# RUN echo "Downloading SDXL Refiner..." && \
+#     wget -q --show-progress --progress=bar:force:noscroll \
+#     -O models/checkpoints/sd_xl_refiner_1.0.safetensors \
+#     "https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/resolve/main/sd_xl_refiner_1.0.safetensors"
+
+# ===== INSTALL POD APPLICATION =====
 WORKDIR ${POD_APP_PATH}
+
+# Copy package files
 COPY package*.json ./
+
+# Install Node.js dependencies
 RUN npm ci --only=production
+
+# Copy pod requirements
+COPY pod-requirements.txt ./
+
+# Install Pod Engine Python dependencies
+RUN pip3 install -r pod-requirements.txt
+
+# Install MashDeck requirements
+COPY mashdeck/requirements.txt ./mashdeck-requirements.txt
+RUN pip3 install -r mashdeck-requirements.txt
+
+# Install Music Engine requirements
+COPY music-engine/requirements-api.txt music-engine/requirements-worker.txt ./
+RUN pip3 install -r requirements-api.txt
+RUN pip3 install -r requirements-worker.txt
 
 # Copy application files
 COPY . .
@@ -53,34 +106,141 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Configure Nginx
+# ===== DOWNLOAD AI MODELS (MusicGen will auto-download on first use) =====
+# MusicGen models are downloaded by HuggingFace transformers on first run
+# They go to ~/.cache/huggingface which is preserved in /workspace volume
+
+# Pre-download MusicGen model to speed up first generation
+RUN python3 -c "from transformers import AutoProcessor, MusicgenForConditionalGeneration; \
+    model_name = 'facebook/musicgen-medium'; \
+    print(f'Pre-downloading {model_name}...'); \
+    processor = AutoProcessor.from_pretrained(model_name); \
+    model = MusicgenForConditionalGeneration.from_pretrained(model_name); \
+    print('MusicGen model cached successfully')" || echo "MusicGen pre-download failed, will download on first use"
+
+# ===== CONFIGURE NGINX =====
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expose ports
-# 80: Frontend web UI
+# ===== CREATE STARTUP SCRIPT =====
+RUN cat > /start-pod-engine.sh << 'EOFSTART'
+#!/bin/bash
+
+# Colors
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}"
+cat << "BANNER"
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   ██████╗  ██████╗ ██████╗     ███████╗███╗   ██╗ ██████╗   ║
+║   ██╔══██╗██╔═══██╗██╔══██╗    ██╔════╝████╗  ██║██╔════╝   ║
+║   ██████╔╝██║   ██║██║  ██║    █████╗  ██╔██╗ ██║██║  ███╗  ║
+║   ██╔═══╝ ██║   ██║██║  ██║    ██╔══╝  ██║╚██╗██║██║   ██║  ║
+║   ██║     ╚██████╔╝██████╔╝    ███████╗██║ ╚████║╚██████╔╝  ║
+║   ╚═╝      ╚═════╝ ╚═════╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝   ║
+║                                                               ║
+║                   Starting on RunPod                          ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+BANNER
+echo -e "${NC}"
+
+# Start Redis
+echo -e "${CYAN}▶ Starting Redis...${NC}"
+redis-server --daemonize yes --dir /workspace/data --logfile /workspace/logs/redis.log
+sleep 2
+echo -e "${GREEN}✓ Redis started${NC}"
+
+# Start ComfyUI
+echo -e "${CYAN}▶ Starting ComfyUI...${NC}"
+cd /workspace/ComfyUI
+nohup python3 main.py --listen 0.0.0.0 --port 8188 > /workspace/logs/comfyui.log 2>&1 &
+echo -e "${GREEN}✓ ComfyUI starting (port 8188)${NC}"
+
+# Wait for ComfyUI to be ready
+echo "Waiting for ComfyUI to initialize..."
+for i in {1..30}; do
+    if curl -s http://localhost:8188 > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ ComfyUI ready${NC}"
+        break
+    fi
+    sleep 2
+done
+
+# Start Music API
+echo -e "${CYAN}▶ Starting Music API...${NC}"
+cd /workspace/app
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export OUTPUT_DIR=/workspace/data/output
+
+nohup python3 -m uvicorn music-engine.api.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    > /workspace/logs/music-api.log 2>&1 &
+
+echo -e "${GREEN}✓ Music API starting (port 8000)${NC}"
+
+# Wait for Music API to be ready
+echo "Waiting for Music API to initialize..."
+for i in {1..30}; do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Music API ready${NC}"
+        break
+    fi
+    sleep 2
+done
+
+# Start Music Worker
+echo -e "${CYAN}▶ Starting Music Worker (GPU)...${NC}"
+export MUSICGEN_MODEL=facebook/musicgen-medium
+
+nohup python3 music-engine/worker/worker.py > /workspace/logs/music-worker.log 2>&1 &
+echo -e "${GREEN}✓ Music Worker started${NC}"
+
+# Start Nginx
+echo -e "${CYAN}▶ Starting Nginx...${NC}"
+nginx -g "daemon off;" &
+echo -e "${GREEN}✓ Nginx started (port 80)${NC}"
+
+echo ""
+echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║                  All Services Running! 🚀                    ║${NC}"
+echo -e "${GREEN}╠═══════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${GREEN}║                                                               ║${NC}"
+echo -e "${GREEN}║  🎨 ComfyUI:        http://localhost:8188                    ║${NC}"
+echo -e "${GREEN}║  🎵 Music API:      http://localhost:8000                    ║${NC}"
+echo -e "${GREEN}║  🌐 Web UI:         http://localhost:80                      ║${NC}"
+echo -e "${GREEN}║  📊 API Docs:       http://localhost:8000/docs               ║${NC}"
+echo -e "${GREEN}║                                                               ║${NC}"
+echo -e "${GREEN}║  Logs: /workspace/logs/                                      ║${NC}"
+echo -e "${GREEN}║                                                               ║${NC}"
+echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+# Tail logs to keep container running
+tail -f /workspace/logs/music-worker.log
+EOFSTART
+
+RUN chmod +x /start-pod-engine.sh
+
+# ===== EXPOSE PORTS =====
+# 80: Frontend web UI (Nginx)
 # 8188: ComfyUI API
-# 3000: Backend API (if needed)
-EXPOSE 80 8188 3000
+# 8000: Music API
+# 6379: Redis (internal)
+EXPOSE 80 8188 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost/health && curl -f http://localhost:8188/system_stats || exit 1
+# ===== HEALTH CHECK =====
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:8188 && \
+        curl -f http://localhost:8000/health || exit 1
 
-# Create startup script
-RUN echo '#!/bin/bash\n\
-# Start ComfyUI\n\
-cd /workspace/ComfyUI\n\
-python3 main.py --listen 0.0.0.0 --port 8188 &\n\
-\n\
-# Wait for ComfyUI to start\n\
-echo "Waiting for ComfyUI to start..."\n\
-sleep 10\n\
-\n\
-# Start Nginx\n\
-nginx -g "daemon off;" &\n\
-\n\
-# Keep container running\n\
-tail -f /dev/null\n\
-' > /start.sh && chmod +x /start.sh
+# ===== VOLUME =====
+# All data stored in /workspace for persistence
+VOLUME ["/workspace/data", "/workspace/logs"]
 
-CMD ["/start.sh"]
+# ===== START =====
+CMD ["/start-pod-engine.sh"]
