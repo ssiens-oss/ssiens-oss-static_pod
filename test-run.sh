@@ -8,6 +8,11 @@ echo "🚀 StaticWaves POD Engine - Test Run"
 echo "======================================"
 echo ""
 
+# Activate virtual environment if it exists
+if [ -d "venv" ]; then
+    source venv/bin/activate
+fi
+
 # Check if services are running
 echo "1. Checking if backend is running..."
 if curl -s http://localhost:8188/api/health > /dev/null; then
@@ -15,7 +20,7 @@ if curl -s http://localhost:8188/api/health > /dev/null; then
 else
     echo "   ❌ Backend not running. Starting it now..."
     cd backend
-    python3 main.py &
+    python main.py &
     BACKEND_PID=$!
     sleep 5
     cd ..

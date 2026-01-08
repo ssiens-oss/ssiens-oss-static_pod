@@ -23,6 +23,17 @@ cd "$(dirname "$0")"
 echo "📦 Step 1: Installing Dependencies"
 echo "-----------------------------------"
 
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "Creating Python virtual environment..."
+    python3 -m venv venv
+    echo -e "${GREEN}✓${NC} Virtual environment created"
+fi
+
+# Activate virtual environment
+echo "Activating virtual environment..."
+source venv/bin/activate
+
 # Install Python dependencies
 echo "Installing Python packages..."
 pip install -q -r backend/requirements.txt
@@ -46,7 +57,7 @@ mkdir -p logs
 cd backend
 if [ ! -f "staticwaves_pod.db" ]; then
     echo "Initializing database..."
-    python3 -c "from main import Base, engine; Base.metadata.create_all(bind=engine)"
+    python -c "from main import Base, engine; Base.metadata.create_all(bind=engine)"
     echo -e "${GREEN}✓${NC} Database initialized"
 else
     echo -e "${YELLOW}⚠${NC}  Database already exists, skipping"
@@ -67,7 +78,7 @@ echo "-----------------------------------"
 # Start backend on port 8188
 echo "Starting backend on port 8188..."
 cd backend
-nohup python3 main.py > ../logs/backend.log 2>&1 &
+nohup python main.py > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 echo -e "${GREEN}✓${NC} Backend started (PID: $BACKEND_PID)"
