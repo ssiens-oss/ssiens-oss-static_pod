@@ -30,7 +30,7 @@ export default function EnhancedDesigns() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
 
-  const API_BASE = 'http://localhost:8000/api'
+  const API_BASE = 'http://localhost:8188/api'
   const token = localStorage.getItem('token')
 
   useEffect(() => {

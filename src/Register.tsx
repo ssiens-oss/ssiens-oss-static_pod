@@ -19,7 +19,7 @@ export default function Register({ onRegister, onSwitchToLogin }: RegisterProps)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const API_BASE = 'http://localhost:8000/api'
+  const API_BASE = 'http://localhost:8188/api'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -6,12 +6,11 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 7860,
+        port: 5174,
         host: '0.0.0.0',
         strictPort: true,
         hmr: {
-          clientPort: 7860,
-          host: 'ckgp3l49rwtvjr-7860.proxy.runpod.net',
+          clientPort: 5174,
         },
       },
       plugins: [react()],

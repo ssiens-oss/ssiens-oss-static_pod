@@ -242,7 +242,7 @@ export default function ImageGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [selectedGenre, setSelectedGenre] = useState('all')
 
-  const API_BASE = 'http://localhost:8000/api'
+  const API_BASE = 'http://localhost:8188/api'
   const token = localStorage.getItem('token')
 
   // Fetch existing jobs on mount

@@ -37,7 +37,7 @@ export default function Settings() {
   const [shopifyStoreUrl, setShopifyStoreUrl] = useState('')
   const [shopifyAccessToken, setShopifyAccessToken] = useState('')
 
-  const API_BASE = 'http://localhost:8000/api'
+  const API_BASE = 'http://localhost:8188/api'
   const token = localStorage.getItem('token')
 
   useEffect(() => {

@@ -16,7 +16,7 @@ export default function Login({ onLogin, onSwitchToRegister }: LoginProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const API_BASE = 'http://localhost:8000/api'
+  const API_BASE = 'http://localhost:8188/api'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

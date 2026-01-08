@@ -65,7 +65,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   // API base URL
-  const API_BASE = 'http://localhost:8000/api'
+  const API_BASE = 'http://localhost:8188/api'
   const token = localStorage.getItem('token')
 
   // Fetch dashboard data
