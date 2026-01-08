@@ -24,13 +24,13 @@ pydub>=0.25.1
 # ddsp>=3.4.6
 # tensorflow>=2.15.0
 
-# ===== TTS/Vocals =====
-TTS>=0.22.0
-phonemizer>=3.2.1
+# ===== TTS/Vocals (Optional - Requires Python <3.12) =====
+# TTS>=0.22.0  # Uncomment if using Python 3.9-3.11 for vocal synthesis
+# phonemizer>=3.2.1  # Uncomment with TTS
 
-# ===== MIDI =====
+# ===== MIDI (Optional) =====
 mido>=1.2.10
-python-rtmidi>=1.4.9
+# python-rtmidi>=1.4.9  # Optional - requires system dependencies
 
 # ===== API/Web =====
 fastapi>=0.110.0
