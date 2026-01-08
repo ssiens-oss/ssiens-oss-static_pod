@@ -10,7 +10,7 @@ echo ""
 
 # Check if services are running
 echo "1. Checking if backend is running..."
-if curl -s http://localhost:8000/api/health > /dev/null; then
+if curl -s http://localhost:8188/api/health > /dev/null; then
     echo "   ✅ Backend is running"
 else
     echo "   ❌ Backend not running. Starting it now..."
@@ -23,7 +23,7 @@ fi
 
 echo ""
 echo "2. Checking if frontend is running..."
-if curl -s http://localhost:7860 > /dev/null; then
+if curl -s http://localhost:5174 > /dev/null; then
     echo "   ✅ Frontend is running"
 else
     echo "   ❌ Frontend not running. Starting it now..."
@@ -39,9 +39,13 @@ echo "======================================"
 echo ""
 echo "📱 Open these URLs in your browser:"
 echo ""
-echo "   Main App:  http://localhost:7860"
-echo "   RunPod:    https://ckgp3l49rwtvjr-7860.proxy.runpod.net"
-echo "   API Docs:  http://localhost:8000/docs"
+echo "   Frontend:  http://localhost:5174"
+echo "   Backend:   http://localhost:8188"
+echo "   API Docs:  http://localhost:8188/docs"
+echo ""
+echo "📡 RunPod Dashboard - Click these buttons:"
+echo "   - Port 5174 → HTTP Service (Main App)"
+echo "   - Port 8188 → HTTP Service (API Docs)"
 echo ""
 echo "🧪 Test Workflow:"
 echo "   1. Create account at /register"
