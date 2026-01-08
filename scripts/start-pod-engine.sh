@@ -68,6 +68,10 @@ EOF
 
 print_header "Starting Pod Engine Services"
 
+# Create logs and data directories
+mkdir -p logs
+mkdir -p data/output
+
 # Function to check if a port is in use
 check_port() {
     if lsof -Pi :$1 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
@@ -98,9 +102,6 @@ wait_for_service() {
     print_error "$name failed to start"
     return 1
 }
-
-# Create logs directory
-mkdir -p logs
 
 # Step 1: Start Redis
 print_header "Step 1/5: Starting Redis"
