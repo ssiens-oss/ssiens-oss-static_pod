@@ -699,10 +699,15 @@ HTML_TEMPLATE = """
 """
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--port', type=int, default=9000, help='Port to run server on')
+    args = parser.parse_args()
+
     print("🎨 Starting Design Proofing Server...")
     print(f"📁 ComfyUI Output: {COMFYUI_OUTPUT}")
     print(f"✅ Printify: {'Configured' if PRINTIFY_API_KEY else 'Not configured'}")
-    print("\n🌐 Server will be available at: http://localhost:8888")
+    print(f"\n🌐 Server will be available at: http://localhost:{args.port}")
     print("   Use RunPod port forwarding to access\n")
 
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
