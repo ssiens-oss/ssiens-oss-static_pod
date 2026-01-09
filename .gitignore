@@ -54,4 +54,5 @@ ComfyUI/
 *.zip
 
 # Environment
+.env
 .env.local
