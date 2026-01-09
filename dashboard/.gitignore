@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# State & Output
+state.json
+*.tmp
+prompts/
+archive/
+
+# Logs
+*.log
