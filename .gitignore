@@ -4,3 +4,5 @@
 .*.pid
 output/
 __pycache__/
+pod*.zip
+pod_designs_*.zip
