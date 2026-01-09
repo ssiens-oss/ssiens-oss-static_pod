@@ -1,5 +1,18 @@
 # POD Pipeline - Quick Start Guide
 
+## ⚡ New RunPod Container? Run This First
+
+```bash
+cd /home/user/ssiens-oss-static_pod && ./bootstrap.sh
+```
+
+This will:
+- Install the `pod` command globally
+- Start the pipeline automatically
+- Set up everything for you
+
+---
+
 ## ✅ Pipeline is RUNNING
 
 Your POD (Print-on-Demand) pipeline is currently active with **3 designs** indexed.
