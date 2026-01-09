@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Auto-Prompter - POD Design Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .panel h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #555;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .preset-btn {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+            text-align: left;
+        }
+
+        .preset-btn:hover {
+            border-color: #667eea;
+            background: #f5f5ff;
+        }
+
+        .preset-btn strong {
+            display: block;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .preset-btn span {
+            color: #888;
+            font-size: 0.85em;
+        }
+
+        .results {
+            min-height: 400px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .prompt-card {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .prompt-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .prompt-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .copy-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+
+        .prompt-text {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 15px;
+            line-height: 1.6;
+            color: #444;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+
+        .prompt-description {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-style: italic;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f5f5ff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .presets {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 AI Auto-Prompter</h1>
+            <p>Generate creative POD design prompts with Claude AI</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Left Panel: Input Form -->
+            <div class="panel">
+                <h2>Generate Prompts</h2>
+
+                <div class="form-group">
+                    <label>Quick Presets</label>
+                    <div class="presets" id="presets"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="theme">Theme</label>
+                    <input type="text" id="theme" placeholder="e.g., nature, abstract, vintage">
+                </div>
+
+                <div class="form-group">
+                    <label for="style">Style</label>
+                    <input type="text" id="style" placeholder="e.g., minimalist, retro, modern">
+                </div>
+
+                <div class="form-group">
+                    <label for="niche">Target Niche</label>
+                    <input type="text" id="niche" placeholder="e.g., gym enthusiasts, cat lovers">
+                </div>
+
+                <div class="form-group">
+                    <label for="product_type">Product Type</label>
+                    <select id="product_type">
+                        <option value="tshirt">T-Shirt</option>
+                        <option value="hoodie">Hoodie</option>
+                        <option value="poster">Poster</option>
+                        <option value="mug">Mug</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="count">Number of Prompts</label>
+                    <input type="number" id="count" value="5" min="1" max="20">
+                </div>
+
+                <button class="btn btn-primary" id="generateBtn">
+                    ✨ Generate Prompts
+                </button>
+
+                <button class="btn btn-secondary" id="clearBtn">
+                    🗑️ Clear Results
+                </button>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="panel results">
+                <h2>Generated Prompts</h2>
+
+                <div id="stats" style="display:none;" class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="promptCount">0</div>
+                        <div class="stat-label">Prompts</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="avgLength">0</div>
+                        <div class="stat-label">Avg Length</div>
+                    </div>
+                </div>
+
+                <div id="results">
+                    <div class="loading">
+                        <p style="font-size: 3em;">🎨</p>
+                        <p>Enter your theme and style, then click Generate!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPrompts = [];
+
+        // Load presets
+        async function loadPresets() {
+            try {
+                const res = await fetch('/api/presets');
+                const presets = await res.json();
+                const container = document.getElementById('presets');
+
+                container.innerHTML = presets.map(preset => `
+                    <button class="preset-btn" onclick="applyPreset('${preset.name}')">
+                        <strong>${preset.name}</strong>
+                        <span>${preset.theme}</span>
+                    </button>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load presets:', e);
+            }
+        }
+
+        window.presetData = {};
+        async function initPresets() {
+            const res = await fetch('/api/presets');
+            const presets = await res.json();
+            presets.forEach(p => window.presetData[p.name] = p);
+        }
+
+        function applyPreset(name) {
+            const preset = window.presetData[name];
+            if (preset) {
+                document.getElementById('theme').value = preset.theme;
+                document.getElementById('style').value = preset.style;
+                document.getElementById('niche').value = preset.niche;
+            }
+        }
+
+        // Generate prompts
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('generateBtn');
+            const results = document.getElementById('results');
+
+            const data = {
+                theme: document.getElementById('theme').value || 'general',
+                style: document.getElementById('style').value || 'modern',
+                niche: document.getElementById('niche').value || 'general audience',
+                count: parseInt(document.getElementById('count').value),
+                product_type: document.getElementById('product_type').value
+            };
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating...';
+
+            results.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Claude is generating creative prompts...</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Failed to generate');
+                }
+
+                const result = await res.json();
+                currentPrompts = result.prompts;
+                displayPrompts(currentPrompts);
+
+            } catch (err) {
+                results.innerHTML = `
+                    <div class="loading">
+                        <p style="color: red;">❌ Error: ${err.message}</p>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✨ Generate Prompts';
+            }
+        });
+
+        // Display prompts
+        function displayPrompts(prompts) {
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+
+            if (prompts.length === 0) {
+                results.innerHTML = '<div class="loading"><p>No prompts generated</p></div>';
+                return;
+            }
+
+            // Update stats
+            const avgLength = Math.round(
+                prompts.reduce((sum, p) => sum + p.prompt.length, 0) / prompts.length
+            );
+            document.getElementById('promptCount').textContent = prompts.length;
+            document.getElementById('avgLength').textContent = avgLength;
+            stats.style.display = 'flex';
+
+            // Render prompts
+            results.innerHTML = prompts.map((prompt, idx) => `
+                <div class="prompt-card">
+                    <div class="prompt-header">
+                        <div class="prompt-title">${prompt.title}</div>
+                        <button class="copy-btn" onclick="copyPrompt(${idx})">📋 Copy</button>
+                    </div>
+                    <div class="prompt-text">${prompt.prompt}</div>
+                    <div class="prompt-meta">
+                        ${prompt.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                    <div class="prompt-description">${prompt.description}</div>
+                </div>
+            `).join('');
+        }
+
+        // Copy prompt
+        function copyPrompt(idx) {
+            const prompt = currentPrompts[idx];
+            navigator.clipboard.writeText(prompt.prompt);
+            alert('✓ Prompt copied to clipboard!');
+        }
+
+        // Clear results
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('results').innerHTML = `
+                <div class="loading">
+                    <p style="font-size: 3em;">🎨</p>
+                    <p>Enter your theme and style, then click Generate!</p>
+                </div>
+            `;
+            document.getElementById('stats').style.display = 'none';
+            currentPrompts = [];
+        });
+
+        // Initialize
+        loadPresets();
+        initPresets();
+    </script>
+</body>
+</html>
