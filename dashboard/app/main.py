@@ -262,6 +262,30 @@ def get_presets():
     ]
     return jsonify(presets)
 
+@app.route('/api/save-manual-prompt', methods=['POST'])
+def save_manual_prompt():
+    """Save manually created prompt"""
+    try:
+        data = request.json
+        prompt_data = {
+            "prompt": data.get('prompt'),
+            "title": data.get('title'),
+            "tags": data.get('tags', []),
+            "description": data.get('description'),
+            "manual": True,
+            "created_at": datetime.now().isoformat()
+        }
+
+        # Save to file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = Path(config.PROMPTS_DIR) / f"manual_{timestamp}.json"
+        with open(output_file, 'w') as f:
+            json.dump([prompt_data], f, indent=2)
+
+        return jsonify({"success": True, "prompt": prompt_data, "saved": str(output_file)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # =============================================================================
 # API - Gateway
 # =============================================================================
