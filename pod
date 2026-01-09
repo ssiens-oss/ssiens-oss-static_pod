@@ -1,0 +1,68 @@
+#!/bin/bash
+# POD Pipeline helper script
+# Usage: pod [start|stop|status|logs|add]
+
+REPO_ROOT="/home/user/ssiens-oss-static_pod"
+cd "$REPO_ROOT"
+
+case "$1" in
+  start)
+    ./run-pod-pipeline.sh
+    ;;
+  stop)
+    ./stop-pod-pipeline.sh
+    ;;
+  status)
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  POD Pipeline Status"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    if pgrep -f "uvicorn gallery.server" > /dev/null; then
+      echo "  ✅ Gallery Bridge: RUNNING"
+      echo "     http://localhost:8099"
+    else
+      echo "  ❌ Gallery Bridge: STOPPED"
+    fi
+    if pgrep -f "http.server 8088" > /dev/null; then
+      echo "  ✅ Web UI: RUNNING"
+      echo "     http://localhost:8088/view-gallery.html"
+    else
+      echo "  ❌ Web UI: STOPPED"
+    fi
+    echo ""
+    DESIGN_COUNT=$(curl -s http://localhost:8099/designs 2>/dev/null | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    echo "  📦 Designs: $DESIGN_COUNT"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    ;;
+  logs)
+    echo "Gallery Bridge logs (Ctrl+C to exit):"
+    tail -f "$REPO_ROOT/gallery.log"
+    ;;
+  add)
+    shift
+    if [ -z "$1" ]; then
+      echo "Usage: pod add <path-to-image.png>"
+      exit 1
+    fi
+    cp "$1" "$REPO_ROOT/output/"
+    echo "✓ Added to output/"
+    ;;
+  export)
+    curl -s -o pod-export-$(date +%s).zip http://localhost:8099/export
+    echo "✓ Exported to pod-export-*.zip"
+    ;;
+  *)
+    echo "POD Pipeline Helper"
+    echo ""
+    echo "Usage:"
+    echo "  pod start    - Start the pipeline"
+    echo "  pod stop     - Stop the pipeline"
+    echo "  pod status   - Show pipeline status"
+    echo "  pod logs     - View gallery logs"
+    echo "  pod add FILE - Add image to pipeline"
+    echo "  pod export   - Export all designs as ZIP"
+    echo ""
+    echo "Access:"
+    echo "  Gallery: http://localhost:8088/view-gallery.html"
+    echo "  API:     http://localhost:8099"
+    ;;
+esac
