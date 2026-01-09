@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POD Gateway - Design Approval</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #222;
+        }
+
+        h1 {
+            font-size: 2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat {
+            padding: 10px 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #2a2a2a;
+            border-color: #667eea;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            background: #0a0a0a;
+        }
+
+        .card-body {
+            padding: 15px;
+        }
+
+        .card-title {
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .card-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .status-pending {
+            background: #333;
+            color: #fff;
+        }
+
+        .status-approved {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .status-rejected {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .status-published {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .status-publishing {
+            background: #f59e0b;
+            color: #fff;
+        }
+
+        .status-failed {
+            background: #991b1b;
+            color: #fff;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .btn-approve:hover {
+            background: #059669;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .btn-reject:hover {
+            background: #dc2626;
+        }
+
+        .btn-publish {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .btn-publish:hover {
+            background: #2563eb;
+        }
+
+        .btn-reset {
+            background: #6b7280;
+            color: #fff;
+        }
+
+        .btn-reset:hover {
+            background: #4b5563;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 POD Gateway</h1>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value" id="stat-pending">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Approved</div>
+                <div class="stat-value" id="stat-approved">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Published</div>
+                <div class="stat-value" id="stat-published">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pending">Pending</button>
+        <button class="filter-btn" data-filter="approved">Approved</button>
+        <button class="filter-btn" data-filter="published">Published</button>
+        <button class="filter-btn" data-filter="rejected">Rejected</button>
+    </div>
+
+    <div class="gallery" id="gallery">
+        <div class="loading">Loading images...</div>
+    </div>
+
+    <script>
+        let currentFilter = 'all';
+        let images = [];
+
+        // Load images
+        async function loadImages() {
+            try {
+                const res = await fetch('/api/images');
+                const data = await res.json();
+                images = data.images;
+                renderGallery();
+                updateStats();
+            } catch (e) {
+                console.error('Failed to load images:', e);
+            }
+        }
+
+        // Update stats
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                document.getElementById('stat-pending').textContent = stats.pending;
+                document.getElementById('stat-approved').textContent = stats.approved;
+                document.getElementById('stat-published').textContent = stats.published;
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        // Render gallery
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const filtered = currentFilter === 'all'
+                ? images
+                : images.filter(img => img.status === currentFilter);
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '<div class="loading">No images found</div>';
+                return;
+            }
+
+            gallery.innerHTML = filtered.map(img => `
+                <div class="card" data-status="${img.status}">
+                    <img src="${img.path}" class="card-image" alt="${img.filename}">
+                    <div class="card-body">
+                        <div class="card-title">${img.filename}</div>
+                        <div class="card-status status-${img.status}">${img.status}</div>
+                        <div class="card-actions">
+                            ${getActions(img)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            attachEventListeners();
+        }
+
+        // Get action buttons based on status
+        function getActions(img) {
+            switch (img.status) {
+                case 'pending':
+                    return `
+                        <button class="btn btn-approve" data-action="approve" data-id="${img.id}">✓ Approve</button>
+                        <button class="btn btn-reject" data-action="reject" data-id="${img.id}">✗ Reject</button>
+                    `;
+                case 'approved':
+                    return `
+                        <button class="btn btn-publish" data-action="publish" data-id="${img.id}">→ Publish</button>
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
+                    `;
+                case 'published':
+                    return `<div style="color: #10b981; text-align: center;">✓ Live on Printify</div>`;
+                case 'rejected':
+                    return `<button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>`;
+                case 'failed':
+                    return `
+                        <button class="btn btn-publish" data-action="publish" data-id="${img.id}">↻ Retry</button>
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
+                    `;
+                default:
+                    return '';
+            }
+        }
+
+        // Attach event listeners
+        function attachEventListeners() {
+            document.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', handleAction);
+            });
+        }
+
+        // Handle button actions
+        async function handleAction(e) {
+            const action = e.target.dataset.action;
+            const id = e.target.dataset.id;
+
+            e.target.disabled = true;
+
+            try {
+                let res;
+                if (action === 'publish') {
+                    const title = prompt('Enter product title:', `Design ${id.substring(0, 8)}`);
+                    if (!title) {
+                        e.target.disabled = false;
+                        return;
+                    }
+                    res = await fetch(`/api/${action}/${id}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({title})
+                    });
+                } else {
+                    res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
+                }
+
+                if (res.ok) {
+                    await loadImages();
+                } else {
+                    const error = await res.json();
+                    alert(`Error: ${error.error || 'Unknown error'}`);
+                    e.target.disabled = false;
+                }
+            } catch (err) {
+                alert(`Failed: ${err.message}`);
+                e.target.disabled = false;
+            }
+        }
+
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderGallery();
+            });
+        });
+
+        // Auto-refresh every 10 seconds
+        setInterval(loadImages, 10000);
+
+        // Initial load
+        loadImages();
+    </script>
+</body>
+</html>
