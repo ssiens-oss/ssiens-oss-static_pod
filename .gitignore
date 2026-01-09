@@ -1,0 +1,6 @@
+
+# POD Pipeline runtime files
+*.log
+.*.pid
+output/
+__pycache__/

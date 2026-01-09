@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POD Design Gallery - ComfyUI Pipeline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: linear-gradient(135deg, #0b0b0b 0%, #1a1a1a 100%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 2px solid #333;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stats {
+      font-size: 14px;
+      color: #888;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .status {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      font-weight: 500;
+    }
+
+    .status.live {
+      background: #0a3a0a;
+      border-color: #0f5a0f;
+      color: #6f6;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+      border: 1px solid #444;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+      border-color: #555;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      border-color: #3b82f6;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    #gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .design-card {
+      background: #111;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #222;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .design-card:hover {
+      transform: translateY(-8px);
+      border-color: #444;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.5);
+    }
+
+    .design-card img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: #0a0a0a;
+    }
+
+    .design-info {
+      padding: 16px;
+    }
+
+    .design-name {
+      color: #fff;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .design-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+
+    .design-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .design-actions button {
+      flex: 1;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+
+    .empty-state h3 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: #888;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🎨 POD Design Gallery</h1>
+      <div class="stats">
+        <span id="count">Loading...</span>
+        <div class="status" id="status">⚡ Connecting...</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <button class="btn-primary" onclick="window.open('http://localhost:8099/export')">
+      📦 Export All (ZIP)
+    </button>
+    <button onclick="location.reload()">
+      🔄 Refresh
+    </button>
+    <button onclick="window.open('http://localhost:8099')">
+      📡 API Info
+    </button>
+  </div>
+
+  <div id="gallery"></div>
+
+  <div class="modal" id="modal" onclick="closeModal()">
+    <img id="modalImg" />
+  </div>
+
+  <script>
+    let designs = [];
+    const API_BASE = 'http://localhost:8099';
+
+    async function loadDesigns() {
+      try {
+        const res = await fetch(`${API_BASE}/designs`);
+        designs = await res.json();
+        renderGallery();
+      } catch (err) {
+        console.error('Failed to load designs:', err);
+      }
+    }
+
+    function renderGallery() {
+      const galleryEl = document.getElementById('gallery');
+      const countEl = document.getElementById('count');
+
+      if (designs.length === 0) {
+        galleryEl.innerHTML = `
+          <div class="empty-state">
+            <h3>No designs yet</h3>
+            <p>Images from ComfyUI will appear here automatically</p>
+          </div>
+        `;
+        countEl.textContent = 'No designs';
+        return;
+      }
+
+      countEl.textContent = `${designs.length} design${designs.length === 1 ? '' : 's'}`;
+
+      galleryEl.innerHTML = designs.map(d => {
+        const date = new Date(d.timestamp * 1000);
+        const size = (d.size / 1024).toFixed(0);
+
+        return `
+          <div class="design-card">
+            <img
+              src="${API_BASE}${d.url}"
+              alt="${d.name}"
+              loading="lazy"
+              onclick="openModal('${API_BASE}${d.url}')"
+            />
+            <div class="design-info">
+              <div class="design-name" title="${d.name}">${d.name}</div>
+              <div class="design-meta">
+                <span>${date.toLocaleDateString()}</span>
+                <span>${size} KB</span>
+              </div>
+              <div class="design-actions">
+                <button onclick="publishDesign('${d.name}')">📤 Publish</button>
+                <button onclick="deleteDesign('${d.name}')">🗑️ Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function publishDesign(name) {
+      if (!confirm(`Publish "${name}" to Printify?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/publish/${name}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.status === 'queued' ? 'Queued for publishing!' : JSON.stringify(data));
+      } catch (err) {
+        alert('Publish failed: ' + err.message);
+      }
+    }
+
+    async function deleteDesign(name) {
+      if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+
+      try {
+        await fetch(`${API_BASE}/designs/${name}`, { method: 'DELETE' });
+        await loadDesigns();
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
+    }
+
+    function openModal(url) {
+      document.getElementById('modalImg').src = url;
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function connectLiveStream() {
+      const statusEl = document.getElementById('status');
+
+      try {
+        const eventSource = new EventSource(`${API_BASE}/stream`);
+
+        eventSource.onopen = () => {
+          statusEl.textContent = '⚡ Live';
+          statusEl.className = 'status live';
+        };
+
+        eventSource.onmessage = () => {
+          loadDesigns();
+        };
+
+        eventSource.onerror = () => {
+          statusEl.textContent = '⚠ Reconnecting...';
+          statusEl.className = 'status';
+        };
+      } catch (err) {
+        console.error('SSE not supported, falling back to polling');
+        setInterval(loadDesigns, 5000);
+      }
+    }
+
+    // Initialize
+    loadDesigns();
+    connectLiveStream();
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'r' && e.ctrlKey) {
+        e.preventDefault();
+        loadDesigns();
+      }
+    });
+  </script>
+</body>
+</html>
