@@ -5,9 +5,13 @@ Human-in-the-loop approval system for POD designs
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from dotenv import load_dotenv
 import os
+import sys
 from pathlib import Path
 import uuid
 from PIL import Image
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load environment
 load_dotenv()
