@@ -1,0 +1,56 @@
+{
+  "watch_directories": [
+    "/home/static/Pictures/comfybatch/output",
+    "/workspace/comfyui/output"
+  ],
+  "quality_checks": {
+    "min_resolution": {
+      "width": 2400,
+      "height": 2400
+    },
+    "max_resolution": {
+      "width": 8000,
+      "height": 8000
+    },
+    "min_dpi": 150,
+    "max_filesize_mb": 50,
+    "allowed_formats": ["PNG", "JPEG", "JPG"],
+    "min_aspect_ratio": 0.5,
+    "max_aspect_ratio": 2.0
+  },
+  "scoring": {
+    "resolution_weight": 0.3,
+    "filesize_weight": 0.1,
+    "format_weight": 0.2,
+    "aspect_ratio_weight": 0.2,
+    "corruption_weight": 0.2
+  },
+  "auto_approval": {
+    "enabled": true,
+    "min_score": 85.0,
+    "require_ai_analysis": true,
+    "ai_min_commercial_score": 75,
+    "ai_require_content_safety": true
+  },
+  "auto_rejection": {
+    "enabled": true,
+    "max_score": 40.0
+  },
+  "ai_analysis": {
+    "enabled": true,
+    "use_for_descriptions": true,
+    "use_for_tags": true,
+    "cache_results": true
+  },
+  "monitoring": {
+    "scan_interval_seconds": 30,
+    "auto_process_new_images": true,
+    "move_processed": false,
+    "archive_rejected": true
+  },
+  "integration": {
+    "pod_gateway_enabled": true,
+    "auto_update_status": true,
+    "sync_with_state": true
+  }
+}

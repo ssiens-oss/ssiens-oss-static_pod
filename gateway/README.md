@@ -226,12 +226,40 @@ Approve designs in waves, track which ones sell best.
 
 ---
 
+## 🤖 AIM Proofing Engine
+
+**NEW:** Automated Image Manipulation (AIM) Proofing Engine for automatic quality validation and approval.
+
+### Features
+- ✅ **Automated quality checks** - Resolution, file size, format validation
+- 🤖 **AI-powered analysis** - Claude Vision evaluates commercial suitability
+- ⚡ **Auto-approval** - High-quality images bypass manual review
+- 📁 **Directory monitoring** - Real-time processing of new images
+- 🔗 **Gateway integration** - Works seamlessly with approval workflow
+
+### Quick Start
+
+```bash
+# Configure directories and settings
+nano aim_config.json
+
+# Add API key for AI analysis
+echo "ANTHROPIC_API_KEY=your_key" >> .env
+
+# Start monitoring
+./start_aim_monitor.sh
+```
+
+**See [AIM_README.md](AIM_README.md) for complete documentation.**
+
+---
+
 ## 🚀 Next Steps
 
+- [x] ~~Create rules engine (auto-approve based on criteria)~~ - **✅ AIM Engine Complete**
 - [ ] Add Shopify webhook listener
 - [ ] Implement auto-archive for published designs
 - [ ] Add bulk approval/rejection
-- [ ] Create rules engine (auto-approve based on criteria)
 - [ ] Add OBS overlay feed (`/status.json`)
 
 ---
