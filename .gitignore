@@ -1,0 +1,47 @@
+# Environment variables (contains sensitive credentials)
+.env
+antigravity/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Node
+node_modules/
+.npm
+
+# Logs
+*.log
+provenance.jsonl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Memory and data
+/data/
+*.db
+*.sqlite
+memory.json
+
+# Screenshots
+screenshots/
+*.png
+*.jpg
+*.jpeg
+
+# Temporary files
+/tmp/
+*.tmp
