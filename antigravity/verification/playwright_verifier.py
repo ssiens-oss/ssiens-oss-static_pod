@@ -312,3 +312,90 @@ def batch_verify(
     print(f"\n✅ Verification complete: {success_count}/{len(urls)} successful")
 
     return results
+
+
+def verify_zazzle_product(
+    product_id: str,
+    expected_title: Optional[str] = None,
+    expected_price: Optional[float] = None,
+    store_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Verify a Zazzle product is live.
+
+    Args:
+        product_id: Zazzle product ID
+        expected_title: Expected product title
+        expected_price: Expected price
+        store_id: Optional store ID
+
+    Returns:
+        Verification results
+    """
+    # Build Zazzle product URL
+    if store_id:
+        product_url = f"https://www.zazzle.com/store/{store_id}/products/{product_id}"
+    else:
+        product_url = f"https://www.zazzle.com/pd/{product_id}"
+
+    return verify_product_live(
+        url=product_url,
+        expected_title=expected_title,
+        expected_price=expected_price,
+    )
+
+
+def verify_zazzle_store(
+    store_id: str,
+    screenshot_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Verify a Zazzle store is accessible.
+
+    Args:
+        store_id: Zazzle store ID
+        screenshot_path: Path to save screenshot
+
+    Returns:
+        Verification results
+    """
+    store_url = f"https://www.zazzle.com/store/{store_id}"
+
+    if not PLAYWRIGHT_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Playwright not available",
+        }
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            page.goto(store_url, wait_until="networkidle")
+            time.sleep(2)
+
+            # Check if store page loaded
+            page_text = page.inner_text("body").lower()
+            has_error = "not found" in page_text or "404" in page_text
+
+            if screenshot_path:
+                Path(screenshot_path).parent.mkdir(parents=True, exist_ok=True)
+                page.screenshot(path=screenshot_path, full_page=True)
+
+            browser.close()
+
+            return {
+                "url": store_url,
+                "success": not has_error,
+                "checks_passed": ["Store page loaded"] if not has_error else [],
+                "checks_failed": ["Store not found"] if has_error else [],
+                "screenshot": screenshot_path,
+            }
+
+    except Exception as e:
+        return {
+            "url": store_url,
+            "success": False,
+            "error": str(e),
+        }
