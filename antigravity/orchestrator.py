@@ -3,7 +3,7 @@
 import uuid
 import time
 from typing import List, Optional, Dict, Any
-from antigravity.types import SubTask, ModelResponse, ExecutionPlan, Role
+from antigravity.models import SubTask, ModelResponse, ExecutionPlan, Role
 from antigravity.router import select_model
 from antigravity.uncertainty import should_escalate, confidence_mean, disagreement_score
 from antigravity.voting import weighted_consensus

@@ -1,7 +1,7 @@
 """Uncertainty modeling and disagreement detection."""
 
 from statistics import variance, mean
-from antigravity.types import ModelResponse
+from antigravity.models import ModelResponse
 from typing import List
 
 

@@ -1,6 +1,6 @@
 """Model routing logic for task distribution."""
 
-from antigravity.types import Role
+from antigravity.models import Role
 
 
 def select_model(role: Role) -> str:

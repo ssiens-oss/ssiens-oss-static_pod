@@ -2,7 +2,7 @@
 
 import random
 from typing import List, Dict, Any
-from antigravity.types import PODOffer
+from antigravity.models import PODOffer
 
 
 class OfferFactory:

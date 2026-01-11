@@ -5,7 +5,7 @@ import uuid
 import time
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from antigravity.types import ModelResponse, ExecutionPlan
+from antigravity.models import ModelResponse, ExecutionPlan
 
 
 def record_provenance(

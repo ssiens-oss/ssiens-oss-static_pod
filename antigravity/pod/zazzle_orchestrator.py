@@ -13,7 +13,7 @@ from pathlib import Path
 from antigravity.orchestrator import AntigravityOrchestrator
 from antigravity.pod.offers import OfferFactory
 from antigravity.pod.risk import assess_pod_risk, calculate_risk_score
-from antigravity.types import PODOffer
+from antigravity.models import PODOffer
 from antigravity.integrations.slack import notify_slack, notify_slack_rich
 from antigravity.integrations.email import notify_email
 from antigravity.integrations.zazzle import ZazzleClient, create_zazzle_product, ZAZZLE_TEMPLATES

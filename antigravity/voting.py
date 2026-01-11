@@ -1,7 +1,7 @@
 """Confidence-weighted voting and consensus building."""
 
 from collections import defaultdict
-from antigravity.types import ModelResponse
+from antigravity.models import ModelResponse
 from typing import List, Tuple
 
 

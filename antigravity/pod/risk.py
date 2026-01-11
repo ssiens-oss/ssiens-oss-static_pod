@@ -1,7 +1,7 @@
 """POD-specific risk assessment."""
 
 from typing import Tuple, List, Dict, Any
-from antigravity.types import PODOffer
+from antigravity.models import PODOffer
 from pathlib import Path
 
 
