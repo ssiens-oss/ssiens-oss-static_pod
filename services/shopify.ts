@@ -22,6 +22,7 @@ interface ShopifyProduct {
     sku?: string
     inventoryQuantity?: number
   }>
+  status?: 'active' | 'draft' | 'archived'
 }
 
 interface PublishedProduct {
@@ -169,7 +170,7 @@ export class ShopifyService {
   /**
    * Get product by ID
    */
-  async getProduct(productId: string): Promise<any> {
+  async getProduct(productId: string): Promise<ShopifyProduct> {
     try {
       const response = await fetch(
         `${this.baseUrl}/products/${productId}.json`,
@@ -199,7 +200,7 @@ export class ShopifyService {
     limit?: number
     sinceId?: string
     createdAtMin?: string
-  } = {}): Promise<any[]> {
+  } = {}): Promise<ShopifyProduct[]> {
     try {
       const queryParams = new URLSearchParams()
       if (params.limit) queryParams.append('limit', params.limit.toString())
@@ -262,7 +263,7 @@ export class ShopifyService {
   async createCollection(
     title: string,
     description: string,
-    rules?: any[]
+    rules?: Array<{ column: string; relation: string; condition: string }>
   ): Promise<string | null> {
     try {
       const response = await fetch(
@@ -307,7 +308,7 @@ export class ShopifyService {
     }
   ): Promise<boolean> {
     try {
-      const updates: any = {}
+      const updates: Record<string, string> = {}
 
       if (metafields.title) {
         updates.metafields_global_title_tag = metafields.title
@@ -329,7 +330,6 @@ export class ShopifyService {
    */
   async publishProduct(productId: string): Promise<boolean> {
     return this.updateProduct(productId, {
-      //@ts-ignore
       status: 'active'
     })
   }
@@ -339,7 +339,6 @@ export class ShopifyService {
    */
   async unpublishProduct(productId: string): Promise<boolean> {
     return this.updateProduct(productId, {
-      //@ts-ignore
       status: 'draft'
     })
   }

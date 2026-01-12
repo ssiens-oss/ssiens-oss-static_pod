@@ -3,28 +3,13 @@
  * Handles AI image generation via ComfyUI API
  */
 
-interface ComfyUIConfig {
-  apiUrl: string
-  outputDir: string
-  timeout?: number
-}
-
-interface ComfyUIWorkflow {
-  prompt: string
-  workflow?: string
-  seed?: number
-  width?: number
-  height?: number
-  steps?: number
-  cfg_scale?: number
-}
-
-interface GenerationResult {
-  images: string[]
-  promptId: string
-  status: 'completed' | 'failed'
-  error?: string
-}
+import type {
+  ComfyUIConfig,
+  ComfyUIWorkflow,
+  GenerationResult,
+  ComfyUIWorkflowJson,
+  ComfyUIProgressEvent
+} from '../types/comfyui.types'
 
 export class ComfyUIService {
   private config: ComfyUIConfig
@@ -92,7 +77,7 @@ export class ComfyUIService {
   /**
    * Build ComfyUI workflow JSON
    */
-  private buildWorkflow(workflow: ComfyUIWorkflow): any {
+  private buildWorkflow(workflow: ComfyUIWorkflow): ComfyUIWorkflowJson {
     const {
       prompt,
       seed = Math.floor(Math.random() * 1000000),
@@ -224,7 +209,7 @@ export class ComfyUIService {
   /**
    * Connect to ComfyUI WebSocket for real-time updates
    */
-  connectWebSocket(onProgress?: (data: any) => void): void {
+  connectWebSocket(onProgress?: (data: ComfyUIProgressEvent) => void): void {
     const wsUrl = this.config.apiUrl.replace('http', 'ws') + '/ws'
 
     this.ws = new WebSocket(wsUrl)
@@ -290,7 +275,7 @@ export class ComfyUIService {
   /**
    * Get queue status
    */
-  async getQueueStatus(): Promise<any> {
+  async getQueueStatus(): Promise<unknown> {
     try {
       const response = await fetch(`${this.config.apiUrl}/queue`)
       return await response.json()

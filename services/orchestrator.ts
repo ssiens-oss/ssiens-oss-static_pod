@@ -16,54 +16,8 @@ import { TikTokShopService } from './platforms/tiktok'
 import { EtsyService } from './platforms/etsy'
 import { InstagramService } from './platforms/instagram'
 import { FacebookShopService } from './platforms/facebook'
-
-interface OrchestratorConfig {
-  comfyui: {
-    apiUrl: string
-    outputDir: string
-  }
-  claude: {
-    apiKey: string
-  }
-  storage: {
-    type: 'local' | 's3' | 'gcs'
-    basePath: string
-  }
-  printify?: {
-    apiKey: string
-    shopId: string
-  }
-  shopify?: {
-    storeUrl: string
-    accessToken: string
-  }
-  tiktok?: {
-    appKey: string
-    appSecret: string
-    shopId: string
-    accessToken: string
-  }
-  etsy?: {
-    apiKey: string
-    shopId: string
-    accessToken: string
-  }
-  instagram?: {
-    accessToken: string
-    businessAccountId: string
-  }
-  facebook?: {
-    pageId: string
-    accessToken: string
-    catalogId: string
-  }
-  options?: {
-    enabledPlatforms?: string[]
-    autoPublish?: boolean
-    tshirtPrice?: number
-    hoodiePrice?: number
-  }
-}
+import type { OrchestratorConfig, PromptData } from '../types/orchestrator.types'
+import type { SavedImage } from '../types/storage.types'
 
 interface PipelineRequest {
   prompt?: string
@@ -232,7 +186,7 @@ export class Orchestrator {
   /**
    * Generate prompts using Claude
    */
-  private async generatePrompts(request: PipelineRequest): Promise<any[]> {
+  private async generatePrompts(request: PipelineRequest): Promise<PromptData[]> {
     if (request.prompt) {
       // Use provided prompt
       return [{
@@ -256,7 +210,7 @@ export class Orchestrator {
   /**
    * Generate images with ComfyUI
    */
-  private async generateImages(prompts: any[]): Promise<string[]> {
+  private async generateImages(prompts: PromptData[]): Promise<string[]> {
     const allImages: string[] = []
 
     for (const promptData of prompts) {
@@ -282,7 +236,7 @@ export class Orchestrator {
   /**
    * Save images to storage
    */
-  private async saveImages(imageUrls: string[], prompts: any[]): Promise<any[]> {
+  private async saveImages(imageUrls: string[], prompts: PromptData[]): Promise<SavedImage[]> {
     const saved = []
 
     for (let i = 0; i < imageUrls.length; i++) {
@@ -306,11 +260,11 @@ export class Orchestrator {
    * Create products on all enabled platforms
    */
   private async createProducts(
-    image: any,
-    promptData: any,
+    image: SavedImage,
+    promptData: PromptData,
     productType: 'tshirt' | 'hoodie',
     autoPublish: boolean
-  ): Promise<Array<{ platform: string; productId: string; url: string; type: string }>> {
+  ): Promise<Array<{ platform: string; productId: string; url: string; type: 'tshirt' | 'hoodie' }>> {
     const products = []
     const enabledPlatforms = this.config.options?.enabledPlatforms || ['printify', 'shopify']
 

@@ -14,33 +14,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
-
-interface StorageConfig {
-  type: 'local' | 's3' | 'gcs'
-  basePath: string
-  s3Config?: {
-    bucket: string
-    region: string
-    accessKeyId: string
-    secretAccessKey: string
-  }
-  gcsConfig?: {
-    bucket: string
-    projectId: string
-    keyFilename: string
-  }
-}
-
-interface SavedImage {
-  id: string
-  filename: string
-  path: string
-  url: string
-  hash: string
-  size: number
-  timestamp: Date
-  metadata?: any
-}
+import { generateId } from '../utils/id'
+import type { StorageConfig, SavedImage, ImageMetadata } from '../types/storage.types'
 
 export class StorageService {
   private config: StorageConfig
@@ -56,7 +31,7 @@ export class StorageService {
    */
   async saveImage(
     source: string | Buffer,
-    metadata?: any
+    metadata?: ImageMetadata
   ): Promise<SavedImage> {
     let imageBuffer: Buffer
 
@@ -113,7 +88,7 @@ export class StorageService {
   /**
    * Save multiple images in batch
    */
-  async saveBatch(sources: Array<string | Buffer>, metadata?: any[]): Promise<SavedImage[]> {
+  async saveBatch(sources: Array<string | Buffer>, metadata?: ImageMetadata[]): Promise<SavedImage[]> {
     const results: SavedImage[] = []
 
     for (let i = 0; i < sources.length; i++) {
@@ -133,7 +108,7 @@ export class StorageService {
     filename: string,
     buffer: Buffer,
     hash: string,
-    metadata?: any
+    metadata?: ImageMetadata
   ): Promise<SavedImage> {
     const filepath = path.join(this.config.basePath, filename)
 
@@ -161,7 +136,7 @@ export class StorageService {
     filename: string,
     buffer: Buffer,
     hash: string,
-    metadata?: any
+    metadata?: ImageMetadata
   ): Promise<SavedImage> {
     // Note: In production, use AWS SDK
     // import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
@@ -177,7 +152,7 @@ export class StorageService {
     filename: string,
     buffer: Buffer,
     hash: string,
-    metadata?: any
+    metadata?: ImageMetadata
   ): Promise<SavedImage> {
     // Note: In production, use Google Cloud Storage SDK
     // import { Storage } from '@google-cloud/storage'
@@ -202,7 +177,8 @@ export class StorageService {
    * Generate unique ID
    */
   private generateId(): string {
-    return `img_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    // Use centralized ID generator
+    return generateId('img')
   }
 
   /**
