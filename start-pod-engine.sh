@@ -28,13 +28,12 @@ fi
 
 sleep 3
 
-# Start Gateway with proper Python path
+# Start Gateway with proper Python module execution
 echo -e "${CYAN}▶ Starting POD Gateway...${NC}"
 cd gateway
 source .venv/bin/activate
-# Set PYTHONPATH so 'from app import' works correctly
-export PYTHONPATH=/workspace/ssiens-oss-static_pod/gateway:$PYTHONPATH
-python app/main.py > ../logs/gateway.log 2>&1 &
+# Run as module so 'from app import' works correctly
+python -m app.main > ../logs/gateway.log 2>&1 &
 GATEWAY_PID=$!
 echo $GATEWAY_PID > ../logs/gateway.pid
 cd ..
@@ -47,7 +46,7 @@ npm run dev > logs/webui.log 2>&1 &
 WEBUI_PID=$!
 echo $WEBUI_PID > logs/webui.pid
 echo -e "${GREEN}✓ Web UI started (PID: $WEBUI_PID)${NC}"
-echo -e "${YELLOW}  http://localhost:5173${NC}"
+echo -e "${YELLOW}  http://localhost:3000${NC}"
 
 cat > logs/pod-engine.pids << PIDS
 COMFYUI_PID=$COMFYUI_PID
@@ -63,7 +62,7 @@ echo ""
 echo -e "${CYAN}Services:${NC}"
 echo "  ComfyUI:      http://localhost:8188"
 echo "  POD Gateway:  http://localhost:5000"
-echo "  Web UI:       http://localhost:5173"
+echo "  Web UI:       http://localhost:3000"
 echo ""
 echo -e "${CYAN}Logs: tail -f logs/*.log${NC}"
 echo -e "${CYAN}Stop: ./stop-pod-engine.sh${NC}"
