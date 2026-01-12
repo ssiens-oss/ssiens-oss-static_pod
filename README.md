@@ -17,40 +17,58 @@ Complete end-to-end Print-on-Demand automation using AI image generation, multi-
 
 ## Quick Start
 
-### 1. Install Dependencies
+### Option 1: One-Command Deployment (Recommended)
+
 ```bash
+# Configure API keys
+cp .env.example .env
+nano .env  # Add your ANTHROPIC_API_KEY and PRINTIFY_API_KEY
+
+# Deploy complete POD engine
+./deploy-pod-engine.sh local
+
+# Start all services
+./start-pod-engine.sh
+```
+
+**Access your services:**
+- POD Gateway: http://localhost:5000 (Approve designs)
+- ComfyUI: http://localhost:8188 (Generate AI images)
+- Web UI: http://localhost:5173 (Manage pipeline)
+
+**See [QUICKSTART_POD_ENGINE.md](QUICKSTART_POD_ENGINE.md) for 10-minute setup guide.**
+
+### Option 2: Manual Setup
+
+```bash
+# 1. Install Dependencies
 npm install
-```
 
-### 2. Set Up ComfyUI (for AI image generation)
-```bash
+# 2. Set Up ComfyUI
 ./scripts/setup-comfyui.sh
-```
 
-### 3. Configure Environment
-```bash
+# 3. Configure Environment
 cp .env.example .env
 # Edit .env with your API keys (Claude, Printify, Shopify, etc.)
-```
 
-### 4. Start Services
-```bash
-# Terminal 1: Start ComfyUI
-cd ComfyUI
-python3 main.py --listen 0.0.0.0 --port 8188
-
-# Terminal 2: Start Web UI
+# 4. Start Services Manually
+cd ComfyUI && python3 main.py --listen 0.0.0.0 --port 8188 &
+cd gateway && source .venv/bin/activate && python app/main.py &
 npm run dev
 ```
 
-### 5. Access Pipeline
-Open http://localhost:5173 in your browser
-
-**See [SETUP_GUIDE.md](SETUP_GUIDE.md) for complete installation instructions.**
+**See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual setup.**
 
 ## Deploy to RunPod
 
-### Automated Deployment
+### Quick Deploy to Cloud
+
+```bash
+# One-command cloud deployment with GPU
+./deploy-pod-engine.sh runpod
+```
+
+**Or using existing script:**
 ```bash
 export DOCKER_USERNAME=your-dockerhub-username
 export RUNPOD_API_KEY=your-runpod-api-key
@@ -60,11 +78,12 @@ export RUNPOD_API_KEY=your-runpod-api-key
 ### What You Get on RunPod
 - ⚡ GPU-accelerated AI image generation (NVIDIA RTX A4000+)
 - 🌐 Public URL for accessing your pipeline
-- 💰 Pay-per-use pricing (only when generating)
-- 📦 Pre-configured ComfyUI + all integrations
+- 💰 Pay-per-use pricing (~$0.06 per design)
+- 📦 Pre-configured ComfyUI + POD Gateway + all integrations
 - 🔐 Secure environment variable management
+- 🔄 Auto-scaling and persistent storage
 
-**See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed deployment instructions.**
+**See [POD_ENGINE_DEPLOYMENT.md](POD_ENGINE_DEPLOYMENT.md) for complete cloud deployment guide.**
 
 ## Pipeline Features
 
@@ -125,11 +144,16 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Documentation
 
-- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
-- **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
+### Getting Started
+- **[QUICKSTART_POD_ENGINE.md](QUICKSTART_POD_ENGINE.md)** - 10-minute quick start guide ⚡
+- **[POD_ENGINE_DEPLOYMENT.md](POD_ENGINE_DEPLOYMENT.md)** - Complete deployment guide 🚀
+- **[POD_GATEWAY_INTEGRATION.md](POD_GATEWAY_INTEGRATION.md)** - Human approval system ✋
+
+### Technical Reference
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Detailed manual setup instructions
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
+- **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[SYSTEM_WALKTHROUGH.md](SYSTEM_WALKTHROUGH.md)** - Original POD studio documentation
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Legacy deployment guide
 
 ## Platform Requirements
 
