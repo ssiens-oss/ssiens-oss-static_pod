@@ -28,12 +28,13 @@ fi
 
 sleep 3
 
-# Start Gateway with proper Python module execution
+# Start Gateway with PYTHONPATH
 echo -e "${CYAN}▶ Starting POD Gateway...${NC}"
 cd gateway
 source .venv/bin/activate
-# Run as module so 'from app import' works correctly
-python -m app.main > ../logs/gateway.log 2>&1 &
+# Set PYTHONPATH so 'from app import' works correctly
+export PYTHONPATH=/workspace/ssiens-oss-static_pod/gateway:$PYTHONPATH
+python app/main.py > ../logs/gateway.log 2>&1 &
 GATEWAY_PID=$!
 echo $GATEWAY_PID > ../logs/gateway.pid
 cd ..
