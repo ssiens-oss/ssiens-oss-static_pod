@@ -84,6 +84,95 @@
             border-color: #667eea;
         }
 
+        .batch-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .batch-select {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .batch-select label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #888;
+            transition: color 0.2s;
+        }
+
+        .batch-select label:hover {
+            color: #fff;
+        }
+
+        .batch-select input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .batch-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .batch-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .batch-btn.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .batch-btn-approve {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .batch-btn-approve.active:hover {
+            background: #059669;
+        }
+
+        .batch-btn-reject {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .batch-btn-reject.active:hover {
+            background: #dc2626;
+        }
+
+        .batch-btn-publish {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .batch-btn-publish.active:hover {
+            background: #2563eb;
+        }
+
+        .selected-count {
+            color: #667eea;
+            font-weight: bold;
+        }
+
         .gallery {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -95,12 +184,28 @@
             border: 1px solid #333;
             border-radius: 12px;
             overflow: hidden;
-            transition: transform 0.2s;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .card.selected {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
         }
 
         .card:hover {
             transform: translateY(-5px);
             border-color: #667eea;
+        }
+
+        .card-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 10;
         }
 
         .card-image {
@@ -250,6 +355,27 @@
         <button class="filter-btn" data-filter="rejected">Rejected</button>
     </div>
 
+    <div class="batch-toolbar">
+        <div class="batch-select">
+            <label>
+                <input type="checkbox" id="select-all">
+                Select All
+            </label>
+            <span class="selected-count" id="selected-count">0 selected</span>
+        </div>
+        <div class="batch-actions">
+            <button class="batch-btn batch-btn-approve" id="batch-approve">
+                ✓ Approve Selected
+            </button>
+            <button class="batch-btn batch-btn-reject" id="batch-reject">
+                ✗ Reject Selected
+            </button>
+            <button class="batch-btn batch-btn-publish" id="batch-publish">
+                → Publish Selected
+            </button>
+        </div>
+    </div>
+
     <div class="gallery" id="gallery">
         <div class="loading">Loading images...</div>
     </div>
@@ -257,6 +383,7 @@
     <script>
         let currentFilter = 'all';
         let images = [];
+        let selectedImages = new Set();
 
         // Load images
         async function loadImages() {
@@ -266,6 +393,7 @@
                 images = data.images;
                 renderGallery();
                 updateStats();
+                updateBatchButtons();
             } catch (e) {
                 console.error('Failed to load images:', e);
             }
@@ -297,7 +425,8 @@
             }
 
             gallery.innerHTML = filtered.map(img => `
-                <div class="card" data-status="${img.status}">
+                <div class="card ${selectedImages.has(img.id) ? 'selected' : ''}" data-status="${img.status}" data-id="${img.id}">
+                    <input type="checkbox" class="card-checkbox" data-id="${img.id}" ${selectedImages.has(img.id) ? 'checked' : ''}>
                     <img src="${img.path}" class="card-image" alt="${img.filename}">
                     <div class="card-body">
                         <div class="card-title">${img.filename}</div>
@@ -344,6 +473,74 @@
             document.querySelectorAll('[data-action]').forEach(btn => {
                 btn.addEventListener('click', handleAction);
             });
+
+            document.querySelectorAll('.card-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleCheckboxChange);
+            });
+        }
+
+        // Handle checkbox changes
+        function handleCheckboxChange(e) {
+            const id = e.target.dataset.id;
+            const card = document.querySelector(`.card[data-id="${id}"]`);
+
+            if (e.target.checked) {
+                selectedImages.add(id);
+                card.classList.add('selected');
+            } else {
+                selectedImages.delete(id);
+                card.classList.remove('selected');
+            }
+
+            updateBatchButtons();
+            updateSelectAllCheckbox();
+        }
+
+        // Update select all checkbox state
+        function updateSelectAllCheckbox() {
+            const selectAll = document.getElementById('select-all');
+            const visibleImages = currentFilter === 'all'
+                ? images
+                : images.filter(img => img.status === currentFilter);
+
+            if (visibleImages.length === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+                return;
+            }
+
+            const visibleSelected = visibleImages.filter(img => selectedImages.has(img.id)).length;
+
+            if (visibleSelected === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            } else if (visibleSelected === visibleImages.length) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            }
+        }
+
+        // Update batch action buttons
+        function updateBatchButtons() {
+            const count = selectedImages.size;
+            document.getElementById('selected-count').textContent = `${count} selected`;
+
+            const approveBtn = document.getElementById('batch-approve');
+            const rejectBtn = document.getElementById('batch-reject');
+            const publishBtn = document.getElementById('batch-publish');
+
+            if (count > 0) {
+                approveBtn.classList.add('active');
+                rejectBtn.classList.add('active');
+                publishBtn.classList.add('active');
+            } else {
+                approveBtn.classList.remove('active');
+                rejectBtn.classList.remove('active');
+                publishBtn.classList.remove('active');
+            }
         }
 
         // Handle button actions
@@ -383,6 +580,93 @@
             }
         }
 
+        // Handle batch approve
+        async function handleBatchApprove() {
+            if (selectedImages.size === 0) return;
+
+            if (!confirm(`Approve ${selectedImages.size} images?`)) return;
+
+            try {
+                const res = await fetch('/api/batch/approve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image_ids: Array.from(selectedImages)})
+                });
+
+                const result = await res.json();
+                alert(`Approved ${result.successful}/${result.processed} images`);
+                selectedImages.clear();
+                await loadImages();
+            } catch (err) {
+                alert(`Batch approve failed: ${err.message}`);
+            }
+        }
+
+        // Handle batch reject
+        async function handleBatchReject() {
+            if (selectedImages.size === 0) return;
+
+            if (!confirm(`Reject ${selectedImages.size} images?`)) return;
+
+            try {
+                const res = await fetch('/api/batch/reject', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image_ids: Array.from(selectedImages)})
+                });
+
+                const result = await res.json();
+                alert(`Rejected ${result.successful}/${result.processed} images`);
+                selectedImages.clear();
+                await loadImages();
+            } catch (err) {
+                alert(`Batch reject failed: ${err.message}`);
+            }
+        }
+
+        // Handle batch publish
+        async function handleBatchPublish() {
+            if (selectedImages.size === 0) return;
+
+            if (!confirm(`Publish ${selectedImages.size} images to Printify?`)) return;
+
+            try {
+                const res = await fetch('/api/batch/publish', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image_ids: Array.from(selectedImages)})
+                });
+
+                const result = await res.json();
+                alert(`Published ${result.successful}/${result.processed} images`);
+                selectedImages.clear();
+                await loadImages();
+            } catch (err) {
+                alert(`Batch publish failed: ${err.message}`);
+            }
+        }
+
+        // Select all handler
+        document.getElementById('select-all').addEventListener('change', (e) => {
+            const visibleImages = currentFilter === 'all'
+                ? images
+                : images.filter(img => img.status === currentFilter);
+
+            if (e.target.checked) {
+                visibleImages.forEach(img => selectedImages.add(img.id));
+            } else {
+                visibleImages.forEach(img => selectedImages.delete(img.id));
+            }
+
+            renderGallery();
+            updateBatchButtons();
+        });
+
+        // Batch action buttons
+        document.getElementById('batch-approve').addEventListener('click', handleBatchApprove);
+        document.getElementById('batch-reject').addEventListener('click', handleBatchReject);
+        document.getElementById('batch-publish').addEventListener('click', handleBatchPublish);
+
         // Filter buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -390,6 +674,7 @@
                 btn.classList.add('active');
                 currentFilter = btn.dataset.filter;
                 renderGallery();
+                updateSelectAllCheckbox();
             });
         });
 

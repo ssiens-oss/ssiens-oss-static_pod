@@ -138,6 +138,115 @@ def reset_image(image_id):
     state_manager.set_image_status(image_id, "pending")
     return jsonify({"success": True, "status": "pending"})
 
+@app.route('/api/batch/approve', methods=['POST'])
+def batch_approve():
+    """Batch approve multiple images"""
+    data = request.get_json()
+    image_ids = data.get('image_ids', [])
+
+    if not image_ids:
+        return jsonify({"success": False, "error": "No images selected"}), 400
+
+    results = []
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, "approved")
+            results.append({"id": image_id, "success": True, "status": "approved"})
+        except Exception as e:
+            results.append({"id": image_id, "success": False, "error": str(e)})
+
+    successful = len([r for r in results if r["success"]])
+    return jsonify({
+        "success": True,
+        "processed": len(results),
+        "successful": successful,
+        "failed": len(results) - successful,
+        "results": results
+    })
+
+@app.route('/api/batch/reject', methods=['POST'])
+def batch_reject():
+    """Batch reject multiple images"""
+    data = request.get_json()
+    image_ids = data.get('image_ids', [])
+
+    if not image_ids:
+        return jsonify({"success": False, "error": "No images selected"}), 400
+
+    results = []
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, "rejected")
+            results.append({"id": image_id, "success": True, "status": "rejected"})
+        except Exception as e:
+            results.append({"id": image_id, "success": False, "error": str(e)})
+
+    successful = len([r for r in results if r["success"]])
+    return jsonify({
+        "success": True,
+        "processed": len(results),
+        "successful": successful,
+        "failed": len(results) - successful,
+        "results": results
+    })
+
+@app.route('/api/batch/publish', methods=['POST'])
+def batch_publish():
+    """Batch publish multiple approved images"""
+    if not printify_client:
+        return jsonify({"success": False, "error": "Printify not configured"}), 400
+
+    data = request.get_json()
+    image_ids = data.get('image_ids', [])
+
+    if not image_ids:
+        return jsonify({"success": False, "error": "No images selected"}), 400
+
+    results = []
+    for image_id in image_ids:
+        try:
+            # Check if approved
+            status = state_manager.get_image_status(image_id)
+            if status not in ["approved", "failed"]:
+                results.append({"id": image_id, "success": False, "error": f"Not approved (status: {status})"})
+                continue
+
+            # Get image path
+            image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+            if not os.path.exists(image_path):
+                results.append({"id": image_id, "success": False, "error": "File not found"})
+                continue
+
+            # Publish
+            state_manager.set_image_status(image_id, "publishing")
+            title = f"Design {image_id[:8]}"
+            product_id = printify_client.create_and_publish(
+                image_path,
+                title,
+                config.PRINTIFY_BLUEPRINT_ID,
+                config.PRINTIFY_PROVIDER_ID
+            )
+
+            if product_id:
+                state_manager.set_image_status(image_id, "published", {"product_id": product_id, "title": title})
+                results.append({"id": image_id, "success": True, "status": "published", "product_id": product_id})
+            else:
+                state_manager.set_image_status(image_id, "failed")
+                results.append({"id": image_id, "success": False, "error": "Printify API failed"})
+
+        except Exception as e:
+            state_manager.set_image_status(image_id, "failed")
+            results.append({"id": image_id, "success": False, "error": str(e)})
+
+    successful = len([r for r in results if r["success"]])
+    return jsonify({
+        "success": True,
+        "processed": len(results),
+        "successful": successful,
+        "failed": len(results) - successful,
+        "results": results
+    })
+
 @app.route('/api/stats')
 def get_stats():
     """Get gallery statistics"""
