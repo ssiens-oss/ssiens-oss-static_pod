@@ -1,6 +1,10 @@
 /**
  * Pipeline Orchestrator
  * Coordinates the entire POD automation workflow
+ *
+ * ⚠️ BACKEND ONLY - This orchestrator uses backend services (storage, file system)
+ * This is designed to run on a Node.js server, not in the browser.
+ * The browser GUI (App.tsx) uses mockEngine.ts for simulation.
  */
 
 import { ComfyUIService } from './comfyui'

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Wifi, WifiOff, Loader2, Cloud } from 'lucide-react';
 import { ComfyUIService } from '../services/comfyui';
-import { config, isRunPod } from '../services/config';
+import { config } from '../services/config';
+import { TIMEOUTS } from '../constants/timings';
 
 interface ConnectionStatusProps {
   comfyService: ComfyUIService | null;
@@ -11,7 +12,7 @@ export function ConnectionStatus({ comfyService }: ConnectionStatusProps) {
   const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
 
-  const checkConnection = async () => {
+  const checkConnection = useCallback(async () => {
     if (!comfyService) {
       setStatus('disconnected');
       return;
@@ -21,16 +22,16 @@ export function ConnectionStatus({ comfyService }: ConnectionStatusProps) {
     const isHealthy = await comfyService.healthCheck();
     setStatus(isHealthy ? 'connected' : 'disconnected');
     setLastCheck(new Date());
-  };
+  }, [comfyService]);
 
   useEffect(() => {
     checkConnection();
 
     // Check every 30 seconds
-    const interval = setInterval(checkConnection, 30000);
+    const interval = setInterval(checkConnection, TIMEOUTS.CONNECTION_CHECK_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [comfyService]);
+  }, [checkConnection]);
 
   const getStatusColor = () => {
     switch (status) {
@@ -50,7 +51,7 @@ export function ConnectionStatus({ comfyService }: ConnectionStatusProps) {
 
   const getIcon = () => {
     if (status === 'checking') return <Loader2 className="animate-spin" size={14} />;
-    if (status === 'connected') return isRunPod() ? <Cloud size={14} /> : <Wifi size={14} />;
+    if (status === 'connected') return config.runpod.isRunPod ? <Cloud size={14} /> : <Wifi size={14} />;
     return <WifiOff size={14} />;
   };
 
@@ -60,7 +61,7 @@ export function ConnectionStatus({ comfyService }: ConnectionStatusProps) {
       <div className="flex items-center gap-2 text-xs">
         {getIcon()}
         <span className="font-medium">{getStatusText()}</span>
-        {isRunPod() && status === 'connected' && (
+        {config.runpod.isRunPod && status === 'connected' && (
           <span className="text-slate-500">RunPod</span>
         )}
       </div>

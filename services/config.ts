@@ -3,6 +3,11 @@
  * Centralizes environment variable access
  */
 
+/**
+ * Client-side configuration
+ * SECURITY: Only non-sensitive config should be here
+ * API keys must be used server-side only
+ */
 export const config = {
   comfyui: {
     apiUrl: import.meta.env.VITE_COMFYUI_API_URL || 'http://localhost:8188',
@@ -11,16 +16,6 @@ export const config = {
   },
   runpod: {
     podId: import.meta.env.VITE_RUNPOD_POD_ID || '',
+    isRunPod: !!import.meta.env.VITE_RUNPOD_POD_ID,
   },
-  anthropic: {
-    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || '',
-  }
-}
-
-export function getComfyUIUrl(): string {
-  return config.comfyui.apiUrl
-}
-
-export function isRunPod(): boolean {
-  return !!config.runpod.podId
-}
+} as const;

@@ -11,11 +11,11 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
+        // Only expose non-sensitive config to client
+        // SECURITY: Never expose API keys to client-side code!
+        // API keys should only be used in backend services
         'import.meta.env.VITE_COMFYUI_API_URL': JSON.stringify(env.COMFYUI_API_URL || 'http://localhost:8188'),
         'import.meta.env.VITE_RUNPOD_POD_ID': JSON.stringify(env.RUNPOD_POD_ID || ''),
-        'import.meta.env.VITE_ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY || ''),
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
       resolve: {
         alias: {

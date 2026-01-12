@@ -5,18 +5,17 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { runSimulation } from './services/mockEngine';
 import { ComfyUIService } from './services/comfyui';
 import { config } from './services/config';
+import { generateShortId } from './utils/id';
 import { LogEntry, LogType, QueueItem, EngineConfig, EditorState } from './types';
 import {
   Rocket,
   Layers,
   Box,
-  Settings,
   Play,
   Image as ImageIcon,
   CheckCircle2,
   Loader2,
-  AlertCircle,
-  Sparkles
+  AlertCircle
 } from 'lucide-react';
 
 const INITIAL_EDITOR_STATE: EditorState = {
@@ -72,7 +71,7 @@ export default function App() {
   // --- Handlers ---
   const addLog = useCallback((message: string, type: LogType = LogType.INFO) => {
     setLogs(prev => [...prev, {
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateShortId('log'),
       timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
       message,
       type

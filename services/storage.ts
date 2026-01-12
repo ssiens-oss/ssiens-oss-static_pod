@@ -1,6 +1,14 @@
 /**
  * Storage Service
  * Handles auto-saving of generated images to local/cloud storage
+ *
+ * ⚠️ BACKEND ONLY - This service uses Node.js APIs (fs, path, crypto)
+ * This will NOT work in browser environments. Only use this in:
+ * - Node.js backend servers
+ * - Electron apps
+ * - Server-side rendering contexts
+ *
+ * For browser-based storage, use Web APIs like IndexedDB or localStorage
  */
 
 import * as fs from 'fs'
