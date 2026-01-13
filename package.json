@@ -11,7 +11,16 @@
     "preview": "vite preview",
     "pipeline:single": "node scripts/run-pipeline.js",
     "pipeline:batch": "node scripts/run-batch.js",
-    "setup:platforms": "node scripts/setup-platforms.js"
+    "setup:platforms": "node scripts/setup-platforms.js",
+    "production:deploy": "bash production/scripts/deploy.sh",
+    "production:validate": "bash production/scripts/validate.sh",
+    "production:start": "bash production/scripts/start.sh",
+    "production:stop": "bash production/scripts/stop.sh",
+    "production:status": "bash production/scripts/status.sh",
+    "production:worker": "bash production/scripts/start.sh worker",
+    "production:api": "bash production/scripts/start.sh api",
+    "production:docker": "bash production/scripts/start.sh docker",
+    "production:docker-build": "bash production/scripts/start.sh docker-build"
   },
   "dependencies": {
     "react": "^19.2.1",
