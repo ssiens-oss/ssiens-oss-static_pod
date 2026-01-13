@@ -1,0 +1,12 @@
+[Unit]
+Description=POD Gateway RunPod Image Sync Timer
+Requires=pod-gateway-sync.service
+
+[Timer]
+# Run every 5 minutes
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=POD Gateway RunPod Image Sync
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/pod-gateway/runpod-sync.conf
+ExecStart=/opt/pod-gateway/download-runpod-images.sh
+StandardOutput=journal
+StandardError=journal
