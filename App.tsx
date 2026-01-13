@@ -111,7 +111,9 @@ export default function App() {
         );
       }
     } catch (err) {
-      addLog(`Critical Error: ${err}`, LogType.ERROR);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addLog(`Critical Error: ${errorMessage}`, LogType.ERROR);
+      console.error('Pipeline error:', err);
     } finally {
       setIsRunning(false);
       setProgress(100);

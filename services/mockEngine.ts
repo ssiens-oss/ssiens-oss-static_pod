@@ -1,4 +1,5 @@
 import { LogType, LogEntry, QueueItem } from '../types';
+import { sleep } from '../utils/delay';
 
 type LogCallback = (entry: LogEntry) => void;
 type ProgressCallback = (val: number) => void;
@@ -8,7 +9,6 @@ type ImageCallback = (type: 'design' | 'mockup', url: string) => void;
 const generateId = () => Math.random().toString(36).substr(2, 9);
 const timestamp = () => new Date().toLocaleTimeString('en-US', { hour12: false });
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const MOCK_MESSAGES = [
     "Initializing generative module...",

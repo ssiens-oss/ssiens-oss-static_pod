@@ -3,6 +3,8 @@
  * Handles AI image generation via ComfyUI API
  */
 
+import { sleep } from '../utils/delay';
+
 interface ComfyUIConfig {
   apiUrl: string
   outputDir: string
@@ -206,10 +208,10 @@ export class ComfyUIService {
         }
 
         // Wait before polling again
-        await this.sleep(2000)
+        await sleep(2000)
       } catch (error) {
         console.error('Error polling ComfyUI:', error)
-        await this.sleep(2000)
+        await sleep(2000)
       }
     }
 
@@ -269,9 +271,6 @@ export class ComfyUIService {
   /**
    * Helper: Sleep utility
    */
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
 
   /**
    * Check if ComfyUI is available
