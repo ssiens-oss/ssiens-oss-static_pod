@@ -82,19 +82,39 @@ gateway/
 
 ## ✅ What Works Right Now
 
-### Installation
+### 🚀 Standalone Deployment (NEW!)
+
+**Run as an independent service with auto-start and auto-restart:**
+
+```bash
+# Option 1: Linux systemd service (production)
+cd gateway
+sudo ./install_standalone.sh
+
+# Option 2: Docker container
+docker-compose up -d
+
+# Control script (works with both)
+./pod-gateway-ctl.sh start|stop|restart|status|logs|health
+```
+
+**See [gateway/STANDALONE_DEPLOYMENT.md](gateway/STANDALONE_DEPLOYMENT.md) for complete documentation.**
+
+### 🎮 Manual Mode (Development)
+
+#### Installation
 ```bash
 cd gateway
 ./install_runpod.sh  # Creates venv, installs dependencies
 ```
 
-### Configuration
+#### Configuration
 ```bash
 cp .env.example .env
 # Edit .env with your Printify API key and shop ID
 ```
 
-### Running
+#### Running
 ```bash
 source .venv/bin/activate
 python app/main.py
