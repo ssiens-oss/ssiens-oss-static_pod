@@ -55,23 +55,15 @@ case $MODE in
         log_info "API Port: $API_PORT"
         echo ""
 
-        # Use ts-node if available, otherwise use node
-        if command -v ts-node >/dev/null 2>&1; then
-            ts-node production/examples/worker-pool-api.ts
-        else
-            node production/examples/worker-pool-api.ts
-        fi
+        # Use npx ts-node to run TypeScript
+        npx ts-node production/examples/worker-pool-api.ts
         ;;
 
     worker|single)
         log_info "Starting Production POD Engine in Single Worker mode"
         echo ""
 
-        if command -v ts-node >/dev/null 2>&1; then
-            ts-node production/examples/simple-worker.ts
-        else
-            node production/examples/simple-worker.ts
-        fi
+        npx ts-node production/examples/simple-worker.ts
         ;;
 
     docker)
