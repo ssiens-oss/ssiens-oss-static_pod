@@ -12,6 +12,7 @@
     "pipeline:single": "node scripts/run-pipeline.js",
     "pipeline:batch": "node scripts/run-batch.js",
     "setup:platforms": "node scripts/setup-platforms.js",
+    "production:run": "bash production/scripts/quickrun.sh",
     "production:deploy": "bash production/scripts/deploy.sh",
     "production:validate": "bash production/scripts/validate.sh",
     "production:start": "bash production/scripts/start.sh",
