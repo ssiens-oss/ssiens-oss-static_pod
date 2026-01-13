@@ -3,6 +3,7 @@
  * Coordinates the entire POD automation workflow
  */
 
+import { PromptData, SavedImageData, ProductResult } from '../types';
 import { ComfyUIService } from './comfyui'
 import { ClaudePromptingService } from './claudePrompting'
 import { StorageService } from './storage'
@@ -228,7 +229,7 @@ export class Orchestrator {
   /**
    * Generate prompts using Claude
    */
-  private async generatePrompts(request: PipelineRequest): Promise<any[]> {
+  private async generatePrompts(request: PipelineRequest): Promise<PromptData[]> {
     if (request.prompt) {
       // Use provided prompt
       return [{
@@ -252,7 +253,7 @@ export class Orchestrator {
   /**
    * Generate images with ComfyUI
    */
-  private async generateImages(prompts: any[]): Promise<string[]> {
+  private async generateImages(prompts: PromptData[]): Promise<string[]> {
     const allImages: string[] = []
 
     for (const promptData of prompts) {
@@ -278,7 +279,7 @@ export class Orchestrator {
   /**
    * Save images to storage
    */
-  private async saveImages(imageUrls: string[], prompts: any[]): Promise<any[]> {
+  private async saveImages(imageUrls: string[], prompts: PromptData[]): Promise<SavedImageData[]> {
     const saved = []
 
     for (let i = 0; i < imageUrls.length; i++) {
@@ -302,11 +303,11 @@ export class Orchestrator {
    * Create products on all enabled platforms
    */
   private async createProducts(
-    image: any,
-    promptData: any,
+    image: SavedImageData,
+    promptData: PromptData,
     productType: 'tshirt' | 'hoodie',
     autoPublish: boolean
-  ): Promise<Array<{ platform: string; productId: string; url: string; type: string }>> {
+  ): Promise<ProductResult[]> {
     const products = []
     const enabledPlatforms = this.config.options?.enabledPlatforms || ['printify', 'shopify']
 

@@ -1,13 +1,15 @@
 # RunPod Dockerfile with ComfyUI and POD Pipeline
-# This Dockerfile sets up a complete environment for the POD automation pipeline
+# Production-ready environment for the POD automation pipeline
 
 FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV COMFYUI_PATH=/workspace/ComfyUI
-ENV POD_APP_PATH=/workspace/app
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    COMFYUI_PATH=/workspace/ComfyUI \
+    POD_APP_PATH=/workspace/app \
+    NODE_ENV=production \
+    PORT=80
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -45,42 +47,90 @@ RUN pip3 install torch torchvision torchaudio --index-url https://download.pytor
 # Copy POD application
 WORKDIR ${POD_APP_PATH}
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy application files
 COPY . .
 
-# Build frontend
-RUN npm run build
+# Build frontend for production
+RUN npm run build && \
+    npm prune --production && \
+    npm cache clean --force
+
+# Copy built frontend to nginx html directory
+RUN mkdir -p /usr/share/nginx/html && \
+    cp -r dist/* /usr/share/nginx/html/
 
 # Configure Nginx
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/sites-available/default
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /data/designs /data/chrome-profile /data/comfyui/output && \
+    chmod -R 755 /data
 
 # Expose ports
 # 80: Frontend web UI
 # 8188: ComfyUI API
-# 3000: Backend API (if needed)
-EXPOSE 80 8188 3000
+# 5000: POD Gateway (optional)
+EXPOSE 80 8188 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost/health && curl -f http://localhost:8188/system_stats || exit 1
 
 # Create startup script
-RUN echo '#!/bin/bash\n\
-# Start ComfyUI\n\
-cd /workspace/ComfyUI\n\
-python3 main.py --listen 0.0.0.0 --port 8188 &\n\
-\n\
-# Wait for ComfyUI to start\n\
-echo "Waiting for ComfyUI to start..."\n\
-sleep 10\n\
-\n\
-# Start Nginx\n\
-nginx -g "daemon off;" &\n\
-\n\
-# Keep container running\n\
-tail -f /dev/null\n\
-' > /start.sh && chmod +x /start.sh
+COPY <<'EOF' /start.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting POD Pipeline Production Environment..."
+
+# Start ComfyUI
+echo "⚙️  Starting ComfyUI..."
+cd /workspace/ComfyUI
+python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &
+COMFYUI_PID=$!
+
+# Wait for ComfyUI to be ready
+echo "⏳ Waiting for ComfyUI to initialize..."
+for i in {1..30}; do
+    if curl -sf http://localhost:8188/system_stats > /dev/null 2>&1; then
+        echo "✅ ComfyUI is ready"
+        break
+    fi
+    echo "   Attempt $i/30..."
+    sleep 2
+done
+
+# Test Nginx configuration
+echo "🔍 Testing Nginx configuration..."
+nginx -t
+
+# Start Nginx
+echo "🌐 Starting Nginx..."
+nginx
+
+echo "✅ All services started successfully!"
+echo "📊 Access the dashboard at http://localhost"
+echo "🎨 ComfyUI API available at http://localhost:8188"
+
+# Monitor services
+while true; do
+    if ! kill -0 $COMFYUI_PID 2>/dev/null; then
+        echo "❌ ComfyUI process died, restarting..."
+        cd /workspace/ComfyUI
+        python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &
+        COMFYUI_PID=$!
+    fi
+    sleep 10
+done
+EOF
+
+RUN chmod +x /start.sh
+
+# Set up log directory
+RUN mkdir -p /var/log && touch /var/log/comfyui.log
 
 CMD ["/start.sh"]

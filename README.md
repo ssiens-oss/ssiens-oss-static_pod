@@ -14,8 +14,31 @@ Complete end-to-end Print-on-Demand automation using AI image generation, multi-
 - 🛍️ **Multi-Platform Publishing** to Shopify, TikTok, Etsy, Instagram, Facebook
 - 📊 **Real-time Monitoring** with web UI
 - ☁️ **RunPod Deployment** for scalable cloud execution
+- 🆓 **100% FREE Local Mode** - No cloud costs!
 
-## Quick Start
+## 🆓 Quick Start (FREE - 60 Seconds)
+
+Run **completely free** on your machine with Docker:
+
+```bash
+# One command to start everything
+./scripts/quick-start.sh
+```
+
+Then open http://localhost:5173 and start creating!
+
+**Features:**
+- ✅ $0/month - No cloud costs
+- ✅ Local AI prompt generation - No Claude API needed
+- ✅ ComfyUI on your GPU/CPU
+- ✅ All data stays local
+- ✅ Unlimited generations
+
+**See [FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md) for the complete free setup guide.**
+
+---
+
+## Quick Start (Traditional Setup)
 
 ### 1. Install Dependencies
 ```bash
@@ -125,7 +148,9 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Documentation
 
+- **[FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md)** - 🆓 100% FREE local deployment guide
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
+- **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** - Production deployment to RunPod
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
 - **[SYSTEM_WALKTHROUGH.md](SYSTEM_WALKTHROUGH.md)** - Original POD studio documentation
@@ -146,12 +171,16 @@ export RUNPOD_API_KEY=your-runpod-api-key
 
 ## Cost Estimates
 
-**Per Design (1 T-shirt + 1 Hoodie):**
-- Claude API: ~$0.01
-- ComfyUI (RunPod): ~$0.05
-- Total: **~$0.06 per design**
+### 🆓 Free Local Mode
+- **Per Design:** $0.00
+- **100 Designs:** $0.00
+- **Per Month:** $0.00
+- Uses your computer's GPU/CPU, local prompts, no API costs!
 
-**100 Designs: ~$6.00**
+### ☁️ Cloud Mode (RunPod)
+- **Per Design:** ~$0.06 (Claude $0.01 + RunPod $0.05)
+- **100 Designs:** ~$6.00
+- **Per Month:** ~$180-450 depending on usage
 
 ---
 

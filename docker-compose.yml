@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Frontend Web UI
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - ./data/designs:/data/designs
+    environment:
+      - NODE_ENV=development
+      - VITE_COMFYUI_URL=http://localhost:8188
+      - VITE_MUSIC_API_URL=http://localhost:8000
+    depends_on:
+      - comfyui
+    networks:
+      - pod-network
+
+  # ComfyUI - AI Image Generation
+  comfyui:
+    image: ghcr.io/ai-dock/comfyui:latest
+    ports:
+      - "8188:8188"
+    volumes:
+      - ./comfyui-data/models:/workspace/ComfyUI/models
+      - ./comfyui-data/output:/workspace/ComfyUI/output
+      - ./comfyui-data/input:/workspace/ComfyUI/input
+      - ./comfyui-data/custom_nodes:/workspace/ComfyUI/custom_nodes
+    environment:
+      - COMFYUI_FLAGS=--listen 0.0.0.0 --port 8188
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - pod-network
+    restart: unless-stopped
+
+  # Redis for Music API (Optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - pod-network
+    restart: unless-stopped
+
+networks:
+  pod-network:
+    driver: bridge
+
+volumes:
+  redis-data:
