@@ -6,6 +6,7 @@
 import { PromptData, SavedImageData, ProductResult } from '../types';
 import { ComfyUIService } from './comfyui'
 import { ClaudePromptingService } from './claudePrompting'
+import { LocalPromptingService } from './localPrompting'
 import { StorageService } from './storage'
 import { PrintifyService } from './printify'
 import { ShopifyService } from './shopify'
@@ -59,6 +60,7 @@ interface OrchestratorConfig {
     autoPublish?: boolean
     tshirtPrice?: number
     hoodiePrice?: number
+    useLocalPrompts?: boolean
   }
 }
 
@@ -92,6 +94,7 @@ interface PipelineResult {
 export class Orchestrator {
   private comfyui: ComfyUIService
   private claude: ClaudePromptingService
+  private localPrompts: LocalPromptingService
   private storage: StorageService
   private printify?: PrintifyService
   private shopify?: ShopifyService
@@ -108,6 +111,7 @@ export class Orchestrator {
     // Initialize core services
     this.comfyui = new ComfyUIService(config.comfyui)
     this.claude = new ClaudePromptingService(config.claude)
+    this.localPrompts = new LocalPromptingService()
     this.storage = new StorageService(config.storage)
 
     // Initialize platform services
@@ -227,7 +231,7 @@ export class Orchestrator {
   }
 
   /**
-   * Generate prompts using Claude
+   * Generate prompts using Claude or Local Prompts (FREE)
    */
   private async generatePrompts(request: PipelineRequest): Promise<PromptData[]> {
     if (request.prompt) {
@@ -240,7 +244,22 @@ export class Orchestrator {
       }]
     }
 
-    // Generate prompts with Claude
+    // Check if we should use local prompts (FREE mode)
+    const useLocalPrompts = this.config.options?.useLocalPrompts || false;
+
+    if (useLocalPrompts) {
+      // Use FREE local prompts (no API costs!)
+      this.log('🆓 Generating prompts locally (FREE mode - no API costs!)', 'INFO')
+      return this.localPrompts.generatePrompts({
+        theme: request.theme,
+        style: request.style,
+        niche: request.niche,
+        count: request.count || 1,
+        productType: request.productTypes[0]
+      })
+    }
+
+    // Generate prompts with Claude API
     return this.claude.generatePrompts({
       theme: request.theme,
       style: request.style,
