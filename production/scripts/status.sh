@@ -27,7 +27,9 @@ log_warning() {
 
 # Load environment
 if [ -f "production/.env" ]; then
-    export $(cat production/.env | grep -v '^#' | xargs 2>/dev/null)
+    set -a
+    source production/.env 2>/dev/null || true
+    set +a
 fi
 
 API_PORT=${API_PORT:-3000}

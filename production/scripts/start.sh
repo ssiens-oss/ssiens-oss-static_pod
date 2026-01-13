@@ -25,7 +25,9 @@ log_error() {
 
 # Load environment variables
 if [ -f "production/.env" ]; then
-    export $(cat production/.env | grep -v '^#' | xargs)
+    set -a
+    source production/.env
+    set +a
     log_success "Loaded environment from production/.env"
 else
     log_error "production/.env not found. Run ./production/scripts/deploy.sh first"
