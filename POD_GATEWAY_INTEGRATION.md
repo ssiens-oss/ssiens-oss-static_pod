@@ -4,6 +4,21 @@
 
 A **human-in-the-loop approval system** that sits between ComfyUI image generation and Printify publishing. This gives you manual control over which AI-generated designs go live on your store.
 
+## 🚀 Recent Refactoring (2026-01-13)
+
+The POD Gateway has been comprehensively refactored with enterprise-grade improvements:
+
+**Key Enhancements:**
+- ✅ **Dynamic Variant Fetching**: No more hardcoded variant IDs - works with all Printify blueprints automatically
+- ✅ **Retry Logic**: Exponential backoff for API failures (configurable retries, handles rate limits)
+- ✅ **Input Validation**: Comprehensive validation prevents XSS, path traversal, and malicious uploads
+- ✅ **Type Safety**: Full type hints throughout Python codebase for better IDE support
+- ✅ **Structured Configuration**: Dataclass-based config with validation and clear defaults
+- ✅ **Enhanced Error Handling**: Custom exception hierarchy and detailed logging
+- ✅ **State Management**: Enum-based status validation, automatic timestamps, corrupted file recovery
+
+See [`REFACTORING_SUMMARY.md`](./REFACTORING_SUMMARY.md) for complete details.
+
 ---
 
 ## 🏗️ Architecture
