@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  pod-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pod-gateway
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist state and images
+      - ./data/images:/app/data/images
+      - ./data/state:/app/data/state
+      - ./data/archive:/app/data/archive
+      # Mount custom .env if exists
+      - ./.env:/app/.env:ro
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pod-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  pod-network:
+    driver: bridge

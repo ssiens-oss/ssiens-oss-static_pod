@@ -21,6 +21,32 @@ ComfyUI → POD Gateway → Printify → Shopify
 
 ---
 
+## 📦 Deployment Options
+
+### ⚡ Standalone Service (Production)
+
+**Run as an independent background service with auto-start and auto-restart:**
+
+```bash
+# Linux systemd service (recommended)
+cd gateway
+sudo ./install_standalone.sh
+
+# Docker container
+docker-compose up -d
+
+# Unified control script
+./pod-gateway-ctl.sh start
+./pod-gateway-ctl.sh status
+./pod-gateway-ctl.sh logs
+```
+
+**See [STANDALONE_DEPLOYMENT.md](./STANDALONE_DEPLOYMENT.md) for complete documentation.**
+
+### 🎮 Manual Mode (Development)
+
+---
+
 ## 🚀 Quick Start (RunPod)
 
 ### 1. Install
