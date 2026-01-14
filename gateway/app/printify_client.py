@@ -3,6 +3,8 @@ Printify API Client
 Handles product creation and publishing with dynamic variant fetching and retry logic
 """
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import time
 import logging
 from typing import Dict, List, Optional, Tuple
@@ -78,6 +80,19 @@ class PrintifyClient:
         self.retry_config = retry_config or RetryConfig()
         self._variant_cache: Dict[Tuple[int, int], List[Variant]] = {}
 
+        # Configure session with HTTPAdapter and retry logic
+        self.session = requests.Session()
+        retry_strategy = Retry(
+            total=self.retry_config.max_retries,
+            backoff_factor=self.retry_config.backoff_multiplier,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET", "POST", "PUT", "DELETE"],
+            raise_on_status=False
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+
         logger.info(f"Initialized Printify client for shop {shop_id}")
 
     def _make_request(
@@ -108,7 +123,7 @@ class PrintifyClient:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
 
-                response = requests.request(
+                response = self.session.request(
                     method=method,
                     url=url,
                     headers=self.headers,
