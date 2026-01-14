@@ -6,6 +6,7 @@ import requests
 import time
 import os
 import json
+import copy
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -23,6 +24,11 @@ class ServerlessComfyUI:
             )
 
         self.base_url = f"https://api.runpod.ai/v2/{self.endpoint_id}"
+
+        # Load default workflow
+        workflow_path = Path(__file__).parent / "workflows" / "sdxl_base.json"
+        with open(workflow_path) as f:
+            self.default_workflow = json.load(f)
 
     def _headers(self) -> Dict[str, str]:
         """Get request headers with auth"""
@@ -61,16 +67,22 @@ class ServerlessComfyUI:
         print(f"🎨 Generating image: {prompt[:50]}...")
         print(f"   Steps: {steps}, Size: {width}x{height}")
 
-        # Submit job
+        # Prepare workflow with parameters
+        workflow = copy.deepcopy(self.default_workflow)
+
+        # Update workflow parameters
+        workflow["3"]["inputs"]["steps"] = steps
+        workflow["3"]["inputs"]["cfg"] = cfg_scale
+        workflow["3"]["inputs"]["seed"] = seed if seed > 0 else int(time.time())
+        workflow["5"]["inputs"]["width"] = width
+        workflow["5"]["inputs"]["height"] = height
+        workflow["6"]["inputs"]["text"] = prompt
+        workflow["7"]["inputs"]["text"] = negative_prompt
+
+        # Submit job with full workflow
         payload = {
             "input": {
-                "prompt": prompt,
-                "negative_prompt": negative_prompt,
-                "steps": steps,
-                "cfg_scale": cfg_scale,
-                "width": width,
-                "height": height,
-                "seed": seed if seed > 0 else None
+                "workflow": workflow
             }
         }
 
@@ -131,10 +143,21 @@ class ServerlessComfyUI:
 
             if status == "COMPLETED":
                 output = data.get("output", {})
-                images = output.get("images", [])
+
+                # Handle different output formats
+                if isinstance(output, dict):
+                    images = output.get("images", output.get("image", []))
+                elif isinstance(output, list):
+                    images = output
+                else:
+                    images = []
+
                 if images:
-                    return images[0]
-                raise ValueError("No images in completed job output")
+                    # Return first image URL
+                    image = images[0] if isinstance(images, list) else images
+                    return image if isinstance(image, str) else image.get("url", image.get("image"))
+
+                raise ValueError(f"No images in completed job output. Output: {output}")
 
             elif status == "FAILED":
                 error = data.get("error", "Unknown error")
