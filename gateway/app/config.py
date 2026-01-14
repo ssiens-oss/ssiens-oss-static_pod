@@ -43,9 +43,9 @@ class PrintifyConfig:
     """Printify API configuration"""
     api_key: Optional[str]
     shop_id: Optional[str]
-    blueprint_id: int = 3  # T-shirt default
-    provider_id: int = 99  # SwiftPOD default
-    default_price_cents: int = 1999  # $19.99
+    blueprint_id: int = 165  # Gildan 18500 Hoodie (most popular POD product)
+    provider_id: int = 99  # SwiftPOD default (US-based, reliable)
+    default_price_cents: int = 3499  # $34.99 (typical hoodie price)
 
     def validate(self) -> None:
         """Validate Printify configuration"""
@@ -124,9 +124,9 @@ class GatewayConfig:
         self.printify = PrintifyConfig(
             api_key=os.getenv("PRINTIFY_API_KEY"),
             shop_id=os.getenv("PRINTIFY_SHOP_ID"),
-            blueprint_id=int(os.getenv("PRINTIFY_BLUEPRINT_ID", "3")),
-            provider_id=int(os.getenv("PRINTIFY_PROVIDER_ID", "99")),
-            default_price_cents=int(os.getenv("PRINTIFY_DEFAULT_PRICE_CENTS", "1999"))
+            blueprint_id=int(os.getenv("PRINTIFY_BLUEPRINT_ID", "165")),  # Gildan 18500 Hoodie
+            provider_id=int(os.getenv("PRINTIFY_PROVIDER_ID", "99")),  # SwiftPOD
+            default_price_cents=int(os.getenv("PRINTIFY_DEFAULT_PRICE_CENTS", "3499"))  # $34.99
         )
 
         self.shopify = ShopifyConfig(
