@@ -70,12 +70,14 @@ class ServerlessComfyUI:
         # Prepare workflow with parameters
         workflow = copy.deepcopy(self.default_workflow)
 
-        # Update workflow parameters for Flux
-        workflow["17"]["inputs"]["steps"] = steps  # Scheduler steps
-        workflow["25"]["inputs"]["noise_seed"] = seed if seed > 0 else int(time.time())  # Random seed
-        workflow["5"]["inputs"]["width"] = width  # Latent width
-        workflow["5"]["inputs"]["height"] = height  # Latent height
-        workflow["6"]["inputs"]["text"] = prompt  # Positive prompt
+        # Update workflow parameters for Flux (simplified checkpoint loader)
+        workflow["3"]["inputs"]["steps"] = steps
+        workflow["3"]["inputs"]["cfg"] = cfg_scale
+        workflow["3"]["inputs"]["seed"] = seed if seed > 0 else int(time.time())
+        workflow["5"]["inputs"]["width"] = width
+        workflow["5"]["inputs"]["height"] = height
+        workflow["6"]["inputs"]["text"] = prompt
+        workflow["7"]["inputs"]["text"] = negative_prompt
 
         # Submit job with full workflow
         payload = {
