@@ -144,20 +144,43 @@ class ServerlessComfyUI:
             if status == "COMPLETED":
                 output = data.get("output", {})
 
+                # Debug: print raw output to understand structure
+                print(f"   🐛 Raw output: {json.dumps(output, indent=2)[:500]}")
+
                 # Handle different output formats
+                image_url = None
+
+                # Try various output structures
                 if isinstance(output, dict):
-                    images = output.get("images", output.get("image", []))
-                elif isinstance(output, list):
-                    images = output
-                else:
-                    images = []
+                    # Try: output.images[0]
+                    if "images" in output and output["images"]:
+                        images = output["images"]
+                        image_url = images[0] if isinstance(images, list) else images
 
-                if images:
-                    # Return first image URL
-                    image = images[0] if isinstance(images, list) else images
-                    return image if isinstance(image, str) else image.get("url", image.get("image"))
+                    # Try: output.message (base64 or URL)
+                    elif "message" in output:
+                        image_url = output["message"]
 
-                raise ValueError(f"No images in completed job output. Output: {output}")
+                    # Try: output itself is the URL
+                    elif "url" in output:
+                        image_url = output["url"]
+
+                elif isinstance(output, str):
+                    # Output is directly a URL or base64 string
+                    image_url = output
+
+                elif isinstance(output, list) and output:
+                    image_url = output[0]
+
+                if image_url:
+                    # Handle nested dict with URL
+                    if isinstance(image_url, dict):
+                        image_url = image_url.get("url") or image_url.get("image") or image_url.get("data")
+
+                    if image_url and isinstance(image_url, str):
+                        return image_url
+
+                raise ValueError(f"No valid image URL in output. Full output: {json.dumps(output, indent=2)}")
 
             elif status == "FAILED":
                 error = data.get("error", "Unknown error")
