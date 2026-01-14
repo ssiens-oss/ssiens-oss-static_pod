@@ -29,8 +29,8 @@ python -c "import flask, requests, PIL" 2>/dev/null || {
 # Print configuration
 echo ""
 echo "⚙️  Configuration:"
-echo "   Blueprint ID: ${PRINTIFY_BLUEPRINT_ID:-165} (Gildan 18500 Hoodie)"
-echo "   Provider ID:  ${PRINTIFY_PROVIDER_ID:-99} (SwiftPOD)"
+echo "   Blueprint ID: ${PRINTIFY_BLUEPRINT_ID:-77} (Gildan 18500 Hoodie)"
+echo "   Provider ID:  ${PRINTIFY_PROVIDER_ID:-39} (SwiftPOD)"
 echo "   Default Price: \$$(python -c "print(${PRINTIFY_DEFAULT_PRICE_CENTS:-3499}/100)" 2>/dev/null || echo "34.99")"
 echo "   Port: ${FLASK_PORT:-5000}"
 echo ""

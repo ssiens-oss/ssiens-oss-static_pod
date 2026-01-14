@@ -55,13 +55,13 @@ update_env_var() {
 set_template() {
     local template=$1
     local blueprint_id=""
-    local provider_id="99"  # SwiftPOD default
+    local provider_id="39"  # SwiftPOD default
     local price_cents=""
     local product_name=""
 
     case $template in
         hoodie)
-            blueprint_id="165"
+            blueprint_id="77"
             price_cents="3499"
             product_name="Gildan 18500 Heavy Blend Hoodie"
             ;;
@@ -71,7 +71,7 @@ set_template() {
             product_name="Gildan 5000 Heavy Cotton T-Shirt"
             ;;
         premium-tee)
-            blueprint_id="77"
+            blueprint_id="6"
             price_cents="1999"
             product_name="Bella+Canvas 3001 Unisex Jersey T-Shirt"
             ;;

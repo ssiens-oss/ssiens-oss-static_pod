@@ -5,15 +5,15 @@ Quick reference for common Printify blueprint IDs and their recommended provider
 ## Common Blueprints
 
 ### Gildan 18500 - Heavy Blend™ Hooded Sweatshirt 🔥
-- **Blueprint ID**: `165`
+- **Blueprint ID**: `77`
 - **Type**: Hoodie
 - **Brand**: Gildan
 - **Model**: 18500
 - **Description**: Heavy Blend™ Hooded Sweatshirt - Most popular POD hoodie
 - **Recommended Providers**:
-  - **99** - SwiftPOD (US, reliable, fast shipping)
-  - **5** - Printify Choice (Multi-region, automatic routing)
-  - **26** - Monster Digital (US, premium quality)
+  - **39** - SwiftPOD (US, reliable, fast shipping) ⭐
+  - **99** - Printify Choice (Multi-region, automatic routing)
+  - **29** - Monster Digital (US, premium quality)
 
 ### Gildan 5000 - Heavy Cotton T-Shirt
 - **Blueprint ID**: `3`
@@ -58,19 +58,19 @@ Quick reference for common Printify blueprint IDs and their recommended provider
 
 ## Print Providers
 
-### Provider 99 - SwiftPOD ⭐ (Recommended)
+### Provider 39 - SwiftPOD ⭐ (Recommended)
 - **Location**: United States
-- **Strengths**: Fast turnaround, reliable, good quality
-- **Best For**: US market, standard products
+- **Strengths**: Fast turnaround, reliable, good quality, 2-5 day shipping
+- **Best For**: US market, standard products, Gildan 18500
 - **Shipping**: 2-5 business days (US)
 
-### Provider 5 - Printify Choice
+### Provider 99 - Printify Choice
 - **Location**: Multi-region (automatic routing)
-- **Strengths**: Global reach, automatic optimization
+- **Strengths**: Global reach, automatic optimization, wide product range
 - **Best For**: International orders, cost optimization
 - **Shipping**: Varies by destination
 
-### Provider 26 - Monster Digital
+### Provider 29 - Monster Digital
 - **Location**: United States
 - **Strengths**: Premium quality, DTG expertise
 - **Best For**: High-quality prints, premium products
@@ -84,12 +84,12 @@ Quick reference for common Printify blueprint IDs and their recommended provider
 
 ## Configuration Examples
 
-### For Gildan 18500 Hoodie (Most Popular POD Product)
+### For Gildan 18500 Hoodie (Most Popular POD Product) 🔥
 
 ```bash
 # .env configuration
-PRINTIFY_BLUEPRINT_ID=165
-PRINTIFY_PROVIDER_ID=99
+PRINTIFY_BLUEPRINT_ID=77
+PRINTIFY_PROVIDER_ID=39  # SwiftPOD
 PRINTIFY_DEFAULT_PRICE_CENTS=3499  # $34.99 (typical hoodie price)
 ```
 
@@ -97,8 +97,8 @@ PRINTIFY_DEFAULT_PRICE_CENTS=3499  # $34.99 (typical hoodie price)
 
 ```bash
 # .env configuration
-PRINTIFY_BLUEPRINT_ID=77
-PRINTIFY_PROVIDER_ID=99
+PRINTIFY_BLUEPRINT_ID=6  # or 77 depending on variant
+PRINTIFY_PROVIDER_ID=39  # SwiftPOD
 PRINTIFY_DEFAULT_PRICE_CENTS=1999  # $19.99
 ```
 
