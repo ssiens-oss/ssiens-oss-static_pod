@@ -61,6 +61,15 @@ RUN npm run build && \
 RUN mkdir -p /usr/share/nginx/html && \
     cp -r dist/* /usr/share/nginx/html/
 
+# Install POD Gateway
+WORKDIR /workspace/gateway
+COPY gateway/requirements.txt ./
+RUN pip3 install -r requirements.txt
+COPY gateway/ ./
+
+# Configure environment defaults
+RUN cp .env.example .env 2>/dev/null || true
+
 # Configure Nginx
 COPY nginx.conf /etc/nginx/sites-available/default
 RUN rm -f /etc/nginx/sites-enabled/default && \
@@ -73,7 +82,7 @@ RUN mkdir -p /data/designs /data/chrome-profile /data/comfyui/output && \
 # Expose ports
 # 80: Frontend web UI
 # 8188: ComfyUI API
-# 5000: POD Gateway (optional)
+# 5000: POD Gateway
 EXPOSE 80 8188 5000
 
 # Health check
@@ -104,6 +113,13 @@ for i in {1..30}; do
     sleep 2
 done
 
+# Start POD Gateway
+echo "🎨 Starting POD Gateway..."
+cd /workspace/gateway
+python3 app/main.py > /var/log/gateway.log 2>&1 &
+GATEWAY_PID=$!
+echo "✅ POD Gateway started (PID: $GATEWAY_PID)"
+
 # Test Nginx configuration
 echo "🔍 Testing Nginx configuration..."
 nginx -t
@@ -112,9 +128,13 @@ nginx -t
 echo "🌐 Starting Nginx..."
 nginx
 
+echo ""
 echo "✅ All services started successfully!"
-echo "📊 Access the dashboard at http://localhost"
-echo "🎨 ComfyUI API available at http://localhost:8188"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📊 Frontend Dashboard: http://localhost"
+echo "🎨 ComfyUI API:        http://localhost:8188"
+echo "🖼️  POD Gateway:        http://localhost:5000"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Monitor services
 while true; do
@@ -124,6 +144,14 @@ while true; do
         python3 main.py --listen 0.0.0.0 --port 8188 > /var/log/comfyui.log 2>&1 &
         COMFYUI_PID=$!
     fi
+
+    if ! kill -0 $GATEWAY_PID 2>/dev/null; then
+        echo "❌ Gateway process died, restarting..."
+        cd /workspace/gateway
+        python3 app/main.py > /var/log/gateway.log 2>&1 &
+        GATEWAY_PID=$!
+    fi
+
     sleep 10
 done
 EOF
@@ -131,6 +159,9 @@ EOF
 RUN chmod +x /start.sh
 
 # Set up log directory
-RUN mkdir -p /var/log && touch /var/log/comfyui.log
+RUN mkdir -p /var/log && touch /var/log/comfyui.log /var/log/gateway.log
+
+# Create gateway state directory
+RUN mkdir -p /workspace/gateway-state
 
 CMD ["/start.sh"]
