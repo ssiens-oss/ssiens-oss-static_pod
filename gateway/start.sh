@@ -41,4 +41,7 @@ echo "   Access at: http://0.0.0.0:${FLASK_PORT:-5000}"
 echo "   Press Ctrl+C to stop"
 echo ""
 
+# Set PYTHONPATH to include the gateway directory
+export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH}"
+
 python app/main.py
