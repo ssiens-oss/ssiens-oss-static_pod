@@ -441,7 +441,8 @@
                 }
 
                 const data = await res.json();
-                const entry = data[currentPromptId];
+                const history = data.history || {};
+                const entry = history[currentPromptId];
                 if (!entry) {
                     return;
                 }
@@ -449,7 +450,7 @@
                 const statusInfo = entry.status || {};
                 if (statusInfo.completed) {
                     setPrompterStatus('Generation complete', 'success');
-                    setPrompterDetail(`Prompt ${currentPromptId} finished.`);
+                    setPrompterDetail(`Prompt ${currentPromptId} finished. Downloaded ${data.downloaded?.length || 0} image(s).`);
                     clearInterval(statusInterval);
                     statusInterval = null;
                     currentPromptId = null;

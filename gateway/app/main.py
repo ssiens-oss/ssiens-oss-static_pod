@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from PIL import Image
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 import re
 import uuid
 import requests
@@ -224,6 +224,73 @@ def build_comfyui_workflow(
     }
 
 
+def sanitize_comfyui_filename(filename: str, subfolder: str = "") -> str:
+    """Build a safe filename for downloaded ComfyUI outputs."""
+    safe_name = Path(filename).name
+    safe_subfolder = subfolder.replace("/", "_").replace("\\", "_") if subfolder else ""
+    if safe_subfolder:
+        return f"{safe_subfolder}_{safe_name}"
+    return safe_name
+
+
+def download_comfyui_image(image_meta: Dict[str, Any]) -> str | None:
+    """Download a single ComfyUI image to the local image directory."""
+    filename = image_meta.get("filename")
+    if not filename:
+        return None
+
+    subfolder = image_meta.get("subfolder") or ""
+    image_type = image_meta.get("type") or "output"
+    safe_name = sanitize_comfyui_filename(filename, subfolder)
+
+    if not safe_name.lower().endswith(".png"):
+        logger.warning("Skipping non-png output: %s", safe_name)
+        return None
+
+    output_path = Path(config.IMAGE_DIR) / safe_name
+    if output_path.exists():
+        return str(output_path)
+
+    try:
+        response = requests.get(
+            f"{config.COMFYUI_API_URL}/view",
+            params={
+                "filename": filename,
+                "subfolder": subfolder,
+                "type": image_type
+            },
+            timeout=60
+        )
+        response.raise_for_status()
+        output_path.write_bytes(response.content)
+        return str(output_path)
+    except requests.RequestException as exc:
+        logger.error("Failed to download ComfyUI image %s: %s", filename, exc)
+        return None
+
+
+def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
+    """Download ComfyUI outputs for a completed prompt."""
+    downloaded: List[str] = []
+    prompt_entry = history.get(prompt_id, {})
+    outputs = prompt_entry.get("outputs", {})
+
+    for node_id in outputs:
+        images = outputs[node_id].get("images", [])
+        for image_meta in images:
+            local_path = download_comfyui_image(image_meta)
+            if not local_path:
+                continue
+            image_id = Path(local_path).stem
+            try:
+                state_manager.add_image(image_id, Path(local_path).name, local_path)
+            except StateManagerError:
+                pass
+            downloaded.append(local_path)
+
+    return downloaded
+
+
 @app.route('/')
 def index():
     """Gallery UI"""
@@ -365,7 +432,17 @@ def generation_status():
         logger.error("ComfyUI status error: %s", response.text)
         return jsonify({"error": "Failed to fetch status", "details": response.text}), 502
 
-    return jsonify(response.json())
+    history = response.json()
+    prompt_entry = history.get(prompt_id, {})
+    status_info = prompt_entry.get("status", {})
+    downloaded = []
+    if status_info.get("completed"):
+        downloaded = sync_comfyui_outputs(history, prompt_id)
+
+    return jsonify({
+        "history": history,
+        "downloaded": downloaded
+    })
 
 
 @app.route('/api/image/<image_id>')
