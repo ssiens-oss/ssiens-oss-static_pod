@@ -64,6 +64,100 @@
             margin-bottom: 20px;
         }
 
+        .prompter {
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .prompter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .prompter-header h2 {
+            font-size: 1.1em;
+            color: #fff;
+        }
+
+        .prompter-header p {
+            font-size: 0.85em;
+            color: #9ca3af;
+        }
+
+        .prompter-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .prompter textarea,
+        .prompter select {
+            width: 100%;
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 0.9em;
+        }
+
+        .prompter textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .prompter label {
+            font-size: 0.75em;
+            color: #9ca3af;
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .prompter-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .prompter-actions button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .prompter-actions button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .prompter-status {
+            font-size: 0.85em;
+            color: #9ca3af;
+        }
+
+        .prompter-status.error {
+            color: #f87171;
+        }
+
+        .prompter-status.success {
+            color: #34d399;
+        }
+
         .filter-btn {
             padding: 10px 20px;
             background: #1a1a1a;
@@ -242,6 +336,60 @@
         </div>
     </div>
 
+    <div class="prompter">
+        <div class="prompter-header">
+            <div>
+                <h2>ComfyUI Prompter</h2>
+                <p>Queue RunPod generations with style + genre guidance.</p>
+            </div>
+            <div class="prompter-status" id="prompter-status">Idle • Awaiting prompt</div>
+        </div>
+        <form id="prompter-form">
+            <div class="prompter-grid">
+                <div>
+                    <label for="prompt-input">Prompt</label>
+                    <textarea id="prompt-input" placeholder="Describe the design you'd like to generate..."></textarea>
+                </div>
+                <div>
+                    <label for="prompt-style">Style</label>
+                    <select id="prompt-style">
+                        <option value="">Any style</option>
+                        <option value="minimalist">Minimalist</option>
+                        <option value="vintage">Vintage</option>
+                        <option value="retro">Retro</option>
+                        <option value="watercolor">Watercolor</option>
+                        <option value="vector art">Vector art</option>
+                        <option value="line art">Line art</option>
+                        <option value="pop art">Pop art</option>
+                        <option value="cyberpunk">Cyberpunk</option>
+                        <option value="grunge">Grunge</option>
+                        <option value="surreal">Surreal</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="prompt-genre">Genre</label>
+                    <select id="prompt-genre">
+                        <option value="">Any genre</option>
+                        <option value="nature">Nature</option>
+                        <option value="fantasy">Fantasy</option>
+                        <option value="sci-fi">Sci-Fi</option>
+                        <option value="typography">Typography</option>
+                        <option value="streetwear">Streetwear</option>
+                        <option value="sports">Sports</option>
+                        <option value="music">Music</option>
+                        <option value="gaming">Gaming</option>
+                        <option value="holiday">Holiday</option>
+                        <option value="motivational">Motivational</option>
+                    </select>
+                </div>
+            </div>
+            <div class="prompter-actions">
+                <button type="submit" id="prompter-submit">Generate with ComfyUI</button>
+                <span class="prompter-status" id="prompter-detail">Waiting for submission.</span>
+            </div>
+        </form>
+    </div>
+
     <div class="filters">
         <button class="filter-btn active" data-filter="all">All</button>
         <button class="filter-btn" data-filter="pending">Pending</button>
@@ -257,6 +405,74 @@
     <script>
         let currentFilter = 'all';
         let images = [];
+        let currentPromptId = null;
+        let statusInterval = null;
+
+        const prompterStatus = document.getElementById('prompter-status');
+        const prompterDetail = document.getElementById('prompter-detail');
+        const prompterSubmit = document.getElementById('prompter-submit');
+        const prompterForm = document.getElementById('prompter-form');
+        const promptInput = document.getElementById('prompt-input');
+        const promptStyle = document.getElementById('prompt-style');
+        const promptGenre = document.getElementById('prompt-genre');
+
+        function setPrompterStatus(message, state = '') {
+            prompterStatus.textContent = message;
+            prompterStatus.classList.remove('error', 'success');
+            if (state) {
+                prompterStatus.classList.add(state);
+            }
+        }
+
+        function setPrompterDetail(message) {
+            prompterDetail.textContent = message;
+        }
+
+        async function pollGenerationStatus() {
+            if (!currentPromptId) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/generation_status?prompt_id=${currentPromptId}`);
+                if (!res.ok) {
+                    setPrompterStatus('Status check failed', 'error');
+                    return;
+                }
+
+                const data = await res.json();
+                const history = data.history || {};
+                const entry = history[currentPromptId];
+                if (!entry) {
+                    return;
+                }
+
+                const statusInfo = entry.status || {};
+                if (statusInfo.completed) {
+                    setPrompterStatus('Generation complete', 'success');
+                    setPrompterDetail(`Prompt ${currentPromptId} finished. Downloaded ${data.downloaded?.length || 0} image(s).`);
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                    currentPromptId = null;
+                    await loadImages();
+                    return;
+                }
+
+                if (statusInfo.status_str === 'error') {
+                    setPrompterStatus('Generation failed', 'error');
+                    setPrompterDetail(`Prompt ${currentPromptId} failed.`);
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                    currentPromptId = null;
+                    return;
+                }
+
+                setPrompterStatus('Generation in progress');
+                setPrompterDetail(`Prompt ${currentPromptId} running...`);
+            } catch (err) {
+                console.error('Status polling failed:', err);
+            }
+        }
 
         // Load images
         async function loadImages() {
@@ -395,6 +611,51 @@
 
         // Auto-refresh every 10 seconds
         setInterval(loadImages, 10000);
+
+        prompterForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const prompt = promptInput.value.trim();
+            const style = promptStyle.value;
+            const genre = promptGenre.value;
+
+            if (!prompt) {
+                setPrompterStatus('Prompt is required', 'error');
+                setPrompterDetail('Please enter a prompt before generating.');
+                return;
+            }
+
+            prompterSubmit.disabled = true;
+            setPrompterStatus('Submitting prompt...');
+            setPrompterDetail('Queueing ComfyUI generation.');
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, style, genre })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to queue prompt');
+                }
+
+                currentPromptId = data.prompt_id;
+                setPrompterStatus('Queued');
+                setPrompterDetail(`Prompt queued: ${currentPromptId}`);
+
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                }
+                statusInterval = setInterval(pollGenerationStatus, 2000);
+            } catch (err) {
+                setPrompterStatus('Queue failed', 'error');
+                setPrompterDetail(err.message || 'Unable to reach ComfyUI.');
+            } finally {
+                prompterSubmit.disabled = false;
+            }
+        });
 
         // Initial load
         loadImages();

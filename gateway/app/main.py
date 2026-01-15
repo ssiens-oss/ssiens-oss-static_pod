@@ -8,8 +8,10 @@ import os
 import logging
 from pathlib import Path
 from PIL import Image
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 import re
+import uuid
+import requests
 
 # Load environment
 load_dotenv()
@@ -132,6 +134,163 @@ def validate_image_file(image_path: str) -> Tuple[bool, str]:
         return False, f"Invalid image file: {str(e)}"
 
 
+def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
+    """
+    Build the full prompt text with optional style and genre.
+
+    Args:
+        prompt: Base prompt text
+        style: Optional style descriptor
+        genre: Optional genre descriptor
+    """
+    parts = [prompt.strip()]
+    if style:
+        parts.append(f"{style} style")
+    if genre:
+        parts.append(f"{genre} genre")
+    return ", ".join(part for part in parts if part)
+
+
+def build_comfyui_workflow(
+    prompt: str,
+    seed: int | None = None,
+    width: int = 1024,
+    height: int = 1024,
+    steps: int = 20,
+    cfg_scale: float = 7.0
+) -> Dict[str, Any]:
+    """Build a basic SDXL workflow for ComfyUI."""
+    if seed is None:
+        seed = int.from_bytes(os.urandom(4), byteorder="little")
+
+    return {
+        "3": {
+            "inputs": {
+                "seed": seed,
+                "steps": steps,
+                "cfg": cfg_scale,
+                "sampler_name": "euler",
+                "scheduler": "normal",
+                "denoise": 1,
+                "model": ["4", 0],
+                "positive": ["6", 0],
+                "negative": ["7", 0],
+                "latent_image": ["5", 0]
+            },
+            "class_type": "KSampler"
+        },
+        "4": {
+            "inputs": {
+                "ckpt_name": "sd_xl_base_1.0.safetensors"
+            },
+            "class_type": "CheckpointLoaderSimple"
+        },
+        "5": {
+            "inputs": {
+                "width": width,
+                "height": height,
+                "batch_size": 1
+            },
+            "class_type": "EmptyLatentImage"
+        },
+        "6": {
+            "inputs": {
+                "text": prompt,
+                "clip": ["4", 1]
+            },
+            "class_type": "CLIPTextEncode"
+        },
+        "7": {
+            "inputs": {
+                "text": "text, watermark, low quality, worst quality",
+                "clip": ["4", 1]
+            },
+            "class_type": "CLIPTextEncode"
+        },
+        "8": {
+            "inputs": {
+                "samples": ["3", 0],
+                "vae": ["4", 2]
+            },
+            "class_type": "VAEDecode"
+        },
+        "9": {
+            "inputs": {
+                "filename_prefix": "ComfyUI",
+                "images": ["8", 0]
+            },
+            "class_type": "SaveImage"
+        }
+    }
+
+
+def sanitize_comfyui_filename(filename: str, subfolder: str = "") -> str:
+    """Build a safe filename for downloaded ComfyUI outputs."""
+    safe_name = Path(filename).name
+    safe_subfolder = subfolder.replace("/", "_").replace("\\", "_") if subfolder else ""
+    if safe_subfolder:
+        return f"{safe_subfolder}_{safe_name}"
+    return safe_name
+
+
+def download_comfyui_image(image_meta: Dict[str, Any]) -> str | None:
+    """Download a single ComfyUI image to the local image directory."""
+    filename = image_meta.get("filename")
+    if not filename:
+        return None
+
+    subfolder = image_meta.get("subfolder") or ""
+    image_type = image_meta.get("type") or "output"
+    safe_name = sanitize_comfyui_filename(filename, subfolder)
+
+    if not safe_name.lower().endswith(".png"):
+        logger.warning("Skipping non-png output: %s", safe_name)
+        return None
+
+    output_path = Path(config.IMAGE_DIR) / safe_name
+    if output_path.exists():
+        return str(output_path)
+
+    try:
+        response = requests.get(
+            f"{config.COMFYUI_API_URL}/view",
+            params={
+                "filename": filename,
+                "subfolder": subfolder,
+                "type": image_type
+            },
+            timeout=60
+        )
+        response.raise_for_status()
+        output_path.write_bytes(response.content)
+        return str(output_path)
+    except requests.RequestException as exc:
+        logger.error("Failed to download ComfyUI image %s: %s", filename, exc)
+        return None
+
+
+def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
+    """Download ComfyUI outputs for a completed prompt."""
+    downloaded: List[str] = []
+    prompt_entry = history.get(prompt_id, {})
+    outputs = prompt_entry.get("outputs", {})
+
+    for node_id in outputs:
+        images = outputs[node_id].get("images", [])
+        for image_meta in images:
+            local_path = download_comfyui_image(image_meta)
+            if not local_path:
+                continue
+            image_id = Path(local_path).stem
+            try:
+                state_manager.add_image(image_id, Path(local_path).name, local_path)
+            except StateManagerError:
+                pass
+            downloaded.append(local_path)
+
+    return downloaded
+
+
 @app.route('/')
 def index():
     """Gallery UI"""
@@ -195,6 +354,95 @@ def list_images():
     except Exception as e:
         logger.error(f"Error listing images: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/generate', methods=['POST'])
+def generate_image():
+    """
+    Submit a prompt to ComfyUI via the configured API URL.
+
+    Expected JSON body:
+    {
+        "prompt": "Base prompt text",
+        "style": "Optional style",
+        "genre": "Optional genre"
+    }
+    """
+    data = request.get_json(silent=True) or {}
+    prompt = (data.get("prompt") or "").strip()
+    style = (data.get("style") or "").strip()
+    genre = (data.get("genre") or "").strip()
+
+    if not prompt:
+        return jsonify({"error": "Prompt is required"}), 400
+
+    full_prompt = build_prompt_text(prompt, style, genre)
+    workflow = build_comfyui_workflow(
+        full_prompt,
+        seed=data.get("seed"),
+        width=data.get("width", 1024),
+        height=data.get("height", 1024),
+        steps=data.get("steps", 20),
+        cfg_scale=data.get("cfg_scale", 7)
+    )
+
+    payload = {
+        "prompt": workflow,
+        "client_id": data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
+    }
+
+    try:
+        response = requests.post(
+            f"{config.COMFYUI_API_URL}/prompt",
+            json=payload,
+            timeout=30
+        )
+    except requests.RequestException as exc:
+        logger.error("ComfyUI request failed: %s", exc)
+        return jsonify({"error": "Failed to connect to ComfyUI"}), 502
+
+    if not response.ok:
+        logger.error("ComfyUI error: %s", response.text)
+        return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
+
+    data = response.json()
+    return jsonify({
+        "prompt_id": data.get("prompt_id"),
+        "prompt": full_prompt
+    })
+
+
+@app.route('/api/generation_status')
+def generation_status():
+    """Proxy generation status from ComfyUI history endpoint."""
+    prompt_id = request.args.get("prompt_id")
+    if not prompt_id:
+        return jsonify({"error": "prompt_id is required"}), 400
+
+    try:
+        response = requests.get(
+            f"{config.COMFYUI_API_URL}/history/{prompt_id}",
+            timeout=30
+        )
+    except requests.RequestException as exc:
+        logger.error("ComfyUI status request failed: %s", exc)
+        return jsonify({"error": "Failed to connect to ComfyUI"}), 502
+
+    if not response.ok:
+        logger.error("ComfyUI status error: %s", response.text)
+        return jsonify({"error": "Failed to fetch status", "details": response.text}), 502
+
+    history = response.json()
+    prompt_entry = history.get(prompt_id, {})
+    status_info = prompt_entry.get("status", {})
+    downloaded = []
+    if status_info.get("completed"):
+        downloaded = sync_comfyui_outputs(history, prompt_id)
+
+    return jsonify({
+        "history": history,
+        "downloaded": downloaded
+    })
 
 
 @app.route('/api/image/<image_id>')

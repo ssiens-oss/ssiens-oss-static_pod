@@ -105,6 +105,17 @@ class LoggingConfig:
             raise ValueError(f"Invalid log level: {self.level}. Must be one of {valid_levels}")
 
 
+@dataclass
+class ComfyUIConfig:
+    """ComfyUI API configuration"""
+    api_url: str
+
+    def validate(self) -> None:
+        """Validate ComfyUI configuration"""
+        if not self.api_url:
+            raise ValueError("COMFYUI_API_URL must be set")
+
+
 class GatewayConfig:
     """Main configuration class that aggregates all config sections"""
 
@@ -146,6 +157,10 @@ class GatewayConfig:
             format=os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         )
 
+        self.comfyui = ComfyUIConfig(
+            api_url=os.getenv("COMFYUI_API_URL", "http://localhost:8188")
+        )
+
     def validate_all(self) -> None:
         """Validate all configuration sections"""
         try:
@@ -154,6 +169,7 @@ class GatewayConfig:
             self.printify.validate()
             self.retry.validate()
             self.logging.validate()
+            self.comfyui.validate()
         except Exception as e:
             print(f"❌ Configuration validation failed: {e}", file=sys.stderr)
             raise
@@ -172,6 +188,7 @@ class GatewayConfig:
         print(f"🛒 Shopify:            {'✓ Configured' if self.shopify.is_configured() else '✗ Not configured'}")
         print(f"🔄 Max Retries:        {self.retry.max_retries}")
         print(f"📊 Log Level:          {self.logging.level}")
+        print(f"🧠 ComfyUI API:        {self.comfyui.api_url}")
         print("=" * 60)
 
 
@@ -193,3 +210,4 @@ PRINTIFY_BLUEPRINT_ID = config.printify.blueprint_id
 PRINTIFY_PROVIDER_ID = config.printify.provider_id
 SHOPIFY_STORE_URL = config.shopify.store_url
 SHOPIFY_ACCESS_TOKEN = config.shopify.access_token
+COMFYUI_API_URL = config.comfyui.api_url
