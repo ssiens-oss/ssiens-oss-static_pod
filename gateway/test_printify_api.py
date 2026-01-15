@@ -9,6 +9,9 @@ import requests
 
 load_dotenv('../.env')
 
+# Bypass proxy for Printify API (not in allowed hosts)
+os.environ['NO_PROXY'] = os.environ.get('NO_PROXY', '') + ',api.printify.com'
+
 api_key = os.getenv('PRINTIFY_API_KEY')
 shop_id = os.getenv('PRINTIFY_SHOP_ID')
 
@@ -32,7 +35,8 @@ try:
     response = requests.get(
         'https://api.printify.com/v1/shops.json',
         headers=headers,
-        timeout=10
+        timeout=10,
+        proxies={'http': None, 'https': None}
     )
 
     print(f"Status: {response.status_code}")
@@ -76,7 +80,8 @@ if shop_id:
         response = requests.get(
             f'https://api.printify.com/v1/shops/{shop_id}.json',
             headers=headers,
-            timeout=10
+            timeout=10,
+            proxies={'http': None, 'https': None}
         )
 
         print(f"Status: {response.status_code}")
@@ -100,7 +105,8 @@ try:
     response = requests.get(
         'https://api.printify.com/v1/catalog/blueprints/77.json',
         headers=headers,
-        timeout=10
+        timeout=10,
+        proxies={'http': None, 'https': None}
     )
 
     if response.ok:
