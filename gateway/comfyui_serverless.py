@@ -7,6 +7,7 @@ import time
 import os
 import json
 import copy
+import base64
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -99,20 +100,31 @@ class ServerlessComfyUI:
         print(f"   ⏳ Waiting for generation...")
 
         # Poll for completion
-        image_url = self._wait_for_completion(job_id)
+        image_data = self._wait_for_completion(job_id)
 
-        # Download image
+        # Save image
         if not output_path:
             output_path = f"./images/{job_id}.png"
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-        print(f"   📥 Downloading image...")
-        img_response = requests.get(image_url, timeout=30)
-        img_response.raise_for_status()
+        print(f"   💾 Saving image...")
+
+        # Check if image_data is base64 or URL
+        if image_data.startswith('http'):
+            # It's a URL, download it
+            img_response = requests.get(image_data, timeout=30)
+            img_response.raise_for_status()
+            image_bytes = img_response.content
+        else:
+            # It's base64, decode it
+            # Remove data URI prefix if present
+            if ',' in image_data:
+                image_data = image_data.split(',', 1)[1]
+            image_bytes = base64.b64decode(image_data)
 
         with open(output_path, 'wb') as f:
-            f.write(img_response.content)
+            f.write(image_bytes)
 
         print(f"   ✅ Saved to: {output_path}")
         return output_path
@@ -126,7 +138,7 @@ class ServerlessComfyUI:
             timeout: Max wait time in seconds
 
         Returns:
-            URL of generated image
+            Base64 image data or URL of generated image
         """
         start_time = time.time()
         status_url = f"{self.base_url}/status/{job_id}"
