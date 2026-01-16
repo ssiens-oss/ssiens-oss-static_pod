@@ -115,6 +115,19 @@ class ComfyUIConfig:
         if not self.api_url:
             raise ValueError("COMFYUI_API_URL must be set")
 
+    def is_runpod_endpoint(self) -> bool:
+        """Check if this is a RunPod proxy endpoint"""
+        return ".proxy.runpod.net" in self.api_url
+
+    def get_endpoint_type(self) -> str:
+        """Get a human-readable endpoint type"""
+        if self.is_runpod_endpoint():
+            return "RunPod (Cloud)"
+        elif "localhost" in self.api_url or "127.0.0.1" in self.api_url:
+            return "Local"
+        else:
+            return "Remote"
+
 
 class GatewayConfig:
     """Main configuration class that aggregates all config sections"""
@@ -189,6 +202,7 @@ class GatewayConfig:
         print(f"🔄 Max Retries:        {self.retry.max_retries}")
         print(f"📊 Log Level:          {self.logging.level}")
         print(f"🧠 ComfyUI API:        {self.comfyui.api_url}")
+        print(f"   Endpoint Type:      {self.comfyui.get_endpoint_type()}")
         print("=" * 60)
 
 

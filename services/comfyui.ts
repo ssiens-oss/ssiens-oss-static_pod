@@ -37,6 +37,18 @@ export class ComfyUIService {
       timeout: 300000, // 5 minutes
       ...config
     }
+
+    // Validate and log RunPod endpoint if detected
+    if (this.isRunPodEndpoint()) {
+      console.log('🚀 Using RunPod endpoint:', this.config.apiUrl)
+    }
+  }
+
+  /**
+   * Check if the configured endpoint is a RunPod proxy URL
+   */
+  private isRunPodEndpoint(): boolean {
+    return this.config.apiUrl.includes('.proxy.runpod.net')
   }
 
   /**
@@ -227,7 +239,10 @@ export class ComfyUIService {
    * Connect to ComfyUI WebSocket for real-time updates
    */
   connectWebSocket(onProgress?: (data: any) => void): void {
-    const wsUrl = this.config.apiUrl.replace('http', 'ws') + '/ws'
+    // Convert HTTP/HTTPS URL to WS/WSS for WebSocket connection
+    const wsUrl = this.config.apiUrl
+      .replace('https://', 'wss://')
+      .replace('http://', 'ws://') + '/ws'
 
     this.ws = new WebSocket(wsUrl)
 
@@ -280,8 +295,22 @@ export class ComfyUIService {
       const response = await fetch(`${this.config.apiUrl}/system_stats`, {
         method: 'GET'
       })
-      return response.ok
-    } catch {
+
+      if (response.ok) {
+        if (this.isRunPodEndpoint()) {
+          console.log('✅ RunPod ComfyUI endpoint is healthy')
+        }
+        return true
+      }
+
+      console.error(`❌ ComfyUI health check failed: ${response.status} ${response.statusText}`)
+      return false
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`❌ ComfyUI health check error: ${errorMsg}`)
+      if (this.isRunPodEndpoint()) {
+        console.error('   Make sure your RunPod instance is running and the URL is correct')
+      }
       return false
     }
   }
