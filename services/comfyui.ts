@@ -9,6 +9,7 @@ interface ComfyUIConfig {
   apiUrl: string
   outputDir: string
   timeout?: number
+  runpodApiKey?: string  // Required for serverless endpoints
 }
 
 interface ComfyUIWorkflow {
@@ -48,13 +49,26 @@ export class ComfyUIService {
    * Check if the configured endpoint is a RunPod proxy URL
    */
   private isRunPodEndpoint(): boolean {
-    return this.config.apiUrl.includes('.proxy.runpod.net')
+    return this.config.apiUrl.includes('.proxy.runpod.net') ||
+           this.config.apiUrl.includes('api.runpod.ai')
+  }
+
+  /**
+   * Check if using RunPod Serverless (vs dedicated pod)
+   */
+  private isRunPodServerless(): boolean {
+    return this.config.apiUrl.includes('api.runpod.ai')
   }
 
   /**
    * Submit a prompt to ComfyUI for image generation
    */
   async generate(workflow: ComfyUIWorkflow): Promise<GenerationResult> {
+    // Route to serverless if using RunPod Serverless
+    if (this.isRunPodServerless()) {
+      return this.generateServerless(workflow)
+    }
+
     try {
       // Build workflow JSON for ComfyUI
       const workflowData = this.buildWorkflow(workflow)
@@ -80,6 +94,70 @@ export class ComfyUIService {
 
       return result
     } catch (error) {
+      return {
+        images: [],
+        promptId: '',
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  /**
+   * Generate using RunPod Serverless endpoint
+   */
+  private async generateServerless(workflow: ComfyUIWorkflow): Promise<GenerationResult> {
+    try {
+      if (!this.config.runpodApiKey) {
+        throw new Error('RunPod API key required for serverless endpoints. Set RUNPOD_API_KEY environment variable.')
+      }
+
+      const workflowData = this.buildWorkflow(workflow)
+
+      console.log('🔄 Submitting to RunPod Serverless...')
+
+      const response = await fetch(this.config.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.runpodApiKey}`
+        },
+        body: JSON.stringify({
+          input: {
+            workflow: workflowData
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`RunPod Serverless error: ${response.status} ${errorText}`)
+      }
+
+      const result = await response.json()
+
+      console.log('✅ RunPod Serverless response:', result.status)
+
+      // Handle serverless response format
+      if (result.status === 'COMPLETED' && result.output) {
+        return {
+          images: result.output.images || [],
+          promptId: result.id || '',
+          status: 'completed'
+        }
+      } else if (result.status === 'FAILED') {
+        return {
+          images: [],
+          promptId: result.id || '',
+          status: 'failed',
+          error: result.error || 'Generation failed'
+        }
+      } else {
+        // Handle IN_PROGRESS or other statuses
+        throw new Error(`Unexpected status: ${result.status}`)
+      }
+    } catch (error) {
+      console.error('❌ RunPod Serverless error:', error)
       return {
         images: [],
         promptId: '',
