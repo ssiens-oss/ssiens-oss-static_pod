@@ -56,6 +56,21 @@ export default function App() {
     }]);
   }, []);
 
+  // Queue update handler with atomic state updates
+  const updateQueueItem = useCallback((item: QueueItem) => {
+    setQueue(prev => {
+      const existingIndex = prev.findIndex(q => q.id === item.id);
+      if (existingIndex >= 0) {
+        // Update existing item
+        const newQueue = [...prev];
+        newQueue[existingIndex] = item;
+        return newQueue;
+      }
+      // Add new item
+      return [...prev, item];
+    });
+  }, []);
+
   const handleRun = async (isBatch: boolean) => {
     if (isRunning) return;
     
@@ -94,15 +109,7 @@ export default function App() {
             const currentStepProgress = (prog / 100) * (100 / drops.length);
             setProgress(baseProgress + currentStepProgress);
           },
-          (item) => setQueue(prev => {
-             const existing = prev.findIndex(q => q.id === item.id);
-             if (existing >= 0) {
-               const copy = [...prev];
-               copy[existing] = item;
-               return copy;
-             }
-             return [...prev, item];
-          }),
+          updateQueueItem,
           (type, url) => {
             if (type === 'design') setDesignImage(url);
             if (type === 'mockup') setMockupImage(url);
