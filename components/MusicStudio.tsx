@@ -8,7 +8,7 @@
  * - Download management
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Music, Sliders, Library, Sparkles, Download, Play, Pause, Loader2 } from 'lucide-react';
 import { AutoMusicGenerator } from './AutoMusicGenerator';
 import { MusicControls } from './MusicControls';
@@ -36,6 +36,16 @@ export function MusicStudio() {
   const [currentTrack, setCurrentTrack] = useState<GeneratedTrack | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Use ref to avoid recreating polling interval on every tracks update
+  const tracksRef = useRef<GeneratedTrack[]>([]);
+  const pollIntervalRef = useRef<number>(2000);
+  const failedAttemptsRef = useRef<Map<string, number>>(new Map());
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
+
   // Manual mode state
   const [manualSpec, setManualSpec] = useState({
     bpm: 120,
@@ -61,22 +71,29 @@ export function MusicStudio() {
     stems: true
   });
 
-  // Poll for status updates
+  // Poll for status updates with exponential backoff on errors
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const pendingTracks = tracks.filter(t => t.status === 'pending' || t.status === 'running');
+    const pollStatus = async () => {
+      const currentTracks = tracksRef.current;
+      const pendingTracks = currentTracks.filter(t => t.status === 'pending' || t.status === 'running');
+
+      if (pendingTracks.length === 0) {
+        // Reset to normal interval if no pending tracks
+        pollIntervalRef.current = 2000;
+        return;
+      }
 
       for (const track of pendingTracks) {
         try {
           const status = await getJobStatus(track.jobId);
 
-          if (status.status !== track.status) {
+          if (status.status !== track.status || status.progress !== track.progress) {
             setTracks(prev => prev.map(t =>
               t.jobId === track.jobId
                 ? {
                     ...t,
                     status: status.status as any,
-                    progress: status.progress,
+                    progress: status.progress || 0,
                     audioUrl: status.status === 'completed' ? getDownloadUrl(track.jobId, 'mix') : undefined,
                     stems: status.status === 'completed' && status.output_urls
                       ? Object.keys(status.output_urls).filter(k => k !== 'mix')
@@ -84,15 +101,32 @@ export function MusicStudio() {
                   }
                 : t
             ));
+
+            // Reset failed attempts on successful poll
+            failedAttemptsRef.current.delete(track.jobId);
+            pollIntervalRef.current = 2000;
           }
         } catch (error) {
-          console.error('Error polling status:', error);
+          console.error('Error polling status for', track.jobId, error);
+
+          // Track failed attempts for exponential backoff
+          const attempts = failedAttemptsRef.current.get(track.jobId) || 0;
+          failedAttemptsRef.current.set(track.jobId, attempts + 1);
+
+          // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+          pollIntervalRef.current = Math.min(2000 * Math.pow(2, attempts), 30000);
         }
       }
-    }, 2000);
+    };
 
+    const startPolling = () => {
+      pollStatus();
+      return setInterval(pollStatus, pollIntervalRef.current);
+    };
+
+    const interval = startPolling();
     return () => clearInterval(interval);
-  }, [tracks]);
+  }, []); // Empty dependency array - use ref to access current tracks
 
   const handleAutoGenerate = async (config: any) => {
     setIsGenerating(true);
