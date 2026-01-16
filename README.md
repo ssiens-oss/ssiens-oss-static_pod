@@ -94,8 +94,10 @@ export RUNPOD_API_KEY=your-runpod-api-key
 ### AI Image Generation
 - **Claude Prompting**: Generate creative, commercially-viable prompts automatically
 - **ComfyUI Integration**: Professional-grade AI image generation with SDXL
+- **RunPod Serverless**: Production-ready serverless ComfyUI with auto-scaling (see [RUNPOD_SETUP.md](docs/RUNPOD_SETUP.md))
 - **Batch Processing**: Generate multiple unique designs in one run
 - **Custom Workflows**: Customize generation parameters and styles
+- **Zero-Config Switching**: Automatically uses RunPod Serverless when configured, falls back to local ComfyUI
 
 ### Product Management
 - **Printify Integration**: Automatic product creation for T-shirts and Hoodies
@@ -125,7 +127,9 @@ export RUNPOD_API_KEY=your-runpod-api-key
 │   ├── Terminal.tsx             # Real-time log viewer
 │   └── EditorControls.tsx       # Design editor controls
 ├── services/
-│   ├── comfyui.ts               # ComfyUI API integration
+│   ├── comfyui.ts               # ComfyUI API integration (local)
+│   ├── runpod.ts                # RunPod Serverless integration (production)
+│   ├── imageGeneration.ts       # Unified image gen service (auto-switches)
 │   ├── claudePrompting.ts       # Claude AI prompt generation
 │   ├── storage.ts               # Image storage service
 │   ├── printify.ts              # Printify POD integration
@@ -151,6 +155,7 @@ export RUNPOD_API_KEY=your-runpod-api-key
 - **[FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md)** - 🆓 100% FREE local deployment guide
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete installation and setup instructions
 - **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** - Production deployment to RunPod
+- **[RUNPOD_SETUP.md](docs/RUNPOD_SETUP.md)** - 🚀 RunPod Serverless ComfyUI setup and usage
 - **[MUSIC_GUIDE.md](MUSIC_GUIDE.md)** - AI music generation guide and API reference
 - **[PIPELINE_ARCHITECTURE.md](PIPELINE_ARCHITECTURE.md)** - Technical architecture and flow
 - **[SYSTEM_WALKTHROUGH.md](SYSTEM_WALKTHROUGH.md)** - Original POD studio documentation
