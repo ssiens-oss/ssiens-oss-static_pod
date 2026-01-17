@@ -25,9 +25,12 @@ RUN apt-get update && apt-get install -y \
 
 # Install Node.js 20 (remove conflicting packages first)
 RUN apt-get update && apt-get remove -y nodejs npm libnode-dev libnode72 || true \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get update \
+    && apt-get install -y --reinstall nodejs \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
+    && node --version && npm --version
 
 # Create workspace directories
 WORKDIR /workspace
