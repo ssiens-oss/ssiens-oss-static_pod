@@ -2,8 +2,11 @@
 # POD Gateway Start Script
 # Usage: ./run-gateway.sh
 
-cd ~/ssiens-oss-static_pod/gateway
-export PYTHONPATH=~/ssiens-oss-static_pod/gateway
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+export PYTHONPATH="$SCRIPT_DIR"
 
 echo "🚀 Starting POD Gateway..."
 echo "📁 Directory: $(pwd)"
