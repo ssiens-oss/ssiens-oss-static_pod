@@ -20,6 +20,7 @@ load_dotenv()
 from app import config
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
+from app.runpod_client import create_comfyui_client
 
 # Configure logging
 logging.basicConfig(
@@ -54,6 +55,20 @@ if config.config.printify.is_configured():
         logger.error(f"✗ Printify client failed: {e}")
 else:
     logger.warning("✗ Printify not configured (missing API key or Shop ID)")
+
+# Initialize ComfyUI/RunPod client
+comfyui_client = None
+try:
+    comfyui_client = create_comfyui_client(
+        config.config.comfyui.api_url,
+        config.config.comfyui.runpod_api_key
+    )
+    if comfyui_client:
+        logger.info("✓ RunPod serverless client initialized")
+    else:
+        logger.info("✓ Direct ComfyUI connection configured")
+except Exception as e:
+    logger.warning(f"⚠ ComfyUI/RunPod client setup: {e}")
 
 
 # Input validation helpers
@@ -386,30 +401,47 @@ def generate_image():
         cfg_scale=data.get("cfg_scale", 7)
     )
 
-    payload = {
-        "prompt": workflow,
-        "client_id": data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
-    }
+    client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
 
     try:
-        response = requests.post(
-            f"{config.COMFYUI_API_URL}/prompt",
-            json=payload,
-            timeout=30
-        )
+        # Use RunPod serverless client if available, otherwise direct ComfyUI
+        if comfyui_client:
+            # RunPod serverless
+            result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
+            return jsonify({
+                "prompt_id": result.get("prompt_id"),
+                "job_id": result.get("job_id"),
+                "status": result.get("status"),
+                "prompt": full_prompt
+            })
+        else:
+            # Direct ComfyUI connection
+            payload = {
+                "prompt": workflow,
+                "client_id": client_id
+            }
+            response = requests.post(
+                f"{config.COMFYUI_API_URL}/prompt",
+                json=payload,
+                timeout=30
+            )
+
+            if not response.ok:
+                logger.error("ComfyUI error: %s", response.text)
+                return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
+
+            result = response.json()
+            return jsonify({
+                "prompt_id": result.get("prompt_id"),
+                "prompt": full_prompt
+            })
+
     except requests.RequestException as exc:
         logger.error("ComfyUI request failed: %s", exc)
         return jsonify({"error": "Failed to connect to ComfyUI"}), 502
-
-    if not response.ok:
-        logger.error("ComfyUI error: %s", response.text)
-        return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
-
-    data = response.json()
-    return jsonify({
-        "prompt_id": data.get("prompt_id"),
-        "prompt": full_prompt
-    })
+    except Exception as exc:
+        logger.error("Unexpected error: %s", exc)
+        return jsonify({"error": str(exc)}), 502
 
 
 @app.route('/api/generation_status')
