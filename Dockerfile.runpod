@@ -47,7 +47,11 @@ RUN pip3 install torch torchvision torchaudio --index-url https://download.pytor
 # Copy POD application
 WORKDIR ${POD_APP_PATH}
 COPY package*.json ./
-RUN npm ci
+
+# Install dependencies with production flag disabled to include devDependencies
+RUN npm ci --include=dev && \
+    echo "Verifying vite installation..." && \
+    ls -la node_modules/.bin/vite || echo "vite not found in node_modules/.bin"
 
 # Copy application files
 COPY . .
