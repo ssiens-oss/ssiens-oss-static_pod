@@ -51,9 +51,6 @@ echo -e "${BLUE}📦 Building production Docker image...${NC}"
 echo "This may take 5-10 minutes depending on your internet connection..."
 echo ""
 
-# Enable BuildKit for modern Docker features (heredoc COPY support)
-export DOCKER_BUILDKIT=1
-
 docker build \
     -f Dockerfile.runpod \
     -t "${PROJECT_NAME}:${VERSION}" \
