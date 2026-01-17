@@ -1,0 +1,44 @@
+# RunPod Serverless Dockerfile for POD Pipeline
+# Optimized for serverless endpoint deployment
+
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    COMFYUI_PATH=/workspace/ComfyUI \
+    POD_APP_PATH=/workspace/app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create workspace directories
+WORKDIR /workspace
+
+# Install RunPod SDK
+RUN pip3 install runpod requests
+
+# Install ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git ${COMFYUI_PATH}
+WORKDIR ${COMFYUI_PATH}
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
+    && pip3 install -r requirements.txt
+
+# Copy handler
+WORKDIR /workspace
+COPY handler.py /workspace/handler.py
+
+# Create data directories
+RUN mkdir -p /workspace/data/designs /workspace/data/output
+
+# Set working directory
+WORKDIR /workspace
+
+# Run the handler
+CMD ["python3", "-u", "handler.py"]
