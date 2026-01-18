@@ -309,12 +309,25 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
-    width: int = 1024,
-    height: int = 1024,
+    width: int = 3600,  # POD-optimized: 3600x3600 for good print quality
+    height: int = 3600,
     steps: int = 20,
     cfg_scale: float = 7.0
 ) -> Dict[str, Any]:
-    """Build a basic Flux workflow for ComfyUI."""
+    """
+    Build a basic Flux workflow for ComfyUI.
+
+    POD Resolution Guidelines:
+    - Minimum: 2400x2400 (acceptable but not optimal)
+    - Recommended: 3600x3600 (good balance)
+    - Optimal: 4500x5400 (best for apparel)
+    - Posters: 4800x6000
+
+    Default 3600x3600 provides:
+    - High enough DPI for quality prints
+    - Reasonable processing time
+    - Works well for most products
+    """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
 
@@ -533,14 +546,25 @@ def generate_image():
         return jsonify({"error": "Prompt is required"}), 400
 
     full_prompt = build_prompt_text(prompt, style, genre)
+
+    # POD-optimized resolution (3600x3600 default for quality prints)
+    width = data.get("width", 3600)
+    height = data.get("height", 3600)
+
+    # Warn if resolution is too low for POD
+    if width < 2400 or height < 2400:
+        logger.warning(f"⚠ Resolution {width}x{height} is below POD minimum (2400x2400). Quality may suffer.")
+
     workflow = build_comfyui_workflow(
         full_prompt,
         seed=data.get("seed"),
-        width=data.get("width", 1024),
-        height=data.get("height", 1024),
+        width=width,
+        height=height,
         steps=data.get("steps", 20),
         cfg_scale=data.get("cfg_scale", 7)
     )
+
+    logger.info(f"Generating image at {width}x{height} resolution")
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
 
