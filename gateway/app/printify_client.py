@@ -292,6 +292,12 @@ class PrintifyClient:
                 logger.info("Fetching available variants...")
                 variants = self.get_blueprint_variants(blueprint_id, provider_id)
                 variant_ids = [v.id for v in variants if v.is_available]
+
+                # Printify limits products to 100 variants max
+                if len(variant_ids) > 100:
+                    logger.warning(f"Blueprint has {len(variant_ids)} variants, limiting to 100 (Printify max)")
+                    variant_ids = variant_ids[:100]
+
                 logger.info(f"Using {len(variant_ids)} available variants")
 
             if not variant_ids:
