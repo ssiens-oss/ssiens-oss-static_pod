@@ -30,6 +30,13 @@ from app.product_catalog import (
     ProductCategory,
     validate_image_resolution
 )
+from app.analytics import (
+    calculate_performance_score,
+    calculate_net_profit,
+    is_bestseller,
+    get_platform_fee,
+    get_fulfillment_cost
+)
 
 # Configure logging
 logging.basicConfig(
@@ -1043,6 +1050,128 @@ def get_stats():
     except Exception as e:
         logger.error(f"Error getting statistics: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/sync_status/<image_id>', methods=['GET'])
+def check_sync_status(image_id):
+    """
+    Check if product has synced to Shopify/Etsy
+
+    Args:
+        image_id: Image identifier
+
+    Returns:
+        JSON with sync status
+    """
+    # Validate image ID
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    try:
+        # Get product ID from state
+        img_state = state_manager.state.get(image_id, {})
+        metadata = img_state.get("metadata", {})
+        product_id = metadata.get("product_id")
+
+        if not product_id:
+            return jsonify({
+                "success": False,
+                "synced": False,
+                "error": "Product not published yet"
+            }), 404
+
+        # Check sync status via Printify client
+        if printify_client:
+            sync_status = printify_client.check_product_sync_status(product_id)
+            return jsonify({
+                "success": True,
+                **sync_status
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Printify client not configured"
+            }), 400
+
+    except Exception as e:
+        logger.error(f"Error checking sync status for {image_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+
+@app.route('/api/product_metrics/<image_id>', methods=['GET'])
+def get_product_metrics(image_id):
+    """
+    Get product performance metrics
+
+    Args:
+        image_id: Image identifier
+
+    Returns:
+        JSON with performance metrics
+    """
+    # Validate image ID
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    try:
+        # Get product data from state
+        img_state = state_manager.state.get(image_id, {})
+        metadata = img_state.get("metadata", {})
+
+        # Mock metrics (in production, pull from Shopify/Etsy APIs)
+        views = metadata.get("views", 0)
+        sales = metadata.get("sales", 0)
+        favorites = metadata.get("favorites", 0)
+        add_to_carts = metadata.get("add_to_carts", 0)
+
+        # Calculate scores
+        performance_score = calculate_performance_score(views, favorites, add_to_carts, sales)
+
+        # Get product type for cost calculation
+        product_type = metadata.get("product_type", "hoodie")
+        price_cents = metadata.get("price_cents", 3499)
+        platform = metadata.get("platform", "shopify")
+
+        # Calculate profit
+        fulfillment_cost = get_fulfillment_cost(product_type)
+        platform_fee_pct = get_platform_fee(platform)
+        net_profit = calculate_net_profit(
+            price_cents * sales,
+            fulfillment_cost * sales,
+            platform_fee_pct
+        )
+
+        # Check if bestseller
+        conversion_rate = sales / views if views > 0 else 0.0
+        bestseller = is_bestseller(sales, conversion_rate)
+
+        return jsonify({
+            "success": True,
+            "image_id": image_id,
+            "metrics": {
+                "views": views,
+                "sales": sales,
+                "favorites": favorites,
+                "add_to_carts": add_to_carts,
+                "conversion_rate": conversion_rate
+            },
+            "performance": {
+                "score": performance_score,
+                "bestseller": bestseller
+            },
+            "financial": {
+                "revenue_cents": price_cents * sales,
+                "fulfillment_cost_cents": fulfillment_cost * sales,
+                "platform_fee_pct": platform_fee_pct,
+                "net_profit_cents": net_profit
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting metrics for {image_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @app.route('/health')

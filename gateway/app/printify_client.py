@@ -310,6 +310,11 @@ class PrintifyClient:
                 for vid in variant_ids
             ]
 
+            # Log variant details for verification
+            logger.info(f"Enabling {len(variant_configs)} variants for product '{title}'")
+            logger.debug(f"Variant IDs: {variant_ids[:10]}{'...' if len(variant_ids) > 10 else ''}")
+            logger.debug(f"Price per variant: ${price_cents/100:.2f}")
+
             payload = {
                 "title": title,
                 "description": description or title,
@@ -332,6 +337,7 @@ class PrintifyClient:
             }
 
             logger.info(f"Creating product: {title}")
+            logger.debug(f"Blueprint: {blueprint_id}, Provider: {provider_id}")
             response = self._make_request(
                 "POST",
                 f"/shops/{self.shop_id}/products.json",
@@ -348,7 +354,7 @@ class PrintifyClient:
 
     def publish_product(self, product_id: str) -> bool:
         """
-        Publish product to connected sales channels
+        Publish product to connected sales channels (Shopify/Etsy)
 
         Args:
             product_id: Printify product ID
@@ -357,9 +363,9 @@ class PrintifyClient:
             True if published successfully, False otherwise
         """
         try:
-            logger.info(f"Publishing product: {product_id}")
+            logger.info(f"Publishing product {product_id} to connected stores...")
 
-            self._make_request(
+            response = self._make_request(
                 "POST",
                 f"/shops/{self.shop_id}/products/{product_id}/publish.json",
                 json={
@@ -371,12 +377,58 @@ class PrintifyClient:
                 }
             )
 
-            logger.info(f"Product published successfully: {product_id}")
+            result = response.json()
+            logger.info(f"✓ Product {product_id} published successfully")
+            logger.info(f"  → Publishing to connected sales channels (Shopify/Etsy)")
+            logger.info(f"  → Sync may take 30-120 seconds")
+
+            # Log external IDs if available
+            if isinstance(result, dict):
+                external_id = result.get('external_id')
+                if external_id:
+                    logger.info(f"  → External ID: {external_id}")
+
             return True
 
         except Exception as e:
-            logger.error(f"Error publishing product: {e}")
+            logger.error(f"✗ Error publishing product {product_id}: {e}")
             return False
+
+    def check_product_sync_status(self, product_id: str) -> Dict[str, Any]:
+        """
+        Check if product has synced to external platforms (Shopify/Etsy)
+
+        Args:
+            product_id: Printify product ID
+
+        Returns:
+            Dict with sync status information
+        """
+        try:
+            response = self._make_request(
+                "GET",
+                f"/shops/{self.shop_id}/products/{product_id}.json"
+            )
+
+            product = response.json()
+
+            # Check for external IDs (indicates successful sync)
+            external_id = product.get('external_id')
+            shopify_id = product.get('sales_channel_properties', {}).get('shopify_product_id')
+
+            synced = bool(external_id or shopify_id)
+
+            return {
+                "synced": synced,
+                "external_id": external_id,
+                "shopify_id": shopify_id,
+                "is_locked": product.get('is_locked', False),
+                "visible": product.get('visible', False)
+            }
+
+        except Exception as e:
+            logger.error(f"Error checking sync status for {product_id}: {e}")
+            return {"synced": False, "error": str(e)}
 
     def create_and_publish(
         self,
