@@ -204,6 +204,49 @@ def validate_image_file(image_path: str) -> Tuple[bool, str]:
         return False, f"Invalid image file: {str(e)}"
 
 
+def generate_product_title(prompt: str, style: str = "", genre: str = "") -> str:
+    """
+    Generate SEO-friendly product title from prompt
+
+    Creates descriptive, keyword-rich titles for POD listings
+
+    Args:
+        prompt: Base prompt text
+        style: Optional style descriptor
+        genre: Optional genre descriptor
+
+    Returns:
+        Product title optimized for listings
+    """
+    # Extract key descriptive words from prompt
+    words = prompt.strip().split()
+
+    # Remove common articles and prepositions
+    stop_words = {'a', 'an', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from'}
+    keywords = [w for w in words if w.lower() not in stop_words][:5]  # Take first 5 meaningful words
+
+    # Capitalize first letter of each keyword
+    title_parts = [word.capitalize() for word in keywords]
+
+    # Add style/genre if provided
+    if style:
+        title_parts.insert(0, style.capitalize())
+    if genre:
+        title_parts.append(f"- {genre.capitalize()}")
+
+    # Build title
+    title = " ".join(title_parts)
+
+    # Add product type descriptor
+    title = f"{title} Design"
+
+    # Ensure reasonable length (max 140 chars for most platforms)
+    if len(title) > 140:
+        title = title[:137] + "..."
+
+    return title
+
+
 def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
     """
     Build POD-optimized prompt text with style and genre.
@@ -440,7 +483,8 @@ def list_images():
                 "status": status,
                 "path": f"/api/image/{img_id}",
                 "created_at": img_state.get("created_at"),
-                "updated_at": img_state.get("updated_at")
+                "updated_at": img_state.get("updated_at"),
+                "metadata": img_state.get("metadata", {})
             })
 
         # Sort by filename (newest first)
@@ -508,6 +552,20 @@ def generate_image():
 
                 if saved_images:
                     logger.info(f"Successfully downloaded {len(saved_images)} image(s)")
+
+                    # Store prompt metadata for each image for auto-title generation
+                    for img_path in saved_images:
+                        img_id = Path(img_path).stem
+                        try:
+                            state_manager.set_image_status(img_id, ImageStatus.PENDING.value, {
+                                "original_prompt": prompt,
+                                "style": style,
+                                "genre": genre,
+                                "full_prompt": full_prompt
+                            })
+                        except StateManagerError as e:
+                            logger.warning(f"Failed to store metadata for {img_id}: {e}")
+
                     # New images will be picked up on next /api/images call
                     return jsonify({
                         "status": "completed",
@@ -767,11 +825,48 @@ def publish_image(image_id):
             "error": f"{platform_name} not properly configured"
         }), 400
 
-    # Get and validate title
-    title = request_data.get("title", f"Design {image_id[:8]}")
+    # Get image metadata (including prompt info)
+    img_state = state_manager.state.get(image_id, {})
+    metadata = img_state.get("metadata", {})
+
+    # Auto-generate title from prompt if not provided
+    title = request_data.get("title")
+    if not title:
+        # Try to generate from stored prompt
+        original_prompt = metadata.get("original_prompt", "")
+        style = metadata.get("style", "")
+        genre = metadata.get("genre", "")
+
+        if original_prompt:
+            title = generate_product_title(original_prompt, style, genre)
+            logger.info(f"Auto-generated title: {title}")
+        else:
+            title = f"Design {image_id[:8]}"
+
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
+
+    # Auto-generate description if not provided
+    description = request_data.get("description")
+    if not description and metadata.get("original_prompt"):
+        description = f"Unique {metadata.get('style', 'artistic')} design featuring {metadata.get('original_prompt')}. Perfect for print-on-demand products."
+
+    # Generate tags from prompt for SEO
+    tags = []
+    if metadata.get("original_prompt"):
+        # Extract keywords as tags
+        words = metadata["original_prompt"].split()
+        stop_words = {'a', 'an', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from'}
+        tags = [w.lower() for w in words if w.lower() not in stop_words and len(w) > 3][:10]
+
+    if metadata.get("style"):
+        tags.append(metadata["style"].lower())
+    if metadata.get("genre"):
+        tags.append(metadata["genre"].lower())
+
+    # Add POD-specific tags
+    tags.extend(["pod", "print-on-demand", "custom-design", "ai-generated"])
 
     # Update status to publishing
     try:
@@ -782,18 +877,18 @@ def publish_image(image_id):
 
     # Publish to selected platform
     try:
-        description = request_data.get("description")
         price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
 
         # Validate price
         if not isinstance(price_cents, int) or price_cents < 0:
             return jsonify({"success": False, "error": "Invalid price"}), 400
 
-        # Call platform publish method
+        # Call platform publish method with tags
         result = platform.publish(
             image_path=image_path,
             title=title,
             description=description,
+            tags=tags,
             price=price_cents
         )
 
