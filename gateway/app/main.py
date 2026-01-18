@@ -426,8 +426,7 @@ def generate_image():
 
                 if saved_images:
                     logger.info(f"Successfully downloaded {len(saved_images)} image(s)")
-                    # Reload state to pick up new images
-                    state_manager.reload()
+                    # New images will be picked up on next /api/images call
                     return jsonify({
                         "status": "completed",
                         "prompt_id": result.get("prompt_id"),
