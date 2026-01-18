@@ -22,6 +22,14 @@ from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
 from app.runpod_client import create_comfyui_client
 from app.platforms import PrintifyPlatform, ZazzlePlatform, RedbubblePlatform
+from app.product_catalog import (
+    get_all_products,
+    get_popular_products,
+    get_products_by_category,
+    get_product,
+    ProductCategory,
+    validate_image_resolution
+)
 
 # Configure logging
 logging.basicConfig(
@@ -761,6 +769,61 @@ def get_platforms():
     })
 
 
+@app.route('/api/products', methods=['GET'])
+def list_product_types():
+    """
+    Get list of available product types
+
+    Query params:
+        popular: If true, only return popular products
+        category: Filter by category (apparel, home_living, accessories, stationery)
+
+    Returns:
+        JSON response with available product types
+    """
+    try:
+        # Check for filters
+        popular_only = request.args.get('popular', '').lower() == 'true'
+        category_filter = request.args.get('category', '').lower()
+
+        if popular_only:
+            products = get_popular_products()
+        elif category_filter:
+            try:
+                category = ProductCategory(category_filter)
+                products = get_products_by_category(category)
+            except ValueError:
+                return jsonify({
+                    "success": False,
+                    "error": f"Invalid category. Valid categories: {', '.join(c.value for c in ProductCategory)}"
+                }), 400
+        else:
+            products = list(get_all_products().values())
+
+        # Convert to JSON-friendly format
+        product_list = []
+        for product in products:
+            product_list.append({
+                "id": product.id,
+                "name": product.name,
+                "category": product.category.value,
+                "description": product.description,
+                "default_price_cents": product.default_price_cents,
+                "min_resolution": product.min_resolution,
+                "recommended_resolution": product.recommended_resolution
+            })
+
+        return jsonify({
+            "success": True,
+            "products": product_list,
+            "count": len(product_list)
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing product types: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+
 @app.route('/api/publish/<image_id>', methods=['POST'])
 def publish_image(image_id):
     """
@@ -877,19 +940,31 @@ def publish_image(image_id):
 
     # Publish to selected platform
     try:
-        price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+        # Get product type
+        product_type_id = request_data.get("product_type", "hoodie")  # Default to hoodie
+        product_type_obj = get_product(product_type_id)
+
+        if product_type_obj:
+            # Use product-specific pricing if not provided
+            price_cents = request_data.get("price_cents", product_type_obj.default_price_cents)
+            logger.info(f"Publishing as {product_type_obj.name} ({product_type_id})")
+        else:
+            # Fallback to config default
+            price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+            logger.warning(f"Unknown product type '{product_type_id}', using default pricing")
 
         # Validate price
         if not isinstance(price_cents, int) or price_cents < 0:
             return jsonify({"success": False, "error": "Invalid price"}), 400
 
-        # Call platform publish method with tags
+        # Call platform publish method with tags and product type
         result = platform.publish(
             image_path=image_path,
             title=title,
             description=description,
             tags=tags,
-            price=price_cents
+            price=price_cents,
+            product_type=product_type_id  # Pass product type to platform
         )
 
         if result.success:

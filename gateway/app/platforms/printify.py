@@ -4,6 +4,7 @@ Printify Platform Integration
 from typing import Dict, Any, Optional
 from .base import BasePlatform, PublishResult, PlatformError
 from ..printify_client import PrintifyClient, RetryConfig
+from ..product_catalog import get_product, PRINTIFY_PRODUCTS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class PrintifyPlatform(BasePlatform):
         super().__init__(config)
         self.api_key = config.get('api_key')
         self.shop_id = config.get('shop_id')
-        self.blueprint_id = config.get('blueprint_id', 3)
+        self.blueprint_id = config.get('blueprint_id', 77)  # Default: Hoodie
         self.provider_id = config.get('provider_id', 99)
         self.default_price = config.get('default_price_cents', 1999)
 
@@ -60,6 +61,7 @@ class PrintifyPlatform(BasePlatform):
             **kwargs: Additional Printify-specific options
                 - blueprint_id: Override default blueprint
                 - provider_id: Override default provider
+                - product_type: Product type ID from catalog (e.g., 'mens_tshirt', 'hoodie')
 
         Returns:
             PublishResult with product info
@@ -72,10 +74,25 @@ class PrintifyPlatform(BasePlatform):
             )
 
         try:
-            # Get options with defaults
-            blueprint_id = kwargs.get('blueprint_id', self.blueprint_id)
-            provider_id = kwargs.get('provider_id', self.provider_id)
-            price_cents = price or self.default_price
+            # Get product type from catalog if specified
+            product_type_id = kwargs.get('product_type')
+            if product_type_id:
+                product_type = get_product(product_type_id)
+                if product_type:
+                    blueprint_id = product_type.blueprint_id
+                    provider_id = product_type.provider_id
+                    price_cents = price or product_type.default_price_cents
+                    logger.info(f"Publishing as {product_type.name} (blueprint {blueprint_id})")
+                else:
+                    logger.warning(f"Unknown product type: {product_type_id}, using defaults")
+                    blueprint_id = kwargs.get('blueprint_id', self.blueprint_id)
+                    provider_id = kwargs.get('provider_id', self.provider_id)
+                    price_cents = price or self.default_price
+            else:
+                # Use provided or default blueprint/provider
+                blueprint_id = kwargs.get('blueprint_id', self.blueprint_id)
+                provider_id = kwargs.get('provider_id', self.provider_id)
+                price_cents = price or self.default_price
 
             # Publish product
             product_id = self.client.create_and_publish(

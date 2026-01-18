@@ -442,6 +442,7 @@
         let currentPromptId = null;
         let statusInterval = null;
         let availablePlatforms = [];
+        let availableProducts = [];
 
         const prompterStatus = document.getElementById('prompter-status');
         const prompterDetail = document.getElementById('prompter-detail');
@@ -535,6 +536,24 @@
                 console.error('Failed to load platforms:', e);
                 // Default to printify if API fails
                 availablePlatforms = [{name: 'printify', display_name: 'Printify', configured: true}];
+            }
+        }
+
+        // Load available product types
+        async function loadProducts() {
+            try {
+                const res = await fetch('/api/products?popular=true');
+                const data = await res.json();
+                if (data.success) {
+                    availableProducts = data.products;
+                    console.log(`Loaded ${availableProducts.length} popular product types`);
+                }
+            } catch (e) {
+                console.error('Failed to load products:', e);
+                // Default to hoodie
+                availableProducts = [
+                    {id: 'hoodie', name: "Hoodie", default_price_cents: 3499}
+                ];
             }
         }
 
@@ -632,11 +651,29 @@
             try {
                 let res;
                 if (action === 'publish') {
-                    // Get product title
-                    const title = prompt('Enter product title:', `Design ${id.substring(0, 8)}`);
-                    if (!title) {
-                        e.target.disabled = false;
-                        return;
+                    // Get product title (or auto-generate)
+                    const title = prompt('Enter product title (leave empty to auto-generate):', '');
+
+                    // Select product type
+                    let selectedProductType = 'hoodie'; // default
+                    if (availableProducts.length > 0) {
+                        const productOptions = availableProducts.map((p, i) =>
+                            `${i + 1}. ${p.name} ($${(p.default_price_cents / 100).toFixed(2)})`
+                        ).join('\n');
+                        const productChoice = prompt(
+                            `Select product type:\n\n${productOptions}\n\nEnter number (default: 1):`,
+                            '1'
+                        );
+
+                        if (productChoice === null) {
+                            e.target.disabled = false;
+                            return;
+                        }
+
+                        const choiceIndex = parseInt(productChoice) - 1;
+                        if (choiceIndex >= 0 && choiceIndex < availableProducts.length) {
+                            selectedProductType = availableProducts[choiceIndex].id;
+                        }
                     }
 
                     // Select platform
@@ -650,7 +687,7 @@
                             '1'
                         );
 
-                        if (!platformChoice) {
+                        if (platformChoice === null) {
                             e.target.disabled = false;
                             return;
                         }
@@ -661,13 +698,20 @@
                         }
                     }
 
+                    const payload = {
+                        platform: selectedPlatform,
+                        product_type: selectedProductType
+                    };
+
+                    // Only include title if provided
+                    if (title && title.trim()) {
+                        payload.title = title.trim();
+                    }
+
                     res = await fetch(`/api/${action}/${id}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            title: title,
-                            platform: selectedPlatform
-                        })
+                        body: JSON.stringify(payload)
                     });
                 } else {
                     res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
@@ -773,6 +817,7 @@
 
         // Initial load
         loadPlatforms();
+        loadProducts();
         loadImages();
     </script>
 </body>
