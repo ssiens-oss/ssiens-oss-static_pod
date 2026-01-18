@@ -582,16 +582,22 @@ def publish_image(image_id):
     try:
         description = request_data.get("description")
         price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+        blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
+        provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
 
         # Validate price
         if not isinstance(price_cents, int) or price_cents < 0:
             return jsonify({"success": False, "error": "Invalid price"}), 400
+        if not isinstance(blueprint_id, int) or blueprint_id <= 0:
+            return jsonify({"success": False, "error": "Invalid blueprint ID"}), 400
+        if not isinstance(provider_id, int) or provider_id <= 0:
+            return jsonify({"success": False, "error": "Invalid provider ID"}), 400
 
         product_id = printify_client.create_and_publish(
             image_path=image_path,
             title=title,
-            blueprint_id=config.PRINTIFY_BLUEPRINT_ID,
-            provider_id=config.PRINTIFY_PROVIDER_ID,
+            blueprint_id=blueprint_id,
+            provider_id=provider_id,
             price_cents=price_cents,
             description=description
         )
