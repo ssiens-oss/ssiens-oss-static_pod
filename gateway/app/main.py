@@ -309,19 +309,24 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
-    width: int = 3600,  # POD-optimized: 3600x3600 for good print quality
-    height: int = 3600,
+    width: int = 4500,  # T-shirt template standard: 4500x5400
+    height: int = 5400,
     steps: int = 30,  # Flux needs more steps than SDXL (30-50 for quality)
     cfg_scale: float = 2.0  # Flux works best at CFG 1.0-3.5 (NOT 7!)
 ) -> Dict[str, Any]:
     """
     Build a Flux-optimized workflow for ComfyUI.
 
+    T-Shirt Template Resolution (Default):
+    - Standard: 4500x5400 (Printify recommended for apparel)
+    - Provides: ~300 DPI at 15"x18" print area
+    - Aspect: Slightly taller (good for t-shirt designs)
+
     POD Resolution Guidelines:
     - Minimum: 2400x2400 (acceptable but not optimal)
-    - Recommended: 3600x3600 (good balance)
-    - Optimal: 4500x5400 (best for apparel)
-    - Posters: 4800x6000
+    - Good: 3600x3600 (good balance for square products)
+    - Optimal: 4500x5400 (t-shirts, hoodies - CURRENT DEFAULT)
+    - Posters: 4800x6000 (for wall art)
 
     Flux Sampling Guidelines (IMPORTANT):
     - CFG Scale: 1.0-3.5 (default 2.0) - Lower than SDXL!
@@ -330,11 +335,11 @@ def build_comfyui_workflow(
     - Higher CFG = blurry/out of focus images
     - Fewer steps = lack of detail
 
-    Default 3600x3600 @ 30 steps @ CFG 2.0 provides:
+    Default 4500x5400 @ 30 steps @ CFG 2.0 provides:
+    - Professional t-shirt quality
     - Sharp, detailed images
-    - High enough DPI for quality prints
-    - Reasonable processing time (~45-60s)
-    - Works well for most products
+    - Matches Printify apparel templates
+    - Optimal for most POD products
     """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
@@ -555,9 +560,9 @@ def generate_image():
 
     full_prompt = build_prompt_text(prompt, style, genre)
 
-    # POD-optimized resolution (3600x3600 default for quality prints)
-    width = data.get("width", 3600)
-    height = data.get("height", 3600)
+    # T-shirt template resolution (4500x5400 default for optimal apparel quality)
+    width = data.get("width", 4500)
+    height = data.get("height", 5400)
 
     # Flux-optimized sampling parameters
     steps = data.get("steps", 30)  # Flux needs 30-50 steps
@@ -566,6 +571,10 @@ def generate_image():
     # Warn if resolution is too low for POD
     if width < 2400 or height < 2400:
         logger.warning(f"⚠ Resolution {width}x{height} is below POD minimum (2400x2400). Quality may suffer.")
+
+    # Recommend t-shirt template size for apparel
+    if width < 4500 or height < 5400:
+        logger.info(f"ℹ Resolution {width}x{height} is below t-shirt template standard (4500x5400). Consider using higher resolution for apparel.")
 
     # Warn if settings are likely to cause blurry images
     if cfg_scale > 4.0:
