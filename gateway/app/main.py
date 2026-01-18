@@ -311,11 +311,11 @@ def build_comfyui_workflow(
     seed: int | None = None,
     width: int = 3600,  # POD-optimized: 3600x3600 for good print quality
     height: int = 3600,
-    steps: int = 20,
-    cfg_scale: float = 7.0
+    steps: int = 30,  # Flux needs more steps than SDXL (30-50 for quality)
+    cfg_scale: float = 2.0  # Flux works best at CFG 1.0-3.5 (NOT 7!)
 ) -> Dict[str, Any]:
     """
-    Build a basic Flux workflow for ComfyUI.
+    Build a Flux-optimized workflow for ComfyUI.
 
     POD Resolution Guidelines:
     - Minimum: 2400x2400 (acceptable but not optimal)
@@ -323,9 +323,17 @@ def build_comfyui_workflow(
     - Optimal: 4500x5400 (best for apparel)
     - Posters: 4800x6000
 
-    Default 3600x3600 provides:
+    Flux Sampling Guidelines (IMPORTANT):
+    - CFG Scale: 1.0-3.5 (default 2.0) - Lower than SDXL!
+    - Steps: 30-50 (default 30) - More than SDXL!
+    - Scheduler: "simple" works best
+    - Higher CFG = blurry/out of focus images
+    - Fewer steps = lack of detail
+
+    Default 3600x3600 @ 30 steps @ CFG 2.0 provides:
+    - Sharp, detailed images
     - High enough DPI for quality prints
-    - Reasonable processing time
+    - Reasonable processing time (~45-60s)
     - Works well for most products
     """
     if seed is None:
@@ -338,7 +346,7 @@ def build_comfyui_workflow(
                 "steps": steps,
                 "cfg": cfg_scale,
                 "sampler_name": "euler",
-                "scheduler": "normal",
+                "scheduler": "simple",  # Changed from "normal" - better for Flux
                 "denoise": 1,
                 "model": ["4", 0],
                 "positive": ["6", 0],
@@ -551,20 +559,31 @@ def generate_image():
     width = data.get("width", 3600)
     height = data.get("height", 3600)
 
+    # Flux-optimized sampling parameters
+    steps = data.get("steps", 30)  # Flux needs 30-50 steps
+    cfg_scale = data.get("cfg_scale", 2.0)  # Flux works best at 1.0-3.5 CFG
+
     # Warn if resolution is too low for POD
     if width < 2400 or height < 2400:
         logger.warning(f"⚠ Resolution {width}x{height} is below POD minimum (2400x2400). Quality may suffer.")
+
+    # Warn if settings are likely to cause blurry images
+    if cfg_scale > 4.0:
+        logger.warning(f"⚠ CFG scale {cfg_scale} is too high for Flux. Recommend 1.0-3.5 for sharp images.")
+
+    if steps < 25:
+        logger.warning(f"⚠ Steps {steps} may be too low for quality. Recommend 30-50 for Flux.")
 
     workflow = build_comfyui_workflow(
         full_prompt,
         seed=data.get("seed"),
         width=width,
         height=height,
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
+        steps=steps,
+        cfg_scale=cfg_scale
     )
 
-    logger.info(f"Generating image at {width}x{height} resolution")
+    logger.info(f"Generating image at {width}x{height}, {steps} steps, CFG {cfg_scale}")
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
 
