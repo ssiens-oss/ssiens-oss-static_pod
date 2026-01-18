@@ -128,10 +128,6 @@ class PrintifyClient:
                 if 'headers' in kwargs:
                     request_headers.update(kwargs.pop('headers'))
 
-                # For file uploads, remove Content-Type (requests will set it automatically)
-                if 'files' in kwargs and 'Content-Type' in request_headers:
-                    request_headers.pop('Content-Type')
-
                 response = self.session.request(
                     method=method,
                     url=url,
@@ -225,7 +221,7 @@ class PrintifyClient:
 
     def upload_image(self, image_path: str, filename: str) -> Optional[str]:
         """
-        Upload image to Printify
+        Upload image to Printify using base64 encoding
 
         Args:
             image_path: Local path to image file
@@ -237,16 +233,27 @@ class PrintifyClient:
         try:
             logger.info(f"Uploading image: {filename}")
 
+            # Read image and encode as base64
             with open(image_path, "rb") as f:
-                files = {"file": (filename, f, "image/png")}
+                image_data = f.read()
 
-                response = self._make_request(
-                    "POST",
-                    "/uploads/images.json",
-                    files=files
-                )
+            import base64
+            encoded_image = base64.b64encode(image_data).decode('utf-8')
 
-            image_id = response.json().get("id")
+            # Printify API expects JSON with file_name and contents (base64)
+            payload = {
+                "file_name": filename,
+                "contents": encoded_image
+            }
+
+            response = self._make_request(
+                "POST",
+                "/uploads/images.json",
+                json=payload
+            )
+
+            result = response.json()
+            image_id = result.get("id")
             logger.info(f"Image uploaded successfully: {image_id}")
             return image_id
 
