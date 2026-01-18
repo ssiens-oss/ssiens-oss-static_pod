@@ -21,6 +21,7 @@ from app import config
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
 from app.runpod_client import create_comfyui_client
+from app.platforms import PrintifyPlatform, ZazzlePlatform, RedbubblePlatform
 
 # Configure logging
 logging.basicConfig(
@@ -69,6 +70,60 @@ try:
         logger.info("✓ Direct ComfyUI connection configured")
 except Exception as e:
     logger.warning(f"⚠ ComfyUI/RunPod client setup: {e}")
+
+# Initialize POD platforms
+platforms = {}
+
+# Printify platform
+if config.config.printify.is_configured():
+    try:
+        printify_config = {
+            'api_key': config.PRINTIFY_API_KEY,
+            'shop_id': config.PRINTIFY_SHOP_ID,
+            'blueprint_id': config.PRINTIFY_BLUEPRINT_ID,
+            'provider_id': config.PRINTIFY_PROVIDER_ID,
+            'default_price_cents': config.config.printify.default_price_cents,
+            'max_retries': config.config.retry.max_retries,
+            'initial_backoff': config.config.retry.initial_backoff_seconds,
+            'max_backoff': config.config.retry.max_backoff_seconds,
+            'backoff_multiplier': config.config.retry.backoff_multiplier
+        }
+        platforms['printify'] = PrintifyPlatform(printify_config)
+        logger.info("✓ Printify platform initialized")
+    except Exception as e:
+        logger.error(f"✗ Printify platform failed: {e}")
+
+# Zazzle platform (if configured)
+zazzle_api_key = os.getenv('ZAZZLE_API_KEY')
+zazzle_api_secret = os.getenv('ZAZZLE_API_SECRET')
+zazzle_store_id = os.getenv('ZAZZLE_STORE_ID')
+if zazzle_api_key and zazzle_api_secret and zazzle_store_id:
+    try:
+        zazzle_config = {
+            'api_key': zazzle_api_key,
+            'api_secret': zazzle_api_secret,
+            'store_id': zazzle_store_id,
+            'product_type': os.getenv('ZAZZLE_PRODUCT_TYPE', 'tshirt')
+        }
+        platforms['zazzle'] = ZazzlePlatform(zazzle_config)
+        logger.info("✓ Zazzle platform initialized")
+    except Exception as e:
+        logger.error(f"✗ Zazzle platform failed: {e}")
+
+# Redbubble platform (manual workflow)
+redbubble_username = os.getenv('REDBUBBLE_USERNAME')
+if redbubble_username:
+    try:
+        redbubble_config = {
+            'username': redbubble_username,
+            'manual_upload': True
+        }
+        platforms['redbubble'] = RedbubblePlatform(redbubble_config)
+        logger.info("✓ Redbubble platform initialized (manual workflow)")
+    except Exception as e:
+        logger.error(f"✗ Redbubble platform failed: {e}")
+
+logger.info(f"📦 Configured platforms: {', '.join(platforms.keys()) or 'none'}")
 
 
 # Input validation helpers
@@ -151,19 +206,46 @@ def validate_image_file(image_path: str) -> Tuple[bool, str]:
 
 def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
     """
-    Build the full prompt text with optional style and genre.
+    Build POD-optimized prompt text with style and genre.
+
+    Optimizations for Print-on-Demand:
+    - High contrast for visibility on products
+    - Bold, clear designs
+    - Centered composition for product placement
+    - Professional quality output
 
     Args:
         prompt: Base prompt text
         style: Optional style descriptor
         genre: Optional genre descriptor
     """
+    # Start with base prompt
     parts = [prompt.strip()]
+
+    # Add style if provided
     if style:
         parts.append(f"{style} style")
+
+    # Add genre if provided
     if genre:
         parts.append(f"{genre} genre")
-    return ", ".join(part for part in parts if part)
+
+    # Add POD-specific quality enhancements
+    pod_enhancements = [
+        "high contrast",
+        "bold colors",
+        "centered composition",
+        "professional design",
+        "clean background",
+        "sharp details",
+        "vibrant",
+        "eye-catching"
+    ]
+
+    full_prompt = ", ".join(part for part in parts if part)
+    full_prompt += ", " + ", ".join(pod_enhancements)
+
+    return full_prompt
 
 
 def build_comfyui_workflow(
@@ -217,7 +299,7 @@ def build_comfyui_workflow(
         },
         "7": {
             "inputs": {
-                "text": "text, watermark, low quality, worst quality",
+                "text": "text, watermark, low quality, worst quality, blurry, muddy colors, washed out, low contrast, small details, tiny text, complex patterns, cluttered, messy background, amateur, poor composition",
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
@@ -599,24 +681,47 @@ def reject_image(image_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/platforms', methods=['GET'])
+def get_platforms():
+    """
+    Get list of configured POD platforms
+
+    Returns:
+        JSON response with available platforms
+    """
+    platform_list = []
+    for name, platform in platforms.items():
+        platform_list.append({
+            "name": name,
+            "display_name": platform.platform_name,
+            "configured": platform.is_configured()
+        })
+
+    return jsonify({
+        "success": True,
+        "platforms": platform_list
+    })
+
+
 @app.route('/api/publish/<image_id>', methods=['POST'])
 def publish_image(image_id):
     """
-    Publish approved image to Printify
+    Publish approved image to selected POD platform
 
     Args:
         image_id: Image identifier
 
+    Request body:
+        {
+            "platform": "printify|zazzle|redbubble",
+            "title": "Product title",
+            "description": "Product description",
+            "price_cents": 1999
+        }
+
     Returns:
         JSON response with product ID or error
     """
-    # Validate Printify is configured
-    if not printify_client:
-        return jsonify({
-            "success": False,
-            "error": "Printify not configured"
-        }), 400
-
     # Validate image ID
     is_valid, error = validate_image_id(image_id)
     if not is_valid:
@@ -638,12 +743,31 @@ def publish_image(image_id):
     if not is_valid:
         return jsonify({"success": False, "error": error}), 404
 
-    # Get and validate title from request
+    # Get and validate request data
     try:
         request_data = request.get_json() or {}
     except Exception as e:
         return jsonify({"success": False, "error": "Invalid JSON"}), 400
 
+    # Get platform selection (default to printify for backwards compatibility)
+    platform_name = request_data.get("platform", "printify").lower()
+
+    # Validate platform exists and is configured
+    if platform_name not in platforms:
+        available = ', '.join(platforms.keys()) if platforms else 'none'
+        return jsonify({
+            "success": False,
+            "error": f"Platform '{platform_name}' not available. Configured platforms: {available}"
+        }), 400
+
+    platform = platforms[platform_name]
+    if not platform.is_configured():
+        return jsonify({
+            "success": False,
+            "error": f"{platform_name} not properly configured"
+        }), 400
+
+    # Get and validate title
     title = request_data.get("title", f"Design {image_id[:8]}")
     is_valid, error = validate_title(title)
     if not is_valid:
@@ -656,7 +780,7 @@ def publish_image(image_id):
         logger.error(f"Failed to update status to publishing: {e}")
         return jsonify({"success": False, "error": "Failed to update status"}), 500
 
-    # Publish to Printify
+    # Publish to selected platform
     try:
         description = request_data.get("description")
         price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
@@ -665,51 +789,45 @@ def publish_image(image_id):
         if not isinstance(price_cents, int) or price_cents < 0:
             return jsonify({"success": False, "error": "Invalid price"}), 400
 
-        product_id = printify_client.create_and_publish(
+        # Call platform publish method
+        result = platform.publish(
             image_path=image_path,
             title=title,
-            blueprint_id=config.PRINTIFY_BLUEPRINT_ID,
-            provider_id=config.PRINTIFY_PROVIDER_ID,
-            price_cents=price_cents,
-            description=description
+            description=description,
+            price=price_cents
         )
 
-        if product_id:
+        if result.success:
             state_manager.set_image_status(image_id, ImageStatus.PUBLISHED.value, {
-                "product_id": product_id,
+                "product_id": result.product_id,
+                "product_url": result.product_url,
+                "platform": result.platform,
                 "title": title
             })
-            logger.info(f"Image published successfully: {image_id} -> Product {product_id}")
+            logger.info(f"Image published successfully: {image_id} -> {result.platform} Product {result.product_id}")
             return jsonify({
                 "success": True,
-                "product_id": product_id,
+                "product_id": result.product_id,
+                "product_url": result.product_url,
+                "platform": result.platform,
                 "status": ImageStatus.PUBLISHED.value
             })
         else:
-            error_msg = "Printify API failed to create product"
+            error_msg = result.error or f"{platform_name} API failed to create product"
             state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
-                "error_message": error_msg
+                "error_message": error_msg,
+                "platform": platform_name
             })
-            logger.error(f"Failed to publish image {image_id}: {error_msg}")
+            logger.error(f"Failed to publish image {image_id} to {platform_name}: {error_msg}")
             return jsonify({"success": False, "error": error_msg}), 500
-
-    except PrintifyError as e:
-        error_msg = f"Printify error: {str(e)}"
-        logger.error(f"Printify error for image {image_id}: {e}", exc_info=True)
-        try:
-            state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
-                "error_message": error_msg
-            })
-        except StateManagerError:
-            pass
-        return jsonify({"success": False, "error": error_msg}), 500
 
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
-        logger.error(f"Unexpected error publishing image {image_id}: {e}", exc_info=True)
+        logger.error(f"Unexpected error publishing image {image_id} to {platform_name}: {e}", exc_info=True)
         try:
             state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
-                "error_message": error_msg
+                "error_message": error_msg,
+                "platform": platform_name
             })
         except StateManagerError:
             pass

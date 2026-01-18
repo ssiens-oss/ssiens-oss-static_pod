@@ -441,6 +441,7 @@
         let images = [];
         let currentPromptId = null;
         let statusInterval = null;
+        let availablePlatforms = [];
 
         const prompterStatus = document.getElementById('prompter-status');
         const prompterDetail = document.getElementById('prompter-detail');
@@ -521,6 +522,22 @@
             }
         }
 
+        // Load available platforms
+        async function loadPlatforms() {
+            try {
+                const res = await fetch('/api/platforms');
+                const data = await res.json();
+                if (data.success) {
+                    availablePlatforms = data.platforms.filter(p => p.configured);
+                    console.log('Available platforms:', availablePlatforms.map(p => p.name).join(', '));
+                }
+            } catch (e) {
+                console.error('Failed to load platforms:', e);
+                // Default to printify if API fails
+                availablePlatforms = [{name: 'printify', display_name: 'Printify', configured: true}];
+            }
+        }
+
         // Update stats
         async function updateStats() {
             try {
@@ -576,7 +593,9 @@
                         <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
                     `;
                 case 'published':
-                    return `<div style="color: #10b981; text-align: center;">✓ Live on Printify</div>`;
+                    const platform = img.metadata?.platform || 'Printify';
+                    const platformDisplay = availablePlatforms.find(p => p.name === platform)?.display_name || platform;
+                    return `<div style="color: #10b981; text-align: center;">✓ Live on ${platformDisplay}</div>`;
                 case 'rejected':
                     return `<button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>`;
                 case 'failed':
@@ -613,15 +632,42 @@
             try {
                 let res;
                 if (action === 'publish') {
+                    // Get product title
                     const title = prompt('Enter product title:', `Design ${id.substring(0, 8)}`);
                     if (!title) {
                         e.target.disabled = false;
                         return;
                     }
+
+                    // Select platform
+                    let selectedPlatform = 'printify'; // default
+                    if (availablePlatforms.length > 1) {
+                        const platformOptions = availablePlatforms.map((p, i) =>
+                            `${i + 1}. ${p.display_name}`
+                        ).join('\n');
+                        const platformChoice = prompt(
+                            `Select publishing platform:\n\n${platformOptions}\n\nEnter number (default: 1):`,
+                            '1'
+                        );
+
+                        if (!platformChoice) {
+                            e.target.disabled = false;
+                            return;
+                        }
+
+                        const choiceIndex = parseInt(platformChoice) - 1;
+                        if (choiceIndex >= 0 && choiceIndex < availablePlatforms.length) {
+                            selectedPlatform = availablePlatforms[choiceIndex].name;
+                        }
+                    }
+
                     res = await fetch(`/api/${action}/${id}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({title})
+                        body: JSON.stringify({
+                            title: title,
+                            platform: selectedPlatform
+                        })
                     });
                 } else {
                     res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
@@ -634,7 +680,9 @@
                     if (action === 'reject') {
                         showToast('Image deleted successfully', 'success');
                     } else if (action === 'publish') {
-                        showToast('Published to Printify!', 'success');
+                        const platformName = data.platform || 'platform';
+                        const displayName = availablePlatforms.find(p => p.name === platformName)?.display_name || platformName;
+                        showToast(`Published to ${displayName}!`, 'success');
                     } else if (action === 'approve') {
                         showToast('Image approved', 'success');
                     }
@@ -724,6 +772,7 @@
         });
 
         // Initial load
+        loadPlatforms();
         loadImages();
     </script>
 </body>
