@@ -543,11 +543,14 @@ def generate_image():
     """
     Submit a prompt to ComfyUI via the configured API URL.
 
+    Supports batch generation (up to 25 images per request).
+
     Expected JSON body:
     {
         "prompt": "Base prompt text",
         "style": "Optional style",
-        "genre": "Optional genre"
+        "genre": "Optional genre",
+        "batch_size": 1-25 (default: 1)
     }
     """
     data = request.get_json(silent=True) or {}
@@ -557,6 +560,14 @@ def generate_image():
 
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
+
+    # Batch generation support (1-25 images)
+    batch_size = data.get("batch_size", 1)
+    if not isinstance(batch_size, int) or batch_size < 1:
+        batch_size = 1
+    if batch_size > 25:
+        logger.warning(f"Batch size {batch_size} exceeds maximum (25), capping to 25")
+        batch_size = 25
 
     full_prompt = build_prompt_text(prompt, style, genre)
 
@@ -583,107 +594,149 @@ def generate_image():
     if steps < 25:
         logger.warning(f"⚠ Steps {steps} may be too low for quality. Recommend 30-50 for Flux.")
 
-    workflow = build_comfyui_workflow(
-        full_prompt,
-        seed=data.get("seed"),
-        width=width,
-        height=height,
-        steps=steps,
-        cfg_scale=cfg_scale
-    )
+    # Generate unique batch ID for tracking related images
+    batch_id = f"batch_{uuid.uuid4().hex[:12]}"
 
-    logger.info(f"Generating image at {width}x{height}, {steps} steps, CFG {cfg_scale}")
+    if batch_size > 1:
+        logger.info(f"Starting batch generation: {batch_size} images (batch_id: {batch_id})")
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
 
+    # Track all generated images across batch
+    all_saved_images = []
+    all_prompt_ids = []
+    failed_count = 0
+
     try:
-        # Use RunPod serverless client if available, otherwise direct ComfyUI
-        if comfyui_client:
-            # RunPod serverless
-            logger.info("Submitting workflow to RunPod serverless...")
-            result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
-            logger.info(f"RunPod result status: {result.get('status')}")
-            logger.info(f"RunPod result keys: {list(result.keys())}")
+        # Generate batch sequentially (one at a time)
+        for batch_idx in range(batch_size):
+            if batch_size > 1:
+                logger.info(f"Generating image {batch_idx + 1}/{batch_size}...")
 
-            # If workflow completed, download images
-            if result.get("status") == "COMPLETED" and "output" in result:
-                logger.info("RunPod workflow completed, downloading images...")
-                output = result.get("output", {})
-                logger.debug(f"RunPod output structure: {output}")
-
-                # Download images to the image directory
-                saved_images = comfyui_client.download_images_from_output(
-                    output,
-                    Path(config.IMAGE_DIR)
-                )
-
-                if saved_images:
-                    logger.info(f"Successfully downloaded {len(saved_images)} image(s)")
-
-                    # Store prompt metadata for each image for auto-title generation
-                    for img_path in saved_images:
-                        img_id = Path(img_path).stem
-                        try:
-                            state_manager.set_image_status(img_id, ImageStatus.PENDING.value, {
-                                "original_prompt": prompt,
-                                "style": style,
-                                "genre": genre,
-                                "full_prompt": full_prompt
-                            })
-                        except StateManagerError as e:
-                            logger.warning(f"Failed to store metadata for {img_id}: {e}")
-
-                    # New images will be picked up on next /api/images call
-                    return jsonify({
-                        "status": "completed",
-                        "prompt_id": result.get("prompt_id"),
-                        "prompt": full_prompt,
-                        "images": [Path(img).name for img in saved_images],
-                        "message": f"Generated and downloaded {len(saved_images)} image(s)"
-                    })
-                else:
-                    logger.warning("Workflow completed but no images were downloaded")
-                    return jsonify({
-                        "status": "completed",
-                        "prompt_id": result.get("prompt_id"),
-                        "prompt": full_prompt,
-                        "warning": "Workflow completed but no images found in output"
-                    })
+            # Use provided seed for first image, random for rest
+            if batch_idx == 0 and data.get("seed") is not None:
+                seed = data.get("seed")
             else:
-                # Async job or still processing
-                return jsonify({
-                    "prompt_id": result.get("prompt_id"),
-                    "job_id": result.get("job_id"),
-                    "status": result.get("status"),
-                    "prompt": full_prompt
-                })
-        else:
-            # Direct ComfyUI connection
-            payload = {
-                "prompt": workflow,
-                "client_id": client_id
-            }
-            response = requests.post(
-                f"{config.COMFYUI_API_URL}/prompt",
-                json=payload,
-                timeout=30
+                seed = None  # Will generate random seed in workflow
+
+            workflow = build_comfyui_workflow(
+                full_prompt,
+                seed=seed,
+                width=width,
+                height=height,
+                steps=steps,
+                cfg_scale=cfg_scale
             )
 
-            if not response.ok:
-                logger.error("ComfyUI error: %s", response.text)
-                return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
+            if batch_idx == 0:
+                logger.info(f"Generating at {width}x{height}, {steps} steps, CFG {cfg_scale}")
 
-            result = response.json()
+            # Use RunPod serverless client if available, otherwise direct ComfyUI
+            if comfyui_client:
+                # RunPod serverless
+                if batch_idx == 0:
+                    logger.info("Submitting workflow to RunPod serverless...")
+
+                result = comfyui_client.submit_workflow(workflow, f"{client_id}_{batch_idx}", timeout=120)
+
+                if batch_idx == 0 or batch_size == 1:
+                    logger.info(f"RunPod result status: {result.get('status')}")
+
+                # If workflow completed, download images
+                if result.get("status") == "COMPLETED" and "output" in result:
+                    output = result.get("output", {})
+
+                    # Download images to the image directory
+                    saved_images = comfyui_client.download_images_from_output(
+                        output,
+                        Path(config.IMAGE_DIR)
+                    )
+
+                    if saved_images:
+                        if batch_size > 1:
+                            logger.info(f"✓ Image {batch_idx + 1}/{batch_size} downloaded")
+
+                        # Store prompt metadata for each image for auto-title generation
+                        for img_path in saved_images:
+                            img_id = Path(img_path).stem
+                            try:
+                                state_manager.set_image_status(img_id, ImageStatus.PENDING.value, {
+                                    "original_prompt": prompt,
+                                    "style": style,
+                                    "genre": genre,
+                                    "full_prompt": full_prompt,
+                                    "batch_id": batch_id,
+                                    "batch_index": batch_idx,
+                                    "batch_size": batch_size
+                                })
+                            except StateManagerError as e:
+                                logger.warning(f"Failed to store metadata for {img_id}: {e}")
+
+                        all_saved_images.extend(saved_images)
+                        all_prompt_ids.append(result.get("prompt_id"))
+                    else:
+                        logger.warning(f"Image {batch_idx + 1}/{batch_size} completed but no files downloaded")
+                        failed_count += 1
+                else:
+                    # Async job or still processing (shouldn't happen with timeout=120)
+                    logger.warning(f"Image {batch_idx + 1}/{batch_size} did not complete (status: {result.get('status')})")
+                    failed_count += 1
+            else:
+                # Direct ComfyUI connection (no batch support for async mode)
+                if batch_size > 1:
+                    logger.warning("Batch generation requires RunPod serverless. Direct ComfyUI only supports single image.")
+                    return jsonify({"error": "Batch generation not supported with direct ComfyUI"}), 400
+
+                payload = {
+                    "prompt": workflow,
+                    "client_id": client_id
+                }
+                response = requests.post(
+                    f"{config.COMFYUI_API_URL}/prompt",
+                    json=payload,
+                    timeout=30
+                )
+
+                if not response.ok:
+                    logger.error("ComfyUI error: %s", response.text)
+                    return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
+
+                result = response.json()
+                return jsonify({
+                    "prompt_id": result.get("prompt_id"),
+                    "prompt": full_prompt
+                })
+
+        # Return batch results
+        if all_saved_images:
+            success_count = len(all_saved_images)
+            logger.info(f"Batch generation complete: {success_count}/{batch_size} images generated")
+
             return jsonify({
-                "prompt_id": result.get("prompt_id"),
-                "prompt": full_prompt
+                "status": "completed",
+                "batch_id": batch_id,
+                "batch_size": batch_size,
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "prompt": full_prompt,
+                "images": [Path(img).name for img in all_saved_images],
+                "prompt_ids": all_prompt_ids,
+                "message": f"Generated {success_count} of {batch_size} image(s)"
             })
+        else:
+            logger.error("Batch generation failed: no images were downloaded")
+            return jsonify({
+                "status": "failed",
+                "batch_id": batch_id,
+                "error": "No images were generated",
+                "failed_count": batch_size
+            }), 500
 
     except requests.RequestException as exc:
         logger.error("ComfyUI request failed: %s", exc)
         return jsonify({"error": "Failed to connect to ComfyUI"}), 502
     except Exception as exc:
-        logger.error("Unexpected error: %s", exc)
+        logger.error("Unexpected error during batch generation: %s", exc)
         return jsonify({"error": str(exc)}), 502
 
 
@@ -1223,6 +1276,90 @@ def get_product_metrics(image_id):
 
     except Exception as e:
         logger.error(f"Error getting metrics for {image_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+
+
+@app.route('/api/batch/<batch_id>', methods=['GET'])
+def get_batch_info(batch_id):
+    """
+    Get all images in a batch.
+
+    Returns batch metadata and list of all images generated in the batch.
+
+    Args:
+        batch_id: Batch identifier (e.g., 'batch_abc123def456')
+
+    Returns:
+        JSON with batch info:
+        {
+            "success": true,
+            "batch_id": "batch_abc123def456",
+            "batch_size": 10,
+            "images": [
+                {
+                    "id": "generated_xyz",
+                    "filename": "generated_xyz.png",
+                    "batch_index": 0,
+                    "status": "approved"
+                },
+                ...
+            ],
+            "metadata": {
+                "prompt": "cyberpunk cat",
+                "style": "digital art",
+                "genre": "futuristic"
+            }
+        }
+    """
+    try:
+        # Find all images with this batch_id
+        batch_images = []
+        batch_metadata = None
+
+        for img_id, img_state in state_manager.state.items():
+            metadata = img_state.get("metadata", {})
+            if metadata.get("batch_id") == batch_id:
+                batch_images.append({
+                    "id": img_id,
+                    "filename": f"{img_id}.png",
+                    "batch_index": metadata.get("batch_index", 0),
+                    "status": img_state.get("status", "pending"),
+                    "metadata": {
+                        "original_prompt": metadata.get("original_prompt"),
+                        "style": metadata.get("style"),
+                        "genre": metadata.get("genre")
+                    }
+                })
+
+                # Store batch metadata from first image
+                if batch_metadata is None:
+                    batch_metadata = {
+                        "original_prompt": metadata.get("original_prompt"),
+                        "style": metadata.get("style"),
+                        "genre": metadata.get("genre"),
+                        "full_prompt": metadata.get("full_prompt"),
+                        "batch_size": metadata.get("batch_size", len(batch_images))
+                    }
+
+        if not batch_images:
+            return jsonify({
+                "success": False,
+                "error": f"Batch {batch_id} not found"
+            }), 404
+
+        # Sort by batch_index
+        batch_images.sort(key=lambda x: x["batch_index"])
+
+        return jsonify({
+            "success": True,
+            "batch_id": batch_id,
+            "batch_size": len(batch_images),
+            "images": batch_images,
+            "metadata": batch_metadata
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting batch info for {batch_id}: {e}", exc_info=True)
         return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
