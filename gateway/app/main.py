@@ -174,7 +174,7 @@ def build_comfyui_workflow(
     steps: int = 20,
     cfg_scale: float = 7.0
 ) -> Dict[str, Any]:
-    """Build a basic SDXL workflow for ComfyUI."""
+    """Build a basic Flux workflow for ComfyUI."""
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
 
@@ -196,7 +196,7 @@ def build_comfyui_workflow(
         },
         "4": {
             "inputs": {
-                "ckpt_name": "sd_xl_base_1.0.safetensors"
+                "ckpt_name": "flux1-dev-fp8.safetensors"
             },
             "class_type": "CheckpointLoaderSimple"
         },
