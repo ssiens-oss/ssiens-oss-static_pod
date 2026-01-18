@@ -411,7 +411,7 @@ export class PrintifyService {
     colors: string[],
     sizes: string[],
     basePrice: number
-  ): ProductVariant[] {
+  ): Promise<ProductVariant[]> {
     const availableVariants = await this.fetchVariants(blueprintId, providerId)
     const selectedVariantIds = this.filterVariantIds(availableVariants, colors, sizes)
 
