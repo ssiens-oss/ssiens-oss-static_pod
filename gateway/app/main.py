@@ -407,13 +407,47 @@ def generate_image():
         # Use RunPod serverless client if available, otherwise direct ComfyUI
         if comfyui_client:
             # RunPod serverless
+            logger.info("Submitting workflow to RunPod serverless...")
             result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
-            return jsonify({
-                "prompt_id": result.get("prompt_id"),
-                "job_id": result.get("job_id"),
-                "status": result.get("status"),
-                "prompt": full_prompt
-            })
+
+            # If workflow completed, download images
+            if result.get("status") == "COMPLETED" and "output" in result:
+                logger.info("RunPod workflow completed, downloading images...")
+                output = result.get("output", {})
+
+                # Download images to the image directory
+                saved_images = comfyui_client.download_images_from_output(
+                    output,
+                    Path(config.IMAGE_DIR)
+                )
+
+                if saved_images:
+                    logger.info(f"Successfully downloaded {len(saved_images)} image(s)")
+                    # Reload state to pick up new images
+                    state_manager.reload()
+                    return jsonify({
+                        "status": "completed",
+                        "prompt_id": result.get("prompt_id"),
+                        "prompt": full_prompt,
+                        "images": [Path(img).name for img in saved_images],
+                        "message": f"Generated and downloaded {len(saved_images)} image(s)"
+                    })
+                else:
+                    logger.warning("Workflow completed but no images were downloaded")
+                    return jsonify({
+                        "status": "completed",
+                        "prompt_id": result.get("prompt_id"),
+                        "prompt": full_prompt,
+                        "warning": "Workflow completed but no images found in output"
+                    })
+            else:
+                # Async job or still processing
+                return jsonify({
+                    "prompt_id": result.get("prompt_id"),
+                    "job_id": result.get("job_id"),
+                    "status": result.get("status"),
+                    "prompt": full_prompt
+                })
         else:
             # Direct ComfyUI connection
             payload = {
