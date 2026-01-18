@@ -567,7 +567,7 @@ def approve_image(image_id):
 @app.route('/api/reject/<image_id>', methods=['POST'])
 def reject_image(image_id):
     """
-    Reject an image
+    Reject and delete an image
 
     Args:
         image_id: Image identifier
@@ -581,12 +581,22 @@ def reject_image(image_id):
         return jsonify({"success": False, "error": error}), 400
 
     try:
-        state_manager.set_image_status(image_id, ImageStatus.REJECTED.value)
-        logger.info(f"Image rejected: {image_id}")
-        return jsonify({"success": True, "status": ImageStatus.REJECTED.value})
-    except StateManagerError as e:
-        logger.error(f"Failed to reject image {image_id}: {e}")
-        return jsonify({"success": False, "error": "Failed to update status"}), 500
+        # Get image path
+        image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+
+        # Delete the image file if it exists
+        if os.path.exists(image_path):
+            os.remove(image_path)
+            logger.info(f"Deleted image file: {image_path}")
+
+        # Remove from state manager
+        state_manager.delete_image(image_id)
+        logger.info(f"Image rejected and deleted: {image_id}")
+
+        return jsonify({"success": True, "deleted": True})
+    except Exception as e:
+        logger.error(f"Failed to reject/delete image {image_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/publish/<image_id>', methods=['POST'])

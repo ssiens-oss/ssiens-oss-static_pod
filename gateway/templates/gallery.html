@@ -315,6 +315,40 @@
             padding: 40px;
             color: #888;
         }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 10000;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .toast-info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
     </style>
 </head>
 <body>
@@ -534,7 +568,7 @@
                 case 'pending':
                     return `
                         <button class="btn btn-approve" data-action="approve" data-id="${img.id}">✓ Approve</button>
-                        <button class="btn btn-reject" data-action="reject" data-id="${img.id}">✗ Reject</button>
+                        <button class="btn btn-reject" data-action="reject" data-id="${img.id}">🗑️ Delete</button>
                     `;
                 case 'approved':
                     return `
@@ -567,6 +601,13 @@
             const action = e.target.dataset.action;
             const id = e.target.dataset.id;
 
+            // Confirm delete/reject action
+            if (action === 'reject') {
+                if (!confirm('Delete this image permanently?\n\nThis action cannot be undone.')) {
+                    return;
+                }
+            }
+
             e.target.disabled = true;
 
             try {
@@ -587,16 +628,41 @@
                 }
 
                 if (res.ok) {
+                    const data = await res.json();
+
+                    // Show success message
+                    if (action === 'reject') {
+                        showToast('Image deleted successfully', 'success');
+                    } else if (action === 'publish') {
+                        showToast('Published to Printify!', 'success');
+                    } else if (action === 'approve') {
+                        showToast('Image approved', 'success');
+                    }
+
                     await loadImages();
                 } else {
                     const error = await res.json();
-                    alert(`Error: ${error.error || 'Unknown error'}`);
+                    showToast(`Error: ${error.error || 'Unknown error'}`, 'error');
                     e.target.disabled = false;
                 }
             } catch (err) {
-                alert(`Failed: ${err.message}`);
+                showToast(`Failed: ${err.message}`, 'error');
                 e.target.disabled = false;
             }
+        }
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         // Filter buttons
