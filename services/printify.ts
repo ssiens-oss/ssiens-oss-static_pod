@@ -18,6 +18,14 @@ interface Product {
   tags?: string[]
 }
 
+interface PrintifyVariant {
+  id: number
+  title?: string
+  options?: Record<string, string>
+  is_available?: boolean
+  is_enabled?: boolean
+}
+
 interface ProductVariant {
   id: number
   price: number
@@ -77,7 +85,7 @@ export class PrintifyService {
       description,
       blueprintId: 3,
       providerId: 99,
-      variants: this.generateVariants(3, 99, colors, sizes, price),
+      variants: await this.buildVariants(3, 99, colors, sizes, price),
       images: [{
         src: imageUrl,
         position: 'front',
@@ -118,7 +126,7 @@ export class PrintifyService {
       description,
       blueprintId: 165,
       providerId: 99,
-      variants: this.generateVariants(165, 99, colors, sizes, price),
+      variants: await this.buildVariants(165, 99, colors, sizes, price),
       images: [{
         src: imageUrl,
         position: 'front',
@@ -165,6 +173,32 @@ export class PrintifyService {
    */
   private async createProduct(product: Product): Promise<CreatedProduct> {
     try {
+      const imageIds = await Promise.all(
+        product.images.map((image, index) => {
+          const filename = `${product.title.replace(/\s+/g, '-').toLowerCase()}-${index + 1}.png`
+          return this.uploadImage(image.src, filename)
+        })
+      )
+      if (imageIds.length === 0) {
+        throw new Error('Unable to upload product artwork to Printify')
+      }
+
+      const placeholders = product.images.map((image, index) => ({
+        position: image.position,
+        images: [{
+          id: imageIds[index],
+          x: image.x ?? 0.5,
+          y: image.y ?? 0.5,
+          scale: image.scale ?? 1,
+          angle: image.angle ?? 0
+        }]
+      }))
+
+      const variantIds = product.variants.map(variant => variant.id)
+      if (variantIds.length === 0) {
+        throw new Error('No variants selected for this product')
+      }
+
       const response = await fetch(
         `${this.baseUrl}/shops/${this.config.shopId}/products.json`,
         {
@@ -173,7 +207,22 @@ export class PrintifyService {
             'Authorization': `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(product)
+          body: JSON.stringify({
+            title: product.title,
+            description: product.description,
+            blueprint_id: product.blueprintId,
+            print_provider_id: product.providerId,
+            variants: product.variants.map(variant => ({
+              id: variant.id,
+              price: variant.price,
+              is_enabled: variant.isEnabled
+            })),
+            print_areas: [{
+              variant_ids: variantIds,
+              placeholders
+            }],
+            tags: product.tags ?? []
+          })
         }
       )
 
@@ -230,29 +279,76 @@ export class PrintifyService {
   /**
    * Generate product variants (size/color combinations)
    */
-  private generateVariants(
+  private async buildVariants(
     blueprintId: number,
     providerId: number,
     colors: string[],
     sizes: string[],
     basePrice: number
   ): ProductVariant[] {
-    // Note: In production, you would fetch variant IDs from Printify API
-    // For now, using mock variant IDs
-    const variants: ProductVariant[] = []
-    let variantId = 1
+    const availableVariants = await this.fetchVariants(blueprintId, providerId)
+    const selectedVariantIds = this.filterVariantIds(availableVariants, colors, sizes)
 
-    for (const color of colors) {
-      for (const size of sizes) {
-        variants.push({
-          id: variantId++,
-          price: Math.round(basePrice * 100), // Price in cents
-          isEnabled: true
-        })
-      }
+    if (selectedVariantIds.length === 0) {
+      console.warn('No variants matched requested colors/sizes; falling back to all available variants.')
+      selectedVariantIds.push(
+        ...availableVariants
+          .filter(variant => variant.is_available !== false && variant.is_enabled !== false)
+          .map(variant => variant.id)
+      )
     }
 
+    return selectedVariantIds.map(variantId => ({
+      id: variantId,
+      price: Math.round(basePrice * 100),
+      isEnabled: true
+    }))
+  }
+
+  private async fetchVariants(
+    blueprintId: number,
+    providerId: number
+  ): Promise<PrintifyVariant[]> {
+    const response = await fetch(
+      `${this.baseUrl}/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(`Failed to fetch variants: ${JSON.stringify(error)}`)
+    }
+
+    const data = await response.json()
+    return data.variants || []
+  }
+
+  private filterVariantIds(
+    variants: PrintifyVariant[],
+    colors: string[],
+    sizes: string[]
+  ): number[] {
+    const normalizedColors = colors.map(color => color.toLowerCase())
+    const normalizedSizes = sizes.map(size => size.toLowerCase())
+
     return variants
+      .filter(variant => variant.is_available !== false && variant.is_enabled !== false)
+      .filter(variant => {
+        const title = (variant.title || '').toLowerCase()
+        const optionValues = Object.values(variant.options || {}).map(value => value.toLowerCase())
+
+        const matchesColor = normalizedColors.length === 0
+          || normalizedColors.some(color => title.includes(color) || optionValues.includes(color))
+        const matchesSize = normalizedSizes.length === 0
+          || normalizedSizes.some(size => title.includes(size) || optionValues.includes(size))
+
+        return matchesColor && matchesSize
+      })
+      .map(variant => variant.id)
   }
 
   /**

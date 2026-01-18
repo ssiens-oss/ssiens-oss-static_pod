@@ -315,6 +315,102 @@
             padding: 40px;
             color: #888;
         }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.78);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            width: min(640px, 95vw);
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .modal-header h2 {
+            font-size: 1.2em;
+            margin-bottom: 6px;
+        }
+
+        .modal-header p {
+            font-size: 0.9em;
+            color: #9ca3af;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .modal input,
+        .modal textarea,
+        .modal select {
+            width: 100%;
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 0.9em;
+        }
+
+        .modal textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .modal label {
+            font-size: 0.75em;
+            color: #9ca3af;
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-actions .btn {
+            flex: 0 0 auto;
+            min-width: 120px;
+        }
     </style>
 </head>
 <body>
@@ -402,11 +498,61 @@
         <div class="loading">Loading images...</div>
     </div>
 
+    <div class="modal" id="publish-modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="publish-title">
+            <div class="modal-header">
+                <div>
+                    <h2 id="publish-title">Publish to Printify</h2>
+                    <p>Fine-tune product details before sending to your Printify store.</p>
+                </div>
+                <button class="icon-btn" id="publish-close" type="button">✕</button>
+            </div>
+            <form id="publish-form">
+                <div>
+                    <label for="publish-title-input">Product title</label>
+                    <input id="publish-title-input" type="text" placeholder="Design Title">
+                </div>
+                <div>
+                    <label for="publish-description">Description</label>
+                    <textarea id="publish-description" placeholder="Optional product description for Printify/Shopify"></textarea>
+                </div>
+                <div class="modal-grid">
+                    <div>
+                        <label for="publish-preset">Product preset</label>
+                        <select id="publish-preset">
+                            <option value="default">Use gateway defaults</option>
+                            <option value="tshirt">T-Shirt (Blueprint 3, Provider 99)</option>
+                            <option value="hoodie">Hoodie (Blueprint 165, Provider 99)</option>
+                            <option value="custom">Custom blueprint/provider</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="publish-price">Price (USD)</label>
+                        <input id="publish-price" type="number" step="0.01" min="0" placeholder="Leave blank for default">
+                    </div>
+                    <div>
+                        <label for="publish-blueprint">Blueprint ID</label>
+                        <input id="publish-blueprint" type="number" min="1" placeholder="e.g. 3">
+                    </div>
+                    <div>
+                        <label for="publish-provider">Provider ID</label>
+                        <input id="publish-provider" type="number" min="1" placeholder="e.g. 99">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-reset" type="button" id="publish-cancel">Cancel</button>
+                    <button class="btn btn-publish" type="submit" id="publish-submit">Publish Now</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let currentFilter = 'all';
         let images = [];
         let currentPromptId = null;
         let statusInterval = null;
+        let pendingPublishId = null;
 
         const prompterStatus = document.getElementById('prompter-status');
         const prompterDetail = document.getElementById('prompter-detail');
@@ -415,6 +561,15 @@
         const promptInput = document.getElementById('prompt-input');
         const promptStyle = document.getElementById('prompt-style');
         const promptGenre = document.getElementById('prompt-genre');
+        const publishModal = document.getElementById('publish-modal');
+        const publishForm = document.getElementById('publish-form');
+        const publishTitleInput = document.getElementById('publish-title-input');
+        const publishDescription = document.getElementById('publish-description');
+        const publishPreset = document.getElementById('publish-preset');
+        const publishPrice = document.getElementById('publish-price');
+        const publishBlueprint = document.getElementById('publish-blueprint');
+        const publishProvider = document.getElementById('publish-provider');
+        const publishSubmit = document.getElementById('publish-submit');
 
         function setPrompterStatus(message, state = '') {
             prompterStatus.textContent = message;
@@ -567,24 +722,16 @@
             const action = e.target.dataset.action;
             const id = e.target.dataset.id;
 
+            if (action === 'publish') {
+                openPublishModal(id);
+                return;
+            }
+
             e.target.disabled = true;
 
             try {
                 let res;
-                if (action === 'publish') {
-                    const title = prompt('Enter product title:', `Design ${id.substring(0, 8)}`);
-                    if (!title) {
-                        e.target.disabled = false;
-                        return;
-                    }
-                    res = await fetch(`/api/${action}/${id}`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({title})
-                    });
-                } else {
-                    res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
-                }
+                res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
 
                 if (res.ok) {
                     await loadImages();
@@ -611,6 +758,115 @@
 
         // Auto-refresh every 10 seconds
         setInterval(loadImages, 10000);
+
+        function openPublishModal(id) {
+            pendingPublishId = id;
+            publishTitleInput.value = `Design ${id.substring(0, 8)}`;
+            publishDescription.value = '';
+            publishPrice.value = '';
+            publishPreset.value = 'default';
+            publishBlueprint.value = '';
+            publishProvider.value = '';
+            updatePresetFields();
+            publishModal.classList.add('active');
+            publishModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closePublishModal() {
+            pendingPublishId = null;
+            publishModal.classList.remove('active');
+            publishModal.setAttribute('aria-hidden', 'true');
+            publishSubmit.disabled = false;
+        }
+
+        function updatePresetFields() {
+            const preset = publishPreset.value;
+            const presets = {
+                tshirt: { blueprint: 3, provider: 99 },
+                hoodie: { blueprint: 165, provider: 99 }
+            };
+
+            if (preset === 'tshirt' || preset === 'hoodie') {
+                publishBlueprint.value = presets[preset].blueprint;
+                publishProvider.value = presets[preset].provider;
+                publishBlueprint.readOnly = true;
+                publishProvider.readOnly = true;
+            } else if (preset === 'custom') {
+                publishBlueprint.readOnly = false;
+                publishProvider.readOnly = false;
+            } else {
+                publishBlueprint.value = '';
+                publishProvider.value = '';
+                publishBlueprint.readOnly = true;
+                publishProvider.readOnly = true;
+            }
+        }
+
+        publishPreset.addEventListener('change', updatePresetFields);
+        document.getElementById('publish-close').addEventListener('click', closePublishModal);
+        document.getElementById('publish-cancel').addEventListener('click', closePublishModal);
+        publishModal.addEventListener('click', (event) => {
+            if (event.target === publishModal) {
+                closePublishModal();
+            }
+        });
+
+        publishForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            if (!pendingPublishId) {
+                return;
+            }
+
+            const payload = {
+                title: publishTitleInput.value.trim(),
+            };
+
+            if (publishDescription.value.trim()) {
+                payload.description = publishDescription.value.trim();
+            }
+
+            const priceValue = parseFloat(publishPrice.value);
+            if (!Number.isNaN(priceValue)) {
+                payload.price_cents = Math.round(priceValue * 100);
+            }
+
+            const blueprintValue = parseInt(publishBlueprint.value, 10);
+            const providerValue = parseInt(publishProvider.value, 10);
+            if (!Number.isNaN(blueprintValue)) {
+                payload.blueprint_id = blueprintValue;
+            }
+            if (!Number.isNaN(providerValue)) {
+                payload.provider_id = providerValue;
+            }
+
+            if (!payload.title) {
+                alert('Product title is required.');
+                return;
+            }
+
+            publishSubmit.disabled = true;
+
+            try {
+                const res = await fetch(`/api/publish/${pendingPublishId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    closePublishModal();
+                    await loadImages();
+                } else {
+                    const error = await res.json();
+                    alert(`Error: ${error.error || 'Unknown error'}`);
+                    publishSubmit.disabled = false;
+                }
+            } catch (err) {
+                alert(`Failed: ${err.message}`);
+                publishSubmit.disabled = false;
+            }
+        });
 
         prompterForm.addEventListener('submit', async (event) => {
             event.preventDefault();
