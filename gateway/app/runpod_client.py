@@ -141,15 +141,17 @@ class RunPodServerlessClient:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         # RunPod ComfyUI typically returns images in output['images'] or output['files']
+        logger.info(f"RunPod output keys: {list(output.keys())}")
         images_data = output.get('images', []) or output.get('files', [])
 
         if not images_data:
             # Try to get from nested output structure
             if 'output' in output:
+                logger.info("Checking nested output structure")
                 images_data = output['output'].get('images', []) or output['output'].get('files', [])
 
         if not images_data:
-            logger.warning("No images found in RunPod output")
+            logger.warning(f"No images found in RunPod output. Output structure: {output}")
             return saved_images
 
         logger.info(f"Found {len(images_data)} image(s) in RunPod output")

@@ -409,11 +409,14 @@ def generate_image():
             # RunPod serverless
             logger.info("Submitting workflow to RunPod serverless...")
             result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
+            logger.info(f"RunPod result status: {result.get('status')}")
+            logger.info(f"RunPod result keys: {list(result.keys())}")
 
             # If workflow completed, download images
             if result.get("status") == "COMPLETED" and "output" in result:
                 logger.info("RunPod workflow completed, downloading images...")
                 output = result.get("output", {})
+                logger.debug(f"RunPod output structure: {output}")
 
                 # Download images to the image directory
                 saved_images = comfyui_client.download_images_from_output(
