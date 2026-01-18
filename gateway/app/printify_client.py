@@ -123,10 +123,19 @@ class PrintifyClient:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
 
+                # Prepare headers - merge custom headers from kwargs with default headers
+                request_headers = self.headers.copy()
+                if 'headers' in kwargs:
+                    request_headers.update(kwargs.pop('headers'))
+
+                # For file uploads, remove Content-Type (requests will set it automatically)
+                if 'files' in kwargs and 'Content-Type' in request_headers:
+                    request_headers.pop('Content-Type')
+
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=request_headers,
                     timeout=30,
                     **kwargs
                 )
@@ -234,8 +243,7 @@ class PrintifyClient:
                 response = self._make_request(
                     "POST",
                     "/uploads/images.json",
-                    files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    files=files
                 )
 
             image_id = response.json().get("id")
