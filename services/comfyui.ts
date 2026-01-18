@@ -4,11 +4,22 @@
  */
 
 import { sleep } from '../utils/delay';
+import { retryWithBackoff } from '../utils/retry';
+import { CircuitBreaker } from '../utils/circuitBreaker';
+import {
+  APIError,
+  TimeoutError,
+  ServiceError,
+  isRetryableError
+} from '../utils/errors';
 
 interface ComfyUIConfig {
   apiUrl: string
   outputDir: string
   timeout?: number
+  maxRetries?: number
+  pollInterval?: number
+  enableCircuitBreaker?: boolean
 }
 
 interface ComfyUIWorkflow {
@@ -26,16 +37,53 @@ interface GenerationResult {
   promptId: string
   status: 'completed' | 'failed'
   error?: string
+  duration?: number
+}
+
+interface HistoryResponse {
+  [promptId: string]: {
+    status?: {
+      completed?: boolean
+      status_str?: string
+    }
+    outputs?: Record<string, {
+      images?: Array<{
+        filename: string
+        subfolder?: string
+        type: string
+      }>
+    }>
+  }
 }
 
 export class ComfyUIService {
   private config: ComfyUIConfig
   private ws: WebSocket | null = null
+  private circuitBreaker?: CircuitBreaker
+  private readonly maxRetries: number
+  private readonly pollInterval: number
 
   constructor(config: ComfyUIConfig) {
     this.config = {
       timeout: 300000, // 5 minutes
+      maxRetries: 3,
+      pollInterval: 2000, // 2 seconds initial
+      enableCircuitBreaker: true,
       ...config
+    }
+
+    this.maxRetries = this.config.maxRetries!;
+    this.pollInterval = this.config.pollInterval!;
+
+    if (this.config.enableCircuitBreaker) {
+      this.circuitBreaker = new CircuitBreaker('ComfyUI', {
+        failureThreshold: 5,
+        successThreshold: 2,
+        timeout: 60000,
+        onStateChange: (state) => {
+          console.log(`[ComfyUI] Circuit breaker state: ${state}`);
+        }
+      });
     }
   }
 
@@ -43,38 +91,82 @@ export class ComfyUIService {
    * Submit a prompt to ComfyUI for image generation
    */
   async generate(workflow: ComfyUIWorkflow): Promise<GenerationResult> {
+    const startTime = Date.now();
+
     try {
-      // Build workflow JSON for ComfyUI
-      const workflowData = this.buildWorkflow(workflow)
+      const operation = async () => {
+        // Build workflow JSON for ComfyUI
+        const workflowData = this.buildWorkflow(workflow);
 
-      // Submit to queue
-      const response = await fetch(`${this.config.apiUrl}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: workflowData,
-          client_id: this.getClientId()
-        })
-      })
+        // Submit to queue with retry
+        const response = await this.submitPrompt(workflowData);
+        const { prompt_id } = response;
 
-      if (!response.ok) {
-        throw new Error(`ComfyUI API error: ${response.statusText}`)
+        // Wait for generation to complete
+        const result = await this.waitForCompletion(prompt_id);
+
+        return {
+          ...result,
+          duration: Date.now() - startTime
+        };
+      };
+
+      // Use circuit breaker if enabled
+      if (this.circuitBreaker) {
+        return await this.circuitBreaker.execute(operation);
       }
 
-      const { prompt_id } = await response.json()
-
-      // Wait for generation to complete
-      const result = await this.waitForCompletion(prompt_id)
-
-      return result
+      return await operation();
     } catch (error) {
+      console.error('[ComfyUI] Generation failed:', error);
+
       return {
         images: [],
         promptId: '',
         status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+        error: error instanceof Error ? error.message : 'Unknown error',
+        duration: Date.now() - startTime
+      };
     }
+  }
+
+  /**
+   * Submit prompt to ComfyUI with retry logic
+   */
+  private async submitPrompt(workflowData: any): Promise<{ prompt_id: string }> {
+    return retryWithBackoff(
+      async () => {
+        const response = await fetch(`${this.config.apiUrl}/prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: workflowData,
+            client_id: this.getClientId()
+          })
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => '');
+          throw new APIError(
+            `Failed to submit prompt: ${response.statusText}`,
+            'ComfyUI',
+            response.status,
+            errorBody
+          );
+        }
+
+        return response.json();
+      },
+      {
+        maxRetries: this.maxRetries,
+        initialDelay: 1000,
+        maxDelay: 10000,
+        backoffMultiplier: 2,
+        onRetry: (error, attempt) => {
+          console.log(`[ComfyUI] Retry attempt ${attempt} after error:`, error.message);
+        }
+      }
+    );
   }
 
   /**
@@ -167,60 +259,107 @@ export class ComfyUIService {
   }
 
   /**
-   * Wait for generation to complete via polling
+   * Wait for generation to complete via polling with exponential backoff
    */
   private async waitForCompletion(promptId: string): Promise<GenerationResult> {
-    const startTime = Date.now()
+    const startTime = Date.now();
+    let pollDelay = this.pollInterval;
+    const maxPollDelay = 10000; // Max 10 seconds between polls
+    let attempts = 0;
 
     while (Date.now() - startTime < this.config.timeout!) {
       try {
-        const response = await fetch(`${this.config.apiUrl}/history/${promptId}`)
-        const history = await response.json()
+        attempts++;
 
-        if (history[promptId]?.status?.completed) {
-          // Extract output images
-          const outputs = history[promptId].outputs
-          const images: string[] = []
+        const response = await fetch(`${this.config.apiUrl}/history/${promptId}`);
 
-          for (const nodeId in outputs) {
-            if (outputs[nodeId].images) {
-              for (const img of outputs[nodeId].images) {
-                images.push(`${this.config.apiUrl}/view?filename=${img.filename}&subfolder=${img.subfolder || ''}&type=${img.type}`)
-              }
-            }
-          }
+        if (!response.ok) {
+          throw new APIError(
+            'Failed to fetch generation status',
+            'ComfyUI',
+            response.status
+          );
+        }
+
+        const history: HistoryResponse = await response.json();
+        const promptData = history[promptId];
+
+        if (!promptData) {
+          // Prompt not in history yet, continue polling
+          await sleep(pollDelay);
+          pollDelay = Math.min(pollDelay * 1.5, maxPollDelay);
+          continue;
+        }
+
+        // Check if completed
+        if (promptData.status?.completed) {
+          const images = this.extractImagesFromHistory(promptData);
+
+          console.log(`[ComfyUI] Generation completed after ${attempts} polls (${Date.now() - startTime}ms)`);
 
           return {
             images,
             promptId,
             status: 'completed'
-          }
+          };
         }
 
         // Check if failed
-        if (history[promptId]?.status?.status_str === 'error') {
+        if (promptData.status?.status_str === 'error') {
+          throw new ServiceError(
+            'Generation failed in ComfyUI',
+            'ComfyUI'
+          );
+        }
+
+        // Still processing, wait before polling again
+        await sleep(pollDelay);
+        pollDelay = Math.min(pollDelay * 1.5, maxPollDelay);
+      } catch (error) {
+        if (error instanceof ServiceError) {
           return {
             images: [],
             promptId,
             status: 'failed',
-            error: 'Generation failed in ComfyUI'
-          }
+            error: error.message
+          };
         }
 
-        // Wait before polling again
-        await sleep(2000)
-      } catch (error) {
-        console.error('Error polling ComfyUI:', error)
-        await sleep(2000)
+        console.error('[ComfyUI] Error polling status:', error);
+
+        // Retry with backoff on transient errors
+        await sleep(pollDelay);
+        pollDelay = Math.min(pollDelay * 2, maxPollDelay);
       }
     }
 
-    return {
-      images: [],
-      promptId,
-      status: 'failed',
-      error: 'Generation timeout'
+    throw new TimeoutError(
+      `Generation timeout after ${this.config.timeout}ms`,
+      'ComfyUI',
+      this.config.timeout!
+    );
+  }
+
+  /**
+   * Extract image URLs from ComfyUI history response
+   */
+  private extractImagesFromHistory(promptData: HistoryResponse[string]): string[] {
+    const images: string[] = [];
+    const outputs = promptData.outputs ?? {};
+
+    for (const nodeId in outputs) {
+      const nodeOutputs = outputs[nodeId];
+      if (nodeOutputs.images) {
+        for (const img of nodeOutputs.images) {
+          const subfolder = img.subfolder || '';
+          images.push(
+            `${this.config.apiUrl}/view?filename=${img.filename}&subfolder=${subfolder}&type=${img.type}`
+          );
+        }
+      }
     }
+
+    return images;
   }
 
   /**
@@ -278,24 +417,65 @@ export class ComfyUIService {
   async healthCheck(): Promise<boolean> {
     try {
       const response = await fetch(`${this.config.apiUrl}/system_stats`, {
-        method: 'GET'
-      })
-      return response.ok
-    } catch {
-      return false
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+
+      if (response.ok) {
+        // Reset circuit breaker on successful health check
+        if (this.circuitBreaker) {
+          this.circuitBreaker.reset();
+        }
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('[ComfyUI] Health check failed:', error);
+      return false;
     }
   }
 
   /**
    * Get queue status
    */
-  async getQueueStatus(): Promise<any> {
+  async getQueueStatus(): Promise<QueueStatus | null> {
     try {
-      const response = await fetch(`${this.config.apiUrl}/queue`)
-      return await response.json()
+      const response = await fetch(`${this.config.apiUrl}/queue`, {
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (!response.ok) {
+        throw new APIError(
+          'Failed to get queue status',
+          'ComfyUI',
+          response.status
+        );
+      }
+
+      return await response.json();
     } catch (error) {
-      console.error('Error getting queue status:', error)
-      return null
+      console.error('[ComfyUI] Error getting queue status:', error);
+      return null;
     }
   }
+
+  /**
+   * Get circuit breaker metrics
+   */
+  getMetrics() {
+    return {
+      circuitBreaker: this.circuitBreaker?.getMetrics(),
+      config: {
+        timeout: this.config.timeout,
+        maxRetries: this.maxRetries,
+        pollInterval: this.pollInterval
+      }
+    };
+  }
+}
+
+interface QueueStatus {
+  queue_running?: any[];
+  queue_pending?: any[];
 }
