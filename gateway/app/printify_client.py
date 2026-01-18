@@ -254,7 +254,8 @@ class PrintifyClient:
         provider_id: int,
         price_cents: int = 1999,
         variant_ids: Optional[List[int]] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None
     ) -> Optional[Dict]:
         """
         Create a product with uploaded image
@@ -267,6 +268,7 @@ class PrintifyClient:
             price_cents: Price in cents (e.g., 1999 = $19.99)
             variant_ids: Optional list of variant IDs to enable. If None, fetches all available variants
             description: Optional product description
+            tags: Optional list of tags for SEO and categorization
 
         Returns:
             Product data dict or None on failure
@@ -309,6 +311,10 @@ class PrintifyClient:
                     }]
                 }]
             }
+
+            # Add tags if provided
+            if tags:
+                payload["tags"] = tags[:10]  # Printify supports up to 10 tags
 
             logger.info(f"Creating product: {title}")
             response = self._make_request(
@@ -364,7 +370,8 @@ class PrintifyClient:
         blueprint_id: int,
         provider_id: int,
         price_cents: int = 1999,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None
     ) -> Optional[str]:
         """
         Complete workflow: upload image, create product, and publish
@@ -376,6 +383,7 @@ class PrintifyClient:
             provider_id: Print provider ID (e.g., 99 for SwiftPOD)
             price_cents: Price in cents
             description: Optional product description
+            tags: Optional list of tags for SEO
 
         Returns:
             Product ID if successful, None otherwise
@@ -393,7 +401,8 @@ class PrintifyClient:
             blueprint_id=blueprint_id,
             provider_id=provider_id,
             price_cents=price_cents,
-            description=description
+            description=description,
+            tags=tags
         )
         if not product:
             logger.error("Failed to create product")

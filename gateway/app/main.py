@@ -20,6 +20,8 @@ load_dotenv()
 from app import config
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
+from app.ai_service import AIContentGenerator, ProductMetadata
+from app.pricing_service import SmartPricingService
 
 # Configure logging
 logging.basicConfig(
@@ -54,6 +56,18 @@ if config.config.printify.is_configured():
         logger.error(f"✗ Printify client failed: {e}")
 else:
     logger.warning("✗ Printify not configured (missing API key or Shop ID)")
+
+# Initialize AI Content Generator (optional)
+ai_generator = None
+try:
+    ai_generator = AIContentGenerator()
+    logger.info("✓ AI Content Generator initialized")
+except Exception as e:
+    logger.warning(f"✗ AI Content Generator not available: {e}")
+
+# Initialize Smart Pricing Service
+pricing_service = SmartPricingService(default_positioning="standard")
+logger.info("✓ Smart Pricing Service initialized")
 
 
 # Input validation helpers
@@ -521,6 +535,79 @@ def reject_image(image_id):
         return jsonify({"success": False, "error": "Failed to update status"}), 500
 
 
+@app.route('/api/generate_metadata/<image_id>', methods=['POST'])
+def generate_metadata(image_id):
+    """
+    Generate AI-powered metadata for an image
+
+    Args:
+        image_id: Image identifier
+
+    Returns:
+        JSON with generated title, description, tags, keywords, etc.
+    """
+    # Validate AI generator is available
+    if not ai_generator:
+        return jsonify({
+            "success": False,
+            "error": "AI Content Generator not configured"
+        }), 400
+
+    # Validate image ID
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    # Get image path
+    image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+
+    # Validate image file
+    is_valid, error = validate_image_file(image_path)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 404
+
+    # Get product type and preferences from request
+    try:
+        request_data = request.get_json() or {}
+    except Exception:
+        request_data = {}
+
+    product_type = request_data.get("product_type", "hoodie")
+    target_audience = request_data.get("target_audience", "general")
+    style_preference = request_data.get("style_preference")
+
+    try:
+        # Generate metadata
+        logger.info(f"Generating AI metadata for {image_id}")
+        metadata = ai_generator.generate_product_metadata(
+            image_path,
+            product_type=product_type,
+            target_audience=target_audience,
+            style_preference=style_preference
+        )
+
+        return jsonify({
+            "success": True,
+            "metadata": {
+                "title": metadata.title,
+                "description": metadata.description,
+                "tags": metadata.tags,
+                "keywords": metadata.keywords,
+                "suggested_price_cents": metadata.suggested_price_cents,
+                "suggested_price_usd": metadata.suggested_price_cents / 100,
+                "style": metadata.style,
+                "themes": metadata.themes
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to generate metadata for {image_id}: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": f"Failed to generate metadata: {str(e)}"
+        }), 500
+
+
 @app.route('/api/publish/<image_id>', methods=['POST'])
 def publish_image(image_id):
     """
@@ -560,13 +647,45 @@ def publish_image(image_id):
     if not is_valid:
         return jsonify({"success": False, "error": error}), 404
 
-    # Get and validate title from request
+    # Get request data
     try:
         request_data = request.get_json() or {}
     except Exception as e:
         return jsonify({"success": False, "error": "Invalid JSON"}), 400
 
-    title = request_data.get("title", f"Design {image_id[:8]}")
+    # Auto-generate metadata if requested and AI is available
+    auto_generate = request_data.get("auto_generate", False)
+    product_type = request_data.get("product_type", "hoodie")
+
+    if auto_generate and ai_generator:
+        try:
+            logger.info(f"Auto-generating metadata for {image_id}")
+            metadata = ai_generator.generate_product_metadata(
+                image_path,
+                product_type=product_type,
+                target_audience=request_data.get("target_audience", "general"),
+                style_preference=request_data.get("style_preference")
+            )
+            # Use AI-generated content if not provided in request
+            title = request_data.get("title") or metadata.title
+            description = request_data.get("description") or metadata.description
+            tags = request_data.get("tags") or metadata.tags
+            price_cents = request_data.get("price_cents") or metadata.suggested_price_cents
+
+            logger.info(f"Auto-generated: {title}")
+        except Exception as e:
+            logger.warning(f"AI generation failed, using provided data: {e}")
+            title = request_data.get("title", f"Design {image_id[:8]}")
+            description = request_data.get("description")
+            tags = request_data.get("tags")
+            price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+    else:
+        title = request_data.get("title", f"Design {image_id[:8]}")
+        description = request_data.get("description")
+        tags = request_data.get("tags")
+        price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+
+    # Validate title
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
@@ -580,8 +699,6 @@ def publish_image(image_id):
 
     # Publish to Printify
     try:
-        description = request_data.get("description")
-        price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
         blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
         provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
 
@@ -599,7 +716,8 @@ def publish_image(image_id):
             blueprint_id=blueprint_id,
             provider_id=provider_id,
             price_cents=price_cents,
-            description=description
+            description=description,
+            tags=tags if isinstance(tags, list) else None
         )
 
         if product_id:
@@ -667,6 +785,300 @@ def reset_image(image_id):
     except StateManagerError as e:
         logger.error(f"Failed to reset image {image_id}: {e}")
         return jsonify({"success": False, "error": "Failed to update status"}), 500
+
+
+@app.route('/api/batch/approve', methods=['POST'])
+def batch_approve():
+    """
+    Approve multiple images at once
+
+    Expected JSON body:
+    {
+        "image_ids": ["id1", "id2", "id3"]
+    }
+
+    Returns:
+        JSON with success/failure for each image
+    """
+    try:
+        request_data = request.get_json() or {}
+    except Exception:
+        return jsonify({"success": False, "error": "Invalid JSON"}), 400
+
+    image_ids = request_data.get("image_ids", [])
+    if not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "image_ids must be a list"}), 400
+
+    if not image_ids:
+        return jsonify({"success": False, "error": "image_ids is required"}), 400
+
+    if len(image_ids) > 50:
+        return jsonify({"success": False, "error": "Maximum 50 images per batch"}), 400
+
+    results = []
+    for image_id in image_ids:
+        # Validate image ID
+        is_valid, error = validate_image_id(image_id)
+        if not is_valid:
+            results.append({"image_id": image_id, "success": False, "error": error})
+            continue
+
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+            results.append({"image_id": image_id, "success": True, "status": ImageStatus.APPROVED.value})
+            logger.info(f"Batch approved: {image_id}")
+        except StateManagerError as e:
+            results.append({"image_id": image_id, "success": False, "error": str(e)})
+            logger.error(f"Failed to batch approve {image_id}: {e}")
+
+    success_count = sum(1 for r in results if r["success"])
+    return jsonify({
+        "success": True,
+        "results": results,
+        "summary": {
+            "total": len(image_ids),
+            "succeeded": success_count,
+            "failed": len(image_ids) - success_count
+        }
+    })
+
+
+@app.route('/api/batch/publish', methods=['POST'])
+def batch_publish():
+    """
+    Publish multiple approved images at once with AI-generated metadata
+
+    Expected JSON body:
+    {
+        "image_ids": ["id1", "id2", "id3"],
+        "auto_generate": true,  // Use AI for metadata (default: true)
+        "product_type": "hoodie",  // Product type for all images
+        "blueprint_id": 77,  // Optional: override default
+        "provider_id": 39,   // Optional: override default
+        "price_cents": 3499  // Optional: override AI suggestion
+    }
+
+    Returns:
+        JSON with success/failure for each image
+    """
+    if not printify_client:
+        return jsonify({
+            "success": False,
+            "error": "Printify not configured"
+        }), 400
+
+    try:
+        request_data = request.get_json() or {}
+    except Exception:
+        return jsonify({"success": False, "error": "Invalid JSON"}), 400
+
+    image_ids = request_data.get("image_ids", [])
+    if not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "image_ids must be a list"}), 400
+
+    if not image_ids:
+        return jsonify({"success": False, "error": "image_ids is required"}), 400
+
+    if len(image_ids) > 20:
+        return jsonify({"success": False, "error": "Maximum 20 images per batch"}), 400
+
+    auto_generate = request_data.get("auto_generate", True)
+    product_type = request_data.get("product_type", "hoodie")
+    blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
+    provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
+    price_override = request_data.get("price_cents")
+
+    results = []
+    for image_id in image_ids:
+        # Validate image ID
+        is_valid, error = validate_image_id(image_id)
+        if not is_valid:
+            results.append({"image_id": image_id, "success": False, "error": error})
+            continue
+
+        # Check if approved
+        status = state_manager.get_image_status(image_id)
+        if status not in [ImageStatus.APPROVED.value, ImageStatus.FAILED.value]:
+            results.append({
+                "image_id": image_id,
+                "success": False,
+                "error": f"Image must be approved first (current status: {status})"
+            })
+            continue
+
+        # Get image path
+        image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+
+        # Validate image file
+        is_valid, error = validate_image_file(image_path)
+        if not is_valid:
+            results.append({"image_id": image_id, "success": False, "error": error})
+            continue
+
+        # Generate or use default metadata
+        if auto_generate and ai_generator:
+            try:
+                logger.info(f"Batch: generating metadata for {image_id}")
+                metadata = ai_generator.generate_product_metadata(image_path, product_type)
+                title = metadata.title
+                description = metadata.description
+                tags = metadata.tags
+                price_cents = price_override or metadata.suggested_price_cents
+            except Exception as e:
+                logger.warning(f"Batch: AI generation failed for {image_id}, using fallback: {e}")
+                title = f"Premium {product_type.title()} - Design {image_id[:8]}"
+                description = None
+                tags = None
+                price_cents = price_override or config.config.printify.default_price_cents
+        else:
+            title = f"Premium {product_type.title()} - Design {image_id[:8]}"
+            description = None
+            tags = None
+            price_cents = price_override or config.config.printify.default_price_cents
+
+        # Update status to publishing
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.PUBLISHING.value)
+        except StateManagerError as e:
+            results.append({"image_id": image_id, "success": False, "error": str(e)})
+            continue
+
+        # Publish to Printify
+        try:
+            product_id = printify_client.create_and_publish(
+                image_path=image_path,
+                title=title,
+                blueprint_id=blueprint_id,
+                provider_id=provider_id,
+                price_cents=price_cents,
+                description=description,
+                tags=tags
+            )
+
+            if product_id:
+                state_manager.set_image_status(image_id, ImageStatus.PUBLISHED.value, {
+                    "product_id": product_id,
+                    "title": title
+                })
+                results.append({
+                    "image_id": image_id,
+                    "success": True,
+                    "product_id": product_id,
+                    "title": title,
+                    "status": ImageStatus.PUBLISHED.value
+                })
+                logger.info(f"Batch published: {image_id} -> Product {product_id}")
+            else:
+                error_msg = "Printify API failed to create product"
+                state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                    "error_message": error_msg
+                })
+                results.append({"image_id": image_id, "success": False, "error": error_msg})
+
+        except Exception as e:
+            error_msg = f"Publish error: {str(e)}"
+            logger.error(f"Batch publish error for {image_id}: {e}", exc_info=True)
+            try:
+                state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                    "error_message": error_msg
+                })
+            except StateManagerError:
+                pass
+            results.append({"image_id": image_id, "success": False, "error": error_msg})
+
+    success_count = sum(1 for r in results if r["success"])
+    return jsonify({
+        "success": True,
+        "results": results,
+        "summary": {
+            "total": len(image_ids),
+            "succeeded": success_count,
+            "failed": len(image_ids) - success_count
+        }
+    })
+
+
+@app.route('/api/pricing/calculate', methods=['POST'])
+def calculate_pricing():
+    """
+    Calculate smart pricing for a product
+
+    Expected JSON body:
+    {
+        "product_type": "hoodie",
+        "complexity": "moderate",  // simple, moderate, detailed, complex
+        "positioning": "standard"  // budget, standard, premium, luxury
+    }
+
+    Returns:
+        JSON with pricing strategy
+    """
+    try:
+        request_data = request.get_json() or {}
+    except Exception:
+        return jsonify({"success": False, "error": "Invalid JSON"}), 400
+
+    product_type = request_data.get("product_type", "hoodie")
+    complexity = request_data.get("complexity", "moderate")
+    positioning = request_data.get("positioning", "standard")
+
+    try:
+        strategy = pricing_service.calculate_price(
+            product_type=product_type,
+            complexity=complexity,
+            positioning=positioning
+        )
+
+        return jsonify({
+            "success": True,
+            "pricing": {
+                "base_price_cents": strategy.base_price_cents,
+                "base_price_usd": strategy.base_price_cents / 100,
+                "suggested_price_cents": strategy.suggested_price_cents,
+                "suggested_price_usd": strategy.suggested_price_cents / 100,
+                "min_price_cents": strategy.min_price_cents,
+                "min_price_usd": strategy.min_price_cents / 100,
+                "max_price_cents": strategy.max_price_cents,
+                "max_price_usd": strategy.max_price_cents / 100,
+                "profit_margin": strategy.profit_margin,
+                "reasoning": strategy.reasoning
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to calculate pricing: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": f"Failed to calculate pricing: {str(e)}"
+        }), 500
+
+
+@app.route('/api/pricing/recommendations/<product_type>')
+def get_pricing_recommendations(product_type):
+    """
+    Get pricing recommendations for all positioning strategies
+
+    Args:
+        product_type: Product type (hoodie, tshirt, etc.)
+
+    Returns:
+        JSON with recommendations for each positioning
+    """
+    try:
+        recommendations = pricing_service.get_product_recommendations(product_type)
+
+        return jsonify({
+            "success": True,
+            "product_type": product_type,
+            "recommendations": recommendations
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get pricing recommendations: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": f"Failed to get recommendations: {str(e)}"
+        }), 500
 
 
 @app.route('/api/stats')
