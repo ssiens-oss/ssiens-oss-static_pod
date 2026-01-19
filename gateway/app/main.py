@@ -12,6 +12,8 @@ from typing import Dict, Any, Tuple, List
 import re
 import uuid
 import requests
+import base64
+from io import BytesIO
 
 # Load environment
 load_dotenv()
@@ -371,6 +373,57 @@ def list_images():
         return jsonify({"error": "Internal server error"}), 500
 
 
+def download_and_save_image(image_data: str, filename: str = None) -> Tuple[str, str]:
+    """
+    Download and save an image from base64 data or URL
+
+    Args:
+        image_data: Base64 encoded image or URL
+        filename: Optional filename, will generate if not provided
+
+    Returns:
+        Tuple of (image_id, file_path)
+    """
+    try:
+        # Generate unique image ID
+        image_id = f"generated_{uuid.uuid4().hex[:8]}_0"
+        if not filename:
+            filename = f"{image_id}.png"
+
+        file_path = config.config.filesystem.image_dir / filename
+
+        # Check if data is URL or base64
+        if image_data.startswith('http://') or image_data.startswith('https://'):
+            # Download from URL
+            logger.info(f"Downloading image from URL: {image_data[:80]}...")
+            response = requests.get(image_data, timeout=30)
+            response.raise_for_status()
+            image_bytes = response.content
+        else:
+            # Assume base64
+            logger.info(f"Decoding base64 image data...")
+            # Remove data URL prefix if present
+            if ',' in image_data:
+                image_data = image_data.split(',', 1)[1]
+            image_bytes = base64.b64decode(image_data)
+
+        # Save image
+        with open(file_path, 'wb') as f:
+            f.write(image_bytes)
+
+        logger.info(f"✓ Saved image: {file_path}")
+
+        # Add to state manager
+        state_manager.add_image(image_id, filename, str(file_path))
+        logger.info(f"✓ Added image to state: {image_id}")
+
+        return image_id, str(file_path)
+
+    except Exception as e:
+        logger.error(f"Failed to download/save image: {e}")
+        raise
+
+
 @app.route('/api/generate', methods=['POST'])
 def generate_image():
     """
@@ -410,11 +463,76 @@ def generate_image():
         if comfyui_client:
             # RunPod serverless
             result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
+
+            # Download and save images from output
+            output = result.get("output", {})
+            saved_images = []
+
+            # Debug: Log output structure
+            logger.info(f"RunPod output keys: {list(output.keys())}")
+            if output:
+                logger.debug(f"RunPod output: {str(output)[:500]}")
+
+            # RunPod serverless worker returns images in output
+            # Check for images in various possible formats
+            if "images" in output:
+                # Array of images
+                logger.info(f"Found {len(output['images'])} image(s) in output['images']")
+                for i, img_data in enumerate(output["images"]):
+                    try:
+                        if isinstance(img_data, dict):
+                            # Extract image data from dict
+                            image_url_or_data = img_data.get("url") or img_data.get("data") or img_data.get("image") or img_data.get("base64")
+                        else:
+                            image_url_or_data = img_data
+
+                        if image_url_or_data:
+                            image_id, file_path = download_and_save_image(image_url_or_data)
+                            saved_images.append({"id": image_id, "path": file_path})
+                            logger.info(f"✓ Downloaded image {i+1}/{len(output['images'])}")
+                    except Exception as e:
+                        logger.error(f"Failed to save image {i+1} from output: {e}")
+            elif "image" in output:
+                # Single image
+                logger.info(f"Found single image in output['image']")
+                try:
+                    image_data = output["image"]
+                    if isinstance(image_data, dict):
+                        image_data = image_data.get("url") or image_data.get("data") or image_data.get("image") or image_data.get("base64")
+
+                    if image_data:
+                        image_id, file_path = download_and_save_image(image_data)
+                        saved_images.append({"id": image_id, "path": file_path})
+                except Exception as e:
+                    logger.error(f"Failed to save image from output: {e}")
+            elif "message" in output:
+                # ComfyUI format with message containing image info
+                logger.info("Checking output['message'] for images...")
+                message = output.get("message", {})
+                if isinstance(message, dict) and "images" in message:
+                    for i, img_info in enumerate(message["images"]):
+                        try:
+                            # ComfyUI returns filename, subfolder, type
+                            if isinstance(img_info, dict):
+                                # This might be a reference to an image on the ComfyUI server
+                                # For RunPod serverless, images should be base64 or URLs
+                                logger.warning(f"Image {i+1} is a reference, not direct data")
+                            else:
+                                image_id, file_path = download_and_save_image(img_info)
+                                saved_images.append({"id": image_id, "path": file_path})
+                        except Exception as e:
+                            logger.error(f"Failed to save image from message: {e}")
+            else:
+                logger.warning(f"No recognized image format in RunPod output. Keys: {list(output.keys())}")
+
+            logger.info(f"✓ Saved {len(saved_images)} image(s) from RunPod output")
+
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
                 "job_id": result.get("job_id"),
                 "status": result.get("status"),
-                "prompt": full_prompt
+                "prompt": full_prompt,
+                "images": saved_images
             })
         else:
             # Direct ComfyUI connection
