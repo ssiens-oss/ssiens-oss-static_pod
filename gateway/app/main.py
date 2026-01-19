@@ -448,11 +448,29 @@ def generate_image():
 
 @app.route('/api/generation_status')
 def generation_status():
-    """Proxy generation status from ComfyUI history endpoint."""
+    """Get generation status - handles both RunPod serverless and direct ComfyUI."""
     prompt_id = request.args.get("prompt_id")
     if not prompt_id:
         return jsonify({"error": "prompt_id is required"}), 400
 
+    # For RunPod serverless, jobs complete synchronously
+    # The status is already known from the original request
+    if comfyui_client:
+        # RunPod serverless - return completed status
+        # Since RunPod uses sync requests, if we got a prompt_id, the job is done
+        return jsonify({
+            "history": {
+                prompt_id: {
+                    "status": {
+                        "completed": True,
+                        "status_str": "success"
+                    }
+                }
+            },
+            "downloaded": []  # Images are not auto-downloaded for serverless
+        })
+
+    # Direct ComfyUI - use history endpoint
     try:
         response = requests.get(
             f"{config.COMFYUI_API_URL}/history/{prompt_id}",
