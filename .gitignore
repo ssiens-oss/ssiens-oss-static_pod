@@ -5,3 +5,4 @@ dist/
 .DS_Store
 ComfyUI/
 pod-engine/
+.env.runpod-config
