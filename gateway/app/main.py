@@ -391,42 +391,56 @@ def download_and_save_image(image_data: str, filename: str = None) -> Tuple[str,
         Tuple of (image_id, file_path)
     """
     try:
+        # Validate input
+        if not image_data or not isinstance(image_data, str):
+            raise ValueError(f"Invalid image_data: type={type(image_data)}, empty={not image_data}")
+
+        logger.info(f"📥 Processing image data (length: {len(image_data)}, starts with: {image_data[:50]}...)")
+
         # Generate unique image ID
         image_id = f"generated_{uuid.uuid4().hex[:8]}_0"
         if not filename:
             filename = f"{image_id}.png"
 
         file_path = config.config.filesystem.image_dir / filename
+        logger.info(f"📁 Target path: {file_path}")
 
         # Check if data is URL or base64
         if image_data.startswith('http://') or image_data.startswith('https://'):
             # Download from URL
-            logger.info(f"Downloading image from URL: {image_data[:80]}...")
+            logger.info(f"🌐 Downloading image from URL: {image_data[:80]}...")
             response = requests.get(image_data, timeout=30)
             response.raise_for_status()
             image_bytes = response.content
+            logger.info(f"✓ Downloaded {len(image_bytes)} bytes")
         else:
             # Assume base64
-            logger.info(f"Decoding base64 image data...")
+            logger.info(f"🔐 Decoding base64 image data (length: {len(image_data)})...")
             # Remove data URL prefix if present
             if ',' in image_data:
+                logger.info(f"  Removing data URL prefix...")
                 image_data = image_data.split(',', 1)[1]
             image_bytes = base64.b64decode(image_data)
+            logger.info(f"✓ Decoded {len(image_bytes)} bytes")
+
+        # Validate image data
+        if len(image_bytes) < 100:
+            raise ValueError(f"Image data too small: {len(image_bytes)} bytes")
 
         # Save image
         with open(file_path, 'wb') as f:
             f.write(image_bytes)
 
-        logger.info(f"✓ Saved image: {file_path}")
+        logger.info(f"✅ Saved image: {file_path} ({len(image_bytes)} bytes)")
 
         # Add to state manager
         state_manager.add_image(image_id, filename, str(file_path))
-        logger.info(f"✓ Added image to state: {image_id}")
+        logger.info(f"✅ Added image to state: {image_id}")
 
         return image_id, str(file_path)
 
     except Exception as e:
-        logger.error(f"Failed to download/save image: {e}")
+        logger.error(f"❌ Failed to download/save image: {e}", exc_info=True)
         raise
 
 
@@ -474,10 +488,17 @@ def generate_image():
             output = result.get("output", {})
             saved_images = []
 
-            # Debug: Log output structure
-            logger.info(f"RunPod output keys: {list(output.keys())}")
-            if output:
-                logger.debug(f"RunPod output: {str(output)[:500]}")
+            # Debug: Log full output structure
+            logger.info(f"🔍 RunPod result keys: {list(result.keys())}")
+            logger.info(f"🔍 RunPod output keys: {list(output.keys())}")
+
+            # Log the full output for debugging (truncated to avoid huge logs)
+            import json
+            try:
+                output_json = json.dumps(output, indent=2)
+                logger.info(f"🔍 Full RunPod output:\n{output_json[:2000]}")
+            except:
+                logger.info(f"🔍 RunPod output (repr): {repr(output)[:2000]}")
 
             # RunPod serverless worker returns images in output
             # Check for images in various possible formats
@@ -529,9 +550,41 @@ def generate_image():
                         except Exception as e:
                             logger.error(f"Failed to save image from message: {e}")
             else:
-                logger.warning(f"No recognized image format in RunPod output. Keys: {list(output.keys())}")
+                logger.warning(f"⚠️  No recognized image format in RunPod output. Keys: {list(output.keys())}")
+                logger.warning(f"⚠️  Attempting to search all output fields for images...")
 
-            logger.info(f"✓ Saved {len(saved_images)} image(s) from RunPod output")
+                # Fallback: Search ALL fields for anything that looks like image data
+                for key, value in output.items():
+                    logger.info(f"  Checking field '{key}' (type: {type(value).__name__})")
+
+                    # Check if it's a list
+                    if isinstance(value, list) and len(value) > 0:
+                        logger.info(f"    Found list with {len(value)} items")
+                        for i, item in enumerate(value):
+                            logger.info(f"    Item {i} type: {type(item).__name__}")
+                            if isinstance(item, str) and len(item) > 100:
+                                logger.info(f"    Item {i} looks like string data (length: {len(item)})")
+                                try:
+                                    image_id, file_path = download_and_save_image(item)
+                                    saved_images.append({"id": image_id, "path": file_path})
+                                    logger.info(f"    ✓ Successfully saved image from '{key}[{i}]'")
+                                except Exception as e:
+                                    logger.debug(f"    Failed to save as image: {e}")
+
+                    # Check if it's a string that might be base64 or URL
+                    elif isinstance(value, str) and len(value) > 100:
+                        logger.info(f"    Field '{key}' is string (length: {len(value)})")
+                        try:
+                            image_id, file_path = download_and_save_image(value)
+                            saved_images.append({"id": image_id, "path": file_path})
+                            logger.info(f"    ✓ Successfully saved image from '{key}'")
+                        except Exception as e:
+                            logger.debug(f"    Failed to save as image: {e}")
+
+            if len(saved_images) > 0:
+                logger.info(f"✓ Saved {len(saved_images)} image(s) from RunPod output")
+            else:
+                logger.error(f"❌ No images could be extracted from RunPod output!")
 
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
