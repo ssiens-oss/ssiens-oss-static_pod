@@ -196,7 +196,7 @@ def build_comfyui_workflow(
         },
         "4": {
             "inputs": {
-                "ckpt_name": "sd_xl_base_1.0.safetensors"
+                "ckpt_name": "flux1-dev-fp8.safetensors"
             },
             "class_type": "CheckpointLoaderSimple"
         },
