@@ -1218,6 +1218,25 @@
 
         // ========== EVENT LISTENERS ==========
         function setupEventListeners() {
+            // Navigation items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const view = item.dataset.view;
+                    if (view) {
+                        switchView(view);
+
+                        // Update active state
+                        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+
+                        // Close mobile menu if open
+                        if (window.innerWidth < 1024) {
+                            document.getElementById('sidebar').classList.remove('open');
+                        }
+                    }
+                });
+            });
+
             // Theme toggle
             document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
@@ -1248,6 +1267,16 @@
 
             // Auto-refresh images every 10 seconds
             setInterval(loadImages, 10000);
+        }
+
+        // ========== VIEW SWITCHING ==========
+        function switchView(viewName) {
+            // For now, all views show the dashboard
+            // In future, we can create separate view containers
+            showToast('Navigation', `Switched to ${viewName} view`, 'info');
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // ========== API CALLS ==========
