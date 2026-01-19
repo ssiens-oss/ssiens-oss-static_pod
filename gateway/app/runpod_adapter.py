@@ -170,15 +170,15 @@ class RunPodServerlessAdapter:
         )
 
         # RunPod serverless payload format
-        # Most ComfyUI handlers expect "prompt" key, not "workflow"
+        # Based on the error logs, the handler expects nodes directly under input
+        # without the "prompt" wrapper
         payload = {
-            "input": {
-                "prompt": workflow
-            }
+            "input": workflow
         }
 
         logger.info(f"Calling RunPod serverless: {self.endpoint_url}")
-        logger.debug(f"Payload structure: input.prompt with {len(workflow)} nodes")
+        logger.debug(f"Payload structure: input with {len(workflow)} nodes directly")
+        logger.debug(f"Node IDs: {list(workflow.keys())}")
 
         try:
             # Call RunPod serverless endpoint (runsync waits for completion)
