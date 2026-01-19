@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POD Gateway Pro - AI Design Studio</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+
+    <style>
+        /* ========== CSS VARIABLES FOR THEMING ========== */
+        :root[data-theme="dark"] {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --bg-elevated: #222222;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+            --border-color: #2a2a2a;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+        }
+
+        :root[data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            --bg-elevated: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --text-tertiary: #9ca3af;
+            --border-color: #e5e7eb;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+        }
+
+        /* ========== BASE STYLES ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ========== LAYOUT ========== */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                transition: left 0.3s;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+        }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-icon {
+            font-size: 32px;
+        }
+
+        .logo-text {
+            font-size: 1.25em;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+            font-weight: 600;
+            margin-bottom: 8px;
+            padding: 0 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .nav-icon {
+            font-size: 18px;
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            overflow-y: auto;
+        }
+
+        .topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            font-size: 24px;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 16px;
+            min-width: 300px;
+        }
+
+        .search-bar input {
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-elevated);
+            transform: translateY(-1px);
+        }
+
+        .content-area {
+            padding: 24px;
+        }
+
+        /* ========== STATS GRID ========== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-icon {
+            font-size: 24px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-change {
+            font-size: 0.85em;
+            margin-top: 4px;
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--error);
+        }
+
+        /* ========== GENERATOR PANEL ========== */
+        .generator-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.25em;
+            font-weight: 600;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        input, textarea, select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* ========== IMAGE GALLERY ========== */
+        .gallery-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+        }
+
+        .view-btn {
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-chip.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .image-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .image-card.selected {
+            border: 2px solid var(--accent-primary);
+        }
+
+        .image-select-checkbox {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: 24px;
+            height: 24px;
+            z-index: 10;
+        }
+
+        .image-wrapper {
+            position: relative;
+            padding-top: 100%;
+            background: var(--bg-tertiary);
+        }
+
+        .image-wrapper img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .image-status-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-approved {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-rejected {
+            background: var(--error);
+            color: white;
+        }
+
+        .status-published {
+            background: var(--info);
+            color: white;
+        }
+
+        .image-info {
+            padding: 16px;
+        }
+
+        .image-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .image-meta {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .action-btn.approve {
+            background: var(--success);
+            color: white;
+        }
+
+        .action-btn.reject {
+            background: var(--error);
+            color: white;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        /* ========== PROGRESS BAR ========== */
+        .progress-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .progress-bar-bg {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            height: 100%;
+            transition: width 0.3s;
+            border-radius: 8px;
+        }
+
+        /* ========== TOAST NOTIFICATIONS ========== */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--info);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .toast-icon {
+            font-size: 20px;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        /* ========== MODAL ========== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* ========== LIGHTBOX ========== */
+        .lightbox-image {
+            max-width: 90vw;
+            max-height: 85vh;
+            object-fit: contain;
+        }
+
+        /* ========== BATCH ACTIONS BAR ========== */
+        .batch-actions-bar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            display: none;
+            align-items: center;
+            gap: 16px;
+            z-index: 1000;
+        }
+
+        .batch-actions-bar.active {
+            display: flex;
+        }
+
+        .batch-count {
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        /* ========== SETTINGS PANEL ========== */
+        .settings-section {
+            margin-bottom: 24px;
+        }
+
+        .settings-section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info h4 {
+            margin-bottom: 4px;
+        }
+
+        .setting-description {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* ========== UTILITY CLASSES ========== */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-4 {
+            margin-top: 16px;
+        }
+
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+
+        /* ========== LOADING SPINNER ========== */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ========== RESPONSIVE DESIGN ========== */
+        @media (max-width: 768px) {
+            .topbar {
+                padding: 12px 16px;
+            }
+
+            .search-bar {
+                min-width: 200px;
+            }
+
+            .content-area {
+                padding: 16px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .image-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🎨</div>
+                <div class="logo-text">POD Gateway Pro</div>
+            </div>
+
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <div class="nav-item active" data-view="dashboard">
+                        <span class="nav-icon">📊</span>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item" data-view="generate">
+                        <span class="nav-icon">✨</span>
+                        <span>Generate</span>
+                    </div>
+                    <div class="nav-item" data-view="gallery">
+                        <span class="nav-icon">🖼️</span>
+                        <span>Gallery</span>
+                    </div>
+                    <div class="nav-item" data-view="batch">
+                        <span class="nav-icon">📦</span>
+                        <span>Batch Operations</span>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Publishing</div>
+                    <div class="nav-item" data-view="products">
+                        <span class="nav-icon">🛍️</span>
+                        <span>Products</span>
+                    </div>
+                    <div class="nav-item" data-view="platforms">
+                        <span class="nav-icon">🌐</span>
+                        <span>Platforms</span>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Analytics</div>
+                    <div class="nav-item" data-view="analytics">
+                        <span class="nav-icon">📈</span>
+                        <span>Analytics</span>
+                    </div>
+                    <div class="nav-item" data-view="metrics">
+                        <span class="nav-icon">📉</span>
+                        <span>Metrics</span>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Tools</div>
+                    <div class="nav-item" data-view="prompts">
+                        <span class="nav-icon">💡</span>
+                        <span>Prompt Library</span>
+                    </div>
+                    <div class="nav-item" data-view="webhooks">
+                        <span class="nav-icon">🔗</span>
+                        <span>Webhooks</span>
+                    </div>
+                    <div class="nav-item" data-view="api">
+                        <span class="nav-icon">⚡</span>
+                        <span>API Explorer</span>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">System</div>
+                    <div class="nav-item" data-view="settings">
+                        <span class="nav-icon">⚙️</span>
+                        <span>Settings</span>
+                    </div>
+                    <div class="nav-item" data-view="help">
+                        <span class="nav-icon">❓</span>
+                        <span>Help & Docs</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <!-- TOPBAR -->
+            <div class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+                    <div class="search-bar">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search images, prompts..." id="searchInput">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <button class="icon-btn" id="themeToggle" title="Toggle Theme">🌓</button>
+                    <button class="icon-btn" id="notificationsBtn" title="Notifications">🔔</button>
+                    <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+                    <button class="icon-btn" id="helpBtn" title="Help">❓</button>
+                </div>
+            </div>
+
+            <!-- CONTENT AREA -->
+            <div class="content-area">
+                <!-- DASHBOARD VIEW -->
+                <div id="dashboardView">
+                    <h2 style="margin-bottom: 24px;">Dashboard</h2>
+
+                    <!-- Stats Grid -->
+                    <div class="stats-grid" id="statsGrid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-label">Total Images</div>
+                                <div class="stat-icon">🖼️</div>
+                            </div>
+                            <div class="stat-value" id="statTotalImages">0</div>
+                            <div class="stat-change positive">+12% this week</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-label">Approved</div>
+                                <div class="stat-icon">✅</div>
+                            </div>
+                            <div class="stat-value" id="statApproved">0</div>
+                            <div class="stat-change positive">+8% this week</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-label">Published</div>
+                                <div class="stat-icon">🚀</div>
+                            </div>
+                            <div class="stat-value" id="statPublished">0</div>
+                            <div class="stat-change positive">+15% this week</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-label">Pending</div>
+                                <div class="stat-icon">⏳</div>
+                            </div>
+                            <div class="stat-value" id="statPending">0</div>
+                            <div class="stat-change">Review needed</div>
+                        </div>
+                    </div>
+
+                    <!-- Generator Panel -->
+                    <div class="generator-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h3 class="panel-title">🎨 AI Image Generator</h3>
+                                <p style="color: var(--text-secondary); font-size: 0.9em; margin-top: 4px;">Create stunning POD designs with AI</p>
+                            </div>
+                        </div>
+
+                        <form id="generateForm">
+                            <div class="form-grid">
+                                <div class="form-group full-width">
+                                    <label for="prompt">Prompt *</label>
+                                    <textarea id="prompt" placeholder="Describe your design... (e.g., 'cyberpunk cat with neon lights')" required></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="style">Style (Optional)</label>
+                                    <input type="text" id="style" placeholder="digital art, watercolor, etc.">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="genre">Genre (Optional)</label>
+                                    <input type="text" id="genre" placeholder="futuristic, vintage, etc.">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="batchSize">Batch Size (1-25)</label>
+                                    <input type="number" id="batchSize" min="1" max="25" value="1">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="resolution">Resolution</label>
+                                    <select id="resolution">
+                                        <option value="4500x5400" selected>4500x5400 (T-Shirt Standard)</option>
+                                        <option value="3600x3600">3600x3600 (Square)</option>
+                                        <option value="4800x6000">4800x6000 (Poster)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="btn-group mt-4">
+                                <button type="submit" class="btn" id="generateBtn">
+                                    <span id="generateBtnText">✨ Generate Images</span>
+                                    <span id="generateBtnSpinner" class="hidden"><span class="spinner"></span> Generating...</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="savePromptBtn">💾 Save Prompt</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Progress Container -->
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-header">
+                            <div>
+                                <strong id="progressTitle">Generating Images...</strong>
+                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;" id="progressDesc">Please wait...</div>
+                            </div>
+                            <div id="progressPercent">0%</div>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="progressBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Gallery Controls -->
+                    <div class="gallery-controls">
+                        <div>
+                            <h3 style="margin-bottom: 8px;">Gallery</h3>
+                            <div class="filter-chips">
+                                <div class="filter-chip active" data-filter="all">All</div>
+                                <div class="filter-chip" data-filter="pending">Pending</div>
+                                <div class="filter-chip" data-filter="approved">Approved</div>
+                                <div class="filter-chip" data-filter="rejected">Rejected</div>
+                                <div class="filter-chip" data-filter="published">Published</div>
+                            </div>
+                        </div>
+
+                        <div class="view-toggle">
+                            <button class="view-btn active" data-view-type="grid">📱 Grid</button>
+                            <button class="view-btn" data-view-type="list">📋 List</button>
+                        </div>
+                    </div>
+
+                    <!-- Image Gallery -->
+                    <div class="image-grid" id="imageGallery"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Batch Actions Bar -->
+    <div class="batch-actions-bar" id="batchActionsBar">
+        <div class="batch-count"><span id="selectedCount">0</span> selected</div>
+        <div class="btn-group">
+            <button class="btn" id="batchApproveBtn">✅ Approve All</button>
+            <button class="btn btn-secondary" id="batchRejectBtn">❌ Reject All</button>
+            <button class="btn btn-secondary" id="batchPublishBtn">🚀 Publish All</button>
+            <button class="btn btn-secondary" id="batchClearBtn">🗑️ Clear Selection</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Lightbox Modal -->
+    <div class="modal-overlay" id="lightboxOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="lightboxTitle">Image Preview</div>
+                <button class="modal-close" onclick="closeLightbox()">✕</button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="lightboxImage" class="lightbox-image" src="" alt="">
+                <div id="lightboxMeta" style="margin-top: 16px; text-align: left;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="downloadImage()">⬇️ Download</button>
+                <button class="btn" onclick="closeLightbox()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== GLOBAL STATE ==========
+        let images = [];
+        let selectedImages = new Set();
+        let currentFilter = 'all';
+        let stats = { total: 0, pending: 0, approved: 0, rejected: 0, published: 0 };
+
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+            loadImages();
+            loadStats();
+            setupEventListeners();
+            checkKeyboardShortcuts();
+        });
+
+        function initializeApp() {
+            // Load theme preference
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+
+            showToast('Welcome to POD Gateway Pro!', 'System ready', 'success');
+        }
+
+        // ========== EVENT LISTENERS ==========
+        function setupEventListeners() {
+            // Theme toggle
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+            // Mobile menu
+            document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileMenu);
+
+            // Generate form
+            document.getElementById('generateForm').addEventListener('submit', handleGenerate);
+
+            // Filter chips
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    currentFilter = chip.dataset.filter;
+                    renderGallery();
+                });
+            });
+
+            // Batch actions
+            document.getElementById('batchApproveBtn').addEventListener('click', () => batchAction('approve'));
+            document.getElementById('batchRejectBtn').addEventListener('click', () => batchAction('reject'));
+            document.getElementById('batchPublishBtn').addEventListener('click', () => batchAction('publish'));
+            document.getElementById('batchClearBtn').addEventListener('click', clearSelection);
+
+            // Search
+            document.getElementById('searchInput').addEventListener('input', handleSearch);
+
+            // Auto-refresh images every 10 seconds
+            setInterval(loadImages, 10000);
+        }
+
+        // ========== API CALLS ==========
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/images');
+                const data = await response.json();
+                images = data.images || [];
+                renderGallery();
+            } catch (error) {
+                console.error('Failed to load images:', error);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                stats = data;
+                updateStatsDisplay();
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        async function handleGenerate(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const prompt = document.getElementById('prompt').value;
+            const style = document.getElementById('style').value;
+            const genre = document.getElementById('genre').value;
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+            const [width, height] = document.getElementById('resolution').value.split('x').map(Number);
+
+            // Show loading state
+            const btn = document.getElementById('generateBtn');
+            document.getElementById('generateBtnText').classList.add('hidden');
+            document.getElementById('generateBtnSpinner').classList.remove('hidden');
+            btn.disabled = true;
+
+            // Show progress
+            showProgress('Generating Images...', 'Sending request to AI...');
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, style, genre, batch_size: batchSize, width, height })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Success!', `Generated ${data.success_count || 1} image(s)`, 'success');
+                    form.reset();
+                    setTimeout(() => loadImages(), 2000);
+                } else {
+                    showToast('Generation Failed', data.error || 'Unknown error', 'error');
+                }
+            } catch (error) {
+                showToast('Network Error', error.message, 'error');
+            } finally {
+                // Hide loading state
+                document.getElementById('generateBtnText').classList.remove('hidden');
+                document.getElementById('generateBtnSpinner').classList.add('hidden');
+                btn.disabled = false;
+                hideProgress();
+            }
+        }
+
+        async function approveImage(imageId) {
+            try {
+                const response = await fetch(`/api/approve/${imageId}`, { method: 'POST' });
+                if (response.ok) {
+                    showToast('Approved!', `Image ${imageId} approved`, 'success');
+                    loadImages();
+                    loadStats();
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to approve image', 'error');
+            }
+        }
+
+        async function rejectImage(imageId) {
+            try {
+                const response = await fetch(`/api/reject/${imageId}`, { method: 'POST' });
+                if (response.ok) {
+                    showToast('Rejected', `Image ${imageId} rejected`, 'info');
+                    loadImages();
+                    loadStats();
+                }
+            } catch (error) {
+                showToast('Error', 'Failed to reject image', 'error');
+            }
+        }
+
+        async function batchAction(action) {
+            if (selectedImages.size === 0) return;
+
+            const ids = Array.from(selectedImages);
+            showToast('Processing...', `${action}ing ${ids.length} images`, 'info');
+
+            for (const id of ids) {
+                if (action === 'approve') await approveImage(id);
+                else if (action === 'reject') await rejectImage(id);
+            }
+
+            clearSelection();
+        }
+
+        // ========== UI FUNCTIONS ==========
+        function renderGallery() {
+            const gallery = document.getElementById('imageGallery');
+            const filteredImages = images.filter(img => {
+                if (currentFilter === 'all') return true;
+                return img.status === currentFilter;
+            });
+
+            if (filteredImages.length === 0) {
+                gallery.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                        <h3>No images found</h3>
+                        <p>Generate your first design to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            gallery.innerHTML = filteredImages.map(img => `
+                <div class="image-card ${selectedImages.has(img.id) ? 'selected' : ''}" data-id="${img.id}">
+                    <input type="checkbox" class="image-select-checkbox"
+                           ${selectedImages.has(img.id) ? 'checked' : ''}
+                           onchange="toggleImageSelection('${img.id}')">
+                    <div class="image-wrapper">
+                        <img src="/api/image/${img.id}" alt="${img.id}" onclick="openLightbox('${img.id}')">
+                        <div class="image-status-badge status-${img.status}">${img.status}</div>
+                    </div>
+                    <div class="image-info">
+                        <div class="image-title">${img.filename || img.id}</div>
+                        <div class="image-meta">
+                            ${img.metadata?.original_prompt ? img.metadata.original_prompt.substring(0, 60) + '...' : 'No prompt'}
+                        </div>
+                        <div class="image-actions">
+                            ${img.status === 'pending' ? `
+                                <button class="action-btn approve" onclick="approveImage('${img.id}')">✅ Approve</button>
+                                <button class="action-btn reject" onclick="rejectImage('${img.id}')">❌ Reject</button>
+                            ` : `
+                                <button class="action-btn" onclick="openLightbox('${img.id}')">👁️ View</button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('statTotalImages').textContent = stats.total || 0;
+            document.getElementById('statApproved').textContent = stats.approved || 0;
+            document.getElementById('statPublished').textContent = stats.published || 0;
+            document.getElementById('statPending').textContent = stats.pending || 0;
+        }
+
+        function toggleImageSelection(imageId) {
+            if (selectedImages.has(imageId)) {
+                selectedImages.delete(imageId);
+            } else {
+                selectedImages.add(imageId);
+            }
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            document.getElementById('selectedCount').textContent = selectedImages.size;
+            document.getElementById('batchActionsBar').classList.toggle('active', selectedImages.size > 0);
+            renderGallery();
+        }
+
+        function clearSelection() {
+            selectedImages.clear();
+            updateSelectionUI();
+        }
+
+        function showProgress(title, desc) {
+            document.getElementById('progressTitle').textContent = title;
+            document.getElementById('progressDesc').textContent = desc;
+            document.getElementById('progressContainer').classList.add('active');
+            animateProgress();
+        }
+
+        function hideProgress() {
+            document.getElementById('progressContainer').classList.remove('active');
+            document.getElementById('progressBar').style.width = '0%';
+        }
+
+        function animateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress >= 90) progress = 90;
+                document.getElementById('progressBar').style.width = progress + '%';
+                document.getElementById('progressPercent').textContent = Math.round(progress) + '%';
+            }, 500);
+
+            setTimeout(() => clearInterval(interval), 10000);
+        }
+
+        function showToast(title, message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type]}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        function openLightbox(imageId) {
+            const img = images.find(i => i.id === imageId);
+            if (!img) return;
+
+            document.getElementById('lightboxImage').src = `/api/image/${imageId}`;
+            document.getElementById('lightboxTitle').textContent = img.filename || imageId;
+            document.getElementById('lightboxMeta').innerHTML = `
+                <div><strong>Status:</strong> ${img.status}</div>
+                <div><strong>Prompt:</strong> ${img.metadata?.original_prompt || 'N/A'}</div>
+                ${img.metadata?.batch_id ? `<div><strong>Batch:</strong> ${img.metadata.batch_id}</div>` : ''}
+            `;
+            document.getElementById('lightboxOverlay').classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxOverlay').classList.remove('active');
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            showToast('Theme Changed', `Switched to ${next} mode`, 'info');
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function handleSearch(e) {
+            const query = e.target.value.toLowerCase();
+            // Implement search logic here
+        }
+
+        function checkKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K = Focus search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+
+                // Escape = Close modals
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                }
+            });
+        }
+
+        // Download image function
+        function downloadImage() {
+            const img = document.getElementById('lightboxImage');
+            const a = document.createElement('a');
+            a.href = img.src;
+            a.download = 'image.png';
+            a.click();
+        }
+    </script>
+</body>
+</html>

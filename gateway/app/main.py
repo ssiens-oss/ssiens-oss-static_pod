@@ -474,7 +474,13 @@ def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
 
 @app.route('/')
 def index():
-    """Gallery UI"""
+    """POD Gateway Pro UI"""
+    return render_template('index.html')
+
+
+@app.route('/gallery')
+def gallery():
+    """Legacy Gallery UI (for compatibility)"""
     return render_template('gallery.html')
 
 
