@@ -21,6 +21,7 @@ from app import config
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
 from app.pricing_service import SmartPricingService
+from app.runpod_adapter import RunPodServerlessAdapter, is_runpod_serverless_url
 
 # Optional AI features (requires anthropic package)
 AI_AVAILABLE = False
@@ -79,6 +80,15 @@ else:
 # Initialize Smart Pricing Service
 pricing_service = SmartPricingService(default_positioning="standard")
 logger.info("✓ Smart Pricing Service initialized")
+
+# Initialize RunPod Serverless adapter if needed
+runpod_adapter = None
+if is_runpod_serverless_url(config.COMFYUI_API_URL):
+    runpod_api_key = os.getenv("RUNPOD_API_KEY")
+    runpod_adapter = RunPodServerlessAdapter(config.COMFYUI_API_URL, runpod_api_key)
+    logger.info(f"✓ RunPod Serverless adapter initialized for {config.COMFYUI_API_URL}")
+else:
+    logger.info(f"✓ Using standard ComfyUI API at {config.COMFYUI_API_URL}")
 
 
 # Input validation helpers
@@ -384,7 +394,8 @@ def list_images():
 @app.route('/api/generate', methods=['POST'])
 def generate_image():
     """
-    Submit a prompt to ComfyUI via the configured API URL.
+    Submit a prompt to ComfyUI or RunPod Serverless.
+    Automatically detects and adapts based on the configured API URL.
 
     Expected JSON body:
     {
@@ -402,39 +413,89 @@ def generate_image():
         return jsonify({"error": "Prompt is required"}), 400
 
     full_prompt = build_prompt_text(prompt, style, genre)
-    workflow = build_comfyui_workflow(
-        full_prompt,
-        seed=data.get("seed"),
-        width=data.get("width", 1024),
-        height=data.get("height", 1024),
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
-    )
 
-    payload = {
-        "prompt": workflow,
-        "client_id": data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
-    }
+    # Use RunPod Serverless adapter if available
+    if runpod_adapter:
+        logger.info(f"Using RunPod Serverless for generation: {full_prompt[:50]}...")
+        try:
+            result = runpod_adapter.generate_image(
+                prompt=full_prompt,
+                width=data.get("width", 1536),
+                height=data.get("height", 1536),
+                steps=data.get("steps", 35),
+                cfg_scale=data.get("cfg_scale", 7.5),
+                seed=data.get("seed")
+            )
 
-    try:
-        response = requests.post(
-            f"{config.COMFYUI_API_URL}/prompt",
-            json=payload,
-            timeout=30
+            # Extract image URL or save image data
+            image_url = runpod_adapter.get_output_url(result)
+            if image_url:
+                # Download the image
+                image_id = f"runpod_{uuid.uuid4().hex[:12]}"
+                image_path = Path(config.IMAGE_DIR) / f"{image_id}.png"
+
+                if runpod_adapter.download_image(str(image_url), str(image_path)):
+                    # Register in state
+                    try:
+                        state_manager.add_image(image_id, f"{image_id}.png", str(image_path))
+                    except StateManagerError:
+                        pass
+
+                    return jsonify({
+                        "success": True,
+                        "image_id": image_id,
+                        "image_url": image_url,
+                        "prompt": full_prompt
+                    })
+                else:
+                    return jsonify({"error": "Failed to download generated image"}), 500
+            else:
+                logger.error(f"No image URL in RunPod result: {result}")
+                return jsonify({"error": "No image in response", "details": result}), 502
+
+        except requests.RequestException as exc:
+            logger.error("RunPod Serverless request failed: %s", exc)
+            return jsonify({"error": "Failed to connect to RunPod Serverless"}), 502
+        except Exception as exc:
+            logger.error("RunPod Serverless generation failed: %s", exc, exc_info=True)
+            return jsonify({"error": f"Generation failed: {str(exc)}"}), 500
+
+    # Standard ComfyUI workflow
+    else:
+        logger.info(f"Using standard ComfyUI for generation: {full_prompt[:50]}...")
+        workflow = build_comfyui_workflow(
+            full_prompt,
+            seed=data.get("seed"),
+            width=data.get("width", 1024),
+            height=data.get("height", 1024),
+            steps=data.get("steps", 20),
+            cfg_scale=data.get("cfg_scale", 7)
         )
-    except requests.RequestException as exc:
-        logger.error("ComfyUI request failed: %s", exc)
-        return jsonify({"error": "Failed to connect to ComfyUI"}), 502
 
-    if not response.ok:
-        logger.error("ComfyUI error: %s", response.text)
-        return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
+        payload = {
+            "prompt": workflow,
+            "client_id": data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
+        }
 
-    data = response.json()
-    return jsonify({
-        "prompt_id": data.get("prompt_id"),
-        "prompt": full_prompt
-    })
+        try:
+            response = requests.post(
+                f"{config.COMFYUI_API_URL}/prompt",
+                json=payload,
+                timeout=30
+            )
+        except requests.RequestException as exc:
+            logger.error("ComfyUI request failed: %s", exc)
+            return jsonify({"error": "Failed to connect to ComfyUI"}), 502
+
+        if not response.ok:
+            logger.error("ComfyUI error: %s", response.text)
+            return jsonify({"error": "ComfyUI request failed", "details": response.text}), 502
+
+        data = response.json()
+        return jsonify({
+            "prompt_id": data.get("prompt_id"),
+            "prompt": full_prompt
+        })
 
 
 @app.route('/api/generation_status')
