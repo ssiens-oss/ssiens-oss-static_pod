@@ -20,8 +20,16 @@ load_dotenv()
 from app import config
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
-from app.ai_service import AIContentGenerator, ProductMetadata
 from app.pricing_service import SmartPricingService
+
+# Optional AI features (requires anthropic package)
+AI_AVAILABLE = False
+try:
+    from app.ai_service import AIContentGenerator, ProductMetadata
+    AI_AVAILABLE = True
+except ImportError as e:
+    logger_warning = f"⚠️  AI Content Generator not available (install anthropic package to enable): {e}"
+    # Will log this after logging is configured
 
 # Configure logging
 logging.basicConfig(
@@ -59,11 +67,14 @@ else:
 
 # Initialize AI Content Generator (optional)
 ai_generator = None
-try:
-    ai_generator = AIContentGenerator()
-    logger.info("✓ AI Content Generator initialized")
-except Exception as e:
-    logger.warning(f"✗ AI Content Generator not available: {e}")
+if AI_AVAILABLE:
+    try:
+        ai_generator = AIContentGenerator()
+        logger.info("✓ AI Content Generator initialized")
+    except Exception as e:
+        logger.warning(f"✗ AI Content Generator initialization failed: {e}")
+else:
+    logger.warning("✗ AI Content Generator not available (anthropic package not installed)")
 
 # Initialize Smart Pricing Service
 pricing_service = SmartPricingService(default_positioning="standard")
