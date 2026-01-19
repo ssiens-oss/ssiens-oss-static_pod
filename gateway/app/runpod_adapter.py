@@ -32,6 +32,91 @@ class RunPodServerlessAdapter:
         """Check if this is a RunPod serverless endpoint"""
         return "api.runpod.ai/v2/" in self.endpoint_url or "api.runpod.io/v2/" in self.endpoint_url
 
+    def _build_comfyui_workflow(
+        self,
+        prompt: str,
+        width: int,
+        height: int,
+        steps: int,
+        cfg_scale: float,
+        seed: int,
+        negative_prompt: str
+    ) -> Dict[str, Any]:
+        """
+        Build a proper ComfyUI SDXL workflow
+
+        Args:
+            prompt: Positive prompt
+            width: Image width
+            height: Image height
+            steps: Sampling steps
+            cfg_scale: CFG scale
+            seed: Random seed
+            negative_prompt: Negative prompt
+
+        Returns:
+            ComfyUI workflow dictionary
+        """
+        return {
+            "3": {
+                "inputs": {
+                    "seed": seed,
+                    "steps": steps,
+                    "cfg": cfg_scale,
+                    "sampler_name": "dpmpp_2m",
+                    "scheduler": "karras",
+                    "denoise": 1,
+                    "model": ["4", 0],
+                    "positive": ["6", 0],
+                    "negative": ["7", 0],
+                    "latent_image": ["5", 0]
+                },
+                "class_type": "KSampler"
+            },
+            "4": {
+                "inputs": {
+                    "ckpt_name": "sd_xl_base_1.0.safetensors"
+                },
+                "class_type": "CheckpointLoaderSimple"
+            },
+            "5": {
+                "inputs": {
+                    "width": width,
+                    "height": height,
+                    "batch_size": 1
+                },
+                "class_type": "EmptyLatentImage"
+            },
+            "6": {
+                "inputs": {
+                    "text": prompt,
+                    "clip": ["4", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "7": {
+                "inputs": {
+                    "text": negative_prompt,
+                    "clip": ["4", 1]
+                },
+                "class_type": "CLIPTextEncode"
+            },
+            "8": {
+                "inputs": {
+                    "samples": ["3", 0],
+                    "vae": ["4", 2]
+                },
+                "class_type": "VAEDecode"
+            },
+            "9": {
+                "inputs": {
+                    "filename_prefix": "ComfyUI",
+                    "images": ["8", 0]
+                },
+                "class_type": "SaveImage"
+            }
+        }
+
     def generate_image(
         self,
         prompt: str,
@@ -57,36 +142,43 @@ class RunPodServerlessAdapter:
         Returns:
             Response from RunPod with image data
         """
-        # Build RunPod serverless payload
+        import os
+
+        # Generate random seed if not provided
+        if seed is None:
+            seed = int.from_bytes(os.urandom(4), byteorder="little")
+
+        # Use default negative prompt if not provided
+        if not negative_prompt:
+            negative_prompt = (
+                "blurry, blur, blurred, out of focus, unfocused, low quality, "
+                "worst quality, low resolution, lowres, pixelated, jpeg artifacts, "
+                "compression artifacts, watermark, text, signature, username, "
+                "low detail, unclear, soft, hazy, fuzzy, distorted, deformed, ugly, "
+                "bad anatomy, disfigured, poorly drawn, bad proportions"
+            )
+
+        # Build proper ComfyUI workflow
+        workflow = self._build_comfyui_workflow(
+            prompt=prompt,
+            width=width,
+            height=height,
+            steps=steps,
+            cfg_scale=cfg_scale,
+            seed=seed,
+            negative_prompt=negative_prompt
+        )
+
+        # RunPod serverless payload format
+        # Most ComfyUI handlers expect "prompt" key, not "workflow"
         payload = {
             "input": {
-                "workflow": {
-                    "prompt": prompt,
-                    "width": width,
-                    "height": height,
-                    "steps": steps,
-                    "cfg_scale": cfg_scale,
-                    "sampler_name": "dpmpp_2m",
-                    "scheduler": "karras"
-                }
+                "prompt": workflow
             }
         }
 
-        if seed is not None:
-            payload["input"]["workflow"]["seed"] = seed
-
-        if negative_prompt:
-            payload["input"]["workflow"]["negative_prompt"] = negative_prompt
-        else:
-            # Default negative prompt for quality
-            payload["input"]["workflow"]["negative_prompt"] = (
-                "blurry, blur, blurred, out of focus, unfocused, low quality, "
-                "worst quality, low resolution, lowres, pixelated, jpeg artifacts, "
-                "compression artifacts, watermark, text, signature"
-            )
-
         logger.info(f"Calling RunPod serverless: {self.endpoint_url}")
-        logger.debug(f"Payload: {payload}")
+        logger.debug(f"Payload structure: input.prompt with {len(workflow)} nodes")
 
         try:
             # Call RunPod serverless endpoint (runsync waits for completion)
@@ -119,6 +211,13 @@ class RunPodServerlessAdapter:
             URL to generated image, or None if not found
         """
         try:
+            # Check if the request failed
+            status = result.get("status")
+            if status == "FAILED":
+                error = result.get("error", "Unknown error")
+                logger.error(f"RunPod job failed: {error}")
+                return None
+
             # RunPod serverless returns output in result.output
             output = result.get("output", {})
 
@@ -128,15 +227,36 @@ class RunPodServerlessAdapter:
                 if "image_url" in output:
                     return output["image_url"]
 
-                # Format 2: images array
+                # Format 2: images array (URLs)
                 if "images" in output and output["images"]:
-                    return output["images"][0]
+                    img = output["images"][0]
+                    if isinstance(img, str):
+                        return img
+                    elif isinstance(img, dict) and "url" in img:
+                        return img["url"]
 
                 # Format 3: message with URL
                 if "message" in output:
-                    return output["message"]
+                    msg = output["message"]
+                    if isinstance(msg, str) and msg.startswith("http"):
+                        return msg
 
-            # Format 4: output is the URL directly
+                # Format 4: ComfyUI style output (from SaveImage node)
+                # Structure: {"9": {"images": [{"filename": "...", "subfolder": "...", "type": "output"}]}}
+                for node_id, node_output in output.items():
+                    if isinstance(node_output, dict) and "images" in node_output:
+                        images = node_output["images"]
+                        if images and isinstance(images, list):
+                            first_img = images[0]
+                            if isinstance(first_img, dict):
+                                # This is ComfyUI metadata format - need image URL
+                                if "url" in first_img:
+                                    return first_img["url"]
+                                elif "filename" in first_img:
+                                    # Some handlers return filename, need base URL
+                                    logger.warning(f"Got filename without URL: {first_img}")
+
+            # Format 5: output is the URL directly
             if isinstance(output, str) and output.startswith("http"):
                 return output
 
