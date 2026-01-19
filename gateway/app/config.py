@@ -109,11 +109,16 @@ class LoggingConfig:
 class ComfyUIConfig:
     """ComfyUI API configuration"""
     api_url: str
+    runpod_api_key: Optional[str] = None
 
     def validate(self) -> None:
         """Validate ComfyUI configuration"""
         if not self.api_url:
             raise ValueError("COMFYUI_API_URL must be set")
+
+    def is_runpod_serverless(self) -> bool:
+        """Check if this is a RunPod serverless endpoint"""
+        return "api.runpod.ai" in self.api_url or "runsync" in self.api_url
 
 
 class GatewayConfig:
@@ -158,7 +163,8 @@ class GatewayConfig:
         )
 
         self.comfyui = ComfyUIConfig(
-            api_url=os.getenv("COMFYUI_API_URL", "http://localhost:8188")
+            api_url=os.getenv("COMFYUI_API_URL", "http://localhost:8188"),
+            runpod_api_key=os.getenv("RUNPOD_API_KEY")
         )
 
     def validate_all(self) -> None:
