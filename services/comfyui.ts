@@ -185,26 +185,27 @@ export class ComfyUIService {
 
   /**
    * Build ComfyUI workflow JSON
+   * Optimized for high-quality POD print products
    */
   private buildWorkflow(workflow: ComfyUIWorkflow): any {
     const {
       prompt,
       seed = Math.floor(Math.random() * 1000000),
-      width = 1024,
-      height = 1024,
-      steps = 20,
-      cfg_scale = 7
+      width = 1536,    // Increased from 1024 for better print quality
+      height = 1536,   // Increased from 1024 for better print quality
+      steps = 35,      // Increased from 20 for sharper details
+      cfg_scale = 7.5  // Slightly increased for better prompt adherence
     } = workflow
 
-    // Basic SDXL workflow structure
+    // High-quality SDXL workflow structure optimized for POD
     return {
       "3": {
         "inputs": {
           "seed": seed,
           "steps": steps,
           "cfg": cfg_scale,
-          "sampler_name": "euler",
-          "scheduler": "normal",
+          "sampler_name": "dpmpp_2m",  // Changed from "euler" - better quality and detail
+          "scheduler": "karras",       // Changed from "normal" - better convergence
           "denoise": 1,
           "model": ["4", 0],
           "positive": ["6", 0],
@@ -236,7 +237,7 @@ export class ComfyUIService {
       },
       "7": {
         "inputs": {
-          "text": "text, watermark, low quality, worst quality",
+          "text": "blurry, blur, blurred, out of focus, unfocused, low quality, worst quality, low resolution, lowres, pixelated, jpeg artifacts, compression artifacts, watermark, text, signature, username, low detail, unclear, soft, hazy, fuzzy, distorted, deformed, ugly, bad anatomy, disfigured, poorly drawn, bad proportions, gross proportions",
           "clip": ["4", 1]
         },
         "class_type": "CLIPTextEncode"
