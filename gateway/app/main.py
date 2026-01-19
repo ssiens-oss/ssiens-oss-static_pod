@@ -171,16 +171,17 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
-    width: int = 4500,
-    height: int = 5400,
+    width: int = 2048,
+    height: int = 2560,
     steps: int = 28,
     cfg_scale: float = 3.5
 ) -> Dict[str, Any]:
     """
     Build a Flux workflow for ComfyUI optimized for t-shirt printing.
 
-    Default resolution: 4500x5400 (15"x18" at 300 DPI)
-    Perfect for print-on-demand apparel.
+    Default resolution: 2048x2560 (6.8"x8.5" at 300 DPI)
+    Balanced for GPU memory limits while maintaining print quality.
+    Can be upscaled 2x for larger prints if needed.
     """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
@@ -455,8 +456,8 @@ def generate_image():
     workflow = build_comfyui_workflow(
         full_prompt,
         seed=data.get("seed"),
-        width=data.get("width", 4500),
-        height=data.get("height", 5400),
+        width=data.get("width", 2048),
+        height=data.get("height", 2560),
         steps=data.get("steps", 28),
         cfg_scale=data.get("cfg_scale", 3.5)
     )
