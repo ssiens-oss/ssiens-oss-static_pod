@@ -46,6 +46,12 @@ class ImageMetadata:
     product_id: Optional[str] = None
     title: Optional[str] = None
     price_cents: Optional[int] = None
+    description: Optional[str] = None
+    prompt: Optional[str] = None
+    style: Optional[str] = None
+    genre: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
     error_message: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -65,6 +71,12 @@ class ImageMetadata:
             product_id=data.get("product_id"),
             title=data.get("title"),
             price_cents=data.get("price_cents"),
+            description=data.get("description"),
+            prompt=data.get("prompt"),
+            style=data.get("style"),
+            genre=data.get("genre"),
+            width=data.get("width"),
+            height=data.get("height"),
             error_message=data.get("error_message")
         )
 

@@ -235,6 +235,51 @@ def calculate_auto_price(width: int, height: int, base_price: int = 1999) -> int
         return 1499  # $14.99
 
 
+def generate_ai_description(prompt: str, title: str, style: str = "", genre: str = "") -> str:
+    """
+    Generate AI-powered product description for Printify.
+
+    Args:
+        prompt: Original image generation prompt
+        title: Generated title
+        style: Style descriptor
+        genre: Genre descriptor
+
+    Returns:
+        Marketing-friendly product description
+    """
+    # Build context
+    context_parts = [prompt]
+    if style:
+        context_parts.append(f"in {style} style")
+    if genre:
+        context_parts.append(f"of {genre} genre")
+
+    context = " ".join(context_parts)
+
+    # Generate a compelling marketing description
+    # Using template-based generation for speed (can be replaced with LLM API call)
+    description = f"""Transform your space with this stunning "{title}" design.
+
+🎨 Created from the vision: {context}
+
+Perfect for:
+• Home decor and wall art
+• Unique gifts that make an impression
+• Personal expression and style
+• Adding character to any room
+
+✨ High-quality print on premium materials
+🎯 Professional-grade image resolution
+💯 Satisfaction guaranteed
+
+This exclusive design captures {'the essence of ' + genre if genre else 'unique artistic expression'} with {'beautiful ' + style + ' styling' if style else 'exceptional attention to detail'}.
+
+Make it yours today and elevate your space with art that speaks to you."""
+
+    return description[:1000]  # Printify limit
+
+
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
@@ -483,17 +528,28 @@ def extract_runpod_images(
             try:
                 state_manager.add_image(image_id, filename, str(output_path))
 
-                # Generate and store title and price
+                # Generate and store title, price, and description
                 title = generate_auto_title(prompt, style, genre, idx + 1)
                 price_cents = calculate_auto_price(width, height)
+                description = generate_ai_description(prompt, title, style, genre)
 
                 state_manager.set_image_status(
                     image_id,
                     ImageStatus.PENDING.value,
-                    metadata={"title": title, "price_cents": price_cents}
+                    metadata={
+                        "title": title,
+                        "price_cents": price_cents,
+                        "description": description,
+                        "prompt": prompt,
+                        "style": style,
+                        "genre": genre,
+                        "width": width,
+                        "height": height
+                    }
                 )
                 logger.info(f"   Title: {title}")
                 logger.info(f"   Price: ${price_cents/100:.2f}")
+                logger.info(f"   Description: {description[:50]}...")
 
             except StateManagerError as e:
                 logger.warning(f"Failed to set metadata for {image_id}: {e}")
@@ -929,7 +985,7 @@ def publish_image(image_id):
     metadata = state_manager.get_image_metadata(image_id)
 
     # Use request title/price if provided, otherwise fall back to stored values
-    title = request_data.get("title") or (metadata.title if metadata else None) or f"Design {image_id[:8]}"
+    title = request_data.get("title") or (getattr(metadata, "title", None) if metadata else None) or f"Design {image_id[:8]}"
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
@@ -943,12 +999,13 @@ def publish_image(image_id):
 
     # Publish to Printify
     try:
-        description = request_data.get("description")
+        # Use request description if provided, otherwise stored description, otherwise use title
+        description = request_data.get("description") or (getattr(metadata, "description", None) if metadata else None) or title
 
         # Use request price if provided, otherwise stored price, otherwise default
         if request_data.get("price_cents"):
             price_cents = request_data.get("price_cents")
-        elif metadata and metadata.price_cents:
+        elif metadata and getattr(metadata, "price_cents", None):
             price_cents = metadata.price_cents
         else:
             price_cents = config.config.printify.default_price_cents
@@ -1076,6 +1133,262 @@ def health():
         return jsonify(health_status), 503
 
     return jsonify(health_status)
+
+
+# =================================================================
+# BULK ACTIONS API - Process multiple images at once
+# =================================================================
+
+@app.route('/api/bulk/approve', methods=['POST'])
+def bulk_approve():
+    """Bulk approve multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+            results["success"].append(image_id)
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+
+    return jsonify({
+        "success": True,
+        "approved": len(results["success"]),
+        "failed": len(results["failed"]),
+        "results": results
+    })
+
+
+@app.route('/api/bulk/reject', methods=['POST'])
+def bulk_reject():
+    """Bulk reject multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.REJECTED.value)
+            results["success"].append(image_id)
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+
+    return jsonify({
+        "success": True,
+        "rejected": len(results["success"]),
+        "failed": len(results["failed"]),
+        "results": results
+    })
+
+
+@app.route('/api/bulk/delete', methods=['POST'])
+def bulk_delete():
+    """Bulk delete multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            # Delete from state
+            state_manager.delete_image(image_id)
+
+            # Delete file
+            image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+            if os.path.exists(image_path):
+                os.remove(image_path)
+
+            results["success"].append(image_id)
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+
+    return jsonify({
+        "success": True,
+        "deleted": len(results["success"]),
+        "failed": len(results["failed"]),
+        "results": results
+    })
+
+
+# =================================================================
+# SEARCH & FILTER API
+# =================================================================
+
+@app.route('/api/search', methods=['GET'])
+def search_images():
+    """Search images by prompt, title, or metadata"""
+    query = request.args.get("q", "").lower()
+    status_filter = request.args.get("status")
+
+    if not query:
+        return jsonify({"images": []})
+
+    all_images = state_manager.get_all_images()
+    results = []
+
+    for img_id, data in all_images.items():
+        # Filter by status if specified
+        if status_filter and data.get("status") != status_filter:
+            continue
+
+        # Search in multiple fields
+        searchable_text = " ".join([
+            data.get("title", ""),
+            data.get("prompt", ""),
+            data.get("description", ""),
+            data.get("filename", ""),
+            data.get("style", ""),
+            data.get("genre", "")
+        ]).lower()
+
+        if query in searchable_text:
+            results.append({
+                "id": img_id,
+                "filename": data.get("filename"),
+                "title": data.get("title"),
+                "prompt": data.get("prompt"),
+                "status": data.get("status"),
+                "price_cents": data.get("price_cents"),
+                "created_at": data.get("created_at")
+            })
+
+    return jsonify({"images": results, "count": len(results)})
+
+
+# =================================================================
+# IMAGE OPERATIONS API - Regenerate, duplicate, export
+# =================================================================
+
+@app.route('/api/regenerate/<image_id>', methods=['POST'])
+def regenerate_image(image_id):
+    """Regenerate image with same parameters but new seed"""
+    metadata = state_manager.get_image_metadata(image_id)
+
+    if not metadata:
+        return jsonify({"success": False, "error": "Image not found"}), 404
+
+    # Extract generation parameters
+    prompt = getattr(metadata, "prompt", None)
+    style = getattr(metadata, "style", None) or ""
+    genre = getattr(metadata, "genre", None) or ""
+    width = getattr(metadata, "width", None) or 2048
+    height = getattr(metadata, "height", None) or 2048
+
+    if not prompt:
+        return jsonify({"success": False, "error": "No prompt found in metadata"}), 400
+
+    # Trigger new generation
+    return jsonify({
+        "success": True,
+        "message": "Use /api/generate with these parameters",
+        "parameters": {
+            "prompt": prompt,
+            "style": style,
+            "genre": genre,
+            "width": width,
+            "height": height
+        }
+    })
+
+
+@app.route('/api/export', methods=['GET'])
+def export_metadata():
+    """Export all image metadata as JSON"""
+    format_type = request.args.get("format", "json")
+
+    all_images = state_manager.get_all_images()
+
+    if format_type == "csv":
+        # Generate CSV
+        import csv
+        import io
+
+        output = io.StringIO()
+        if all_images:
+            fieldnames = list(next(iter(all_images.values())).keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for img_id, data in all_images.items():
+                row = {"id": img_id, **data}
+                writer.writerow(row)
+
+        return output.getvalue(), 200, {"Content-Type": "text/csv", "Content-Disposition": "attachment; filename=images.csv"}
+    else:
+        # Return JSON
+        return jsonify({"images": all_images, "count": len(all_images)})
+
+
+# =================================================================
+# ADVANCED STATISTICS API
+# =================================================================
+
+@app.route('/api/statistics/detailed', methods=['GET'])
+def detailed_statistics():
+    """Get detailed statistics about images"""
+    all_images = state_manager.get_all_images()
+
+    # Calculate stats
+    total = len(all_images)
+    by_status = {}
+    by_style = {}
+    by_genre = {}
+    total_value = 0
+    resolution_distribution = {"1K": 0, "2K": 0, "8x10": 0, "11x14": 0, "other": 0}
+
+    for img_id, data in all_images.items():
+        # Status distribution
+        status = data.get("status", "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
+
+        # Style distribution
+        style = data.get("style", "none")
+        by_style[style] = by_style.get(style, 0) + 1
+
+        # Genre distribution
+        genre = data.get("genre", "none")
+        by_genre[genre] = by_genre.get(genre, 0) + 1
+
+        # Total value
+        price = data.get("price_cents", 0)
+        if price:
+            total_value += price
+
+        # Resolution distribution
+        width = data.get("width", 0)
+        height = data.get("height", 0)
+        if width and height:
+            megapixels = (width * height) / 1_000_000
+            if megapixels >= 8:
+                resolution_distribution["11x14"] += 1
+            elif megapixels >= 6:
+                resolution_distribution["8x10"] += 1
+            elif megapixels >= 3:
+                resolution_distribution["2K"] += 1
+            elif megapixels >= 1:
+                resolution_distribution["1K"] += 1
+            else:
+                resolution_distribution["other"] += 1
+
+    return jsonify({
+        "total_images": total,
+        "by_status": by_status,
+        "by_style": by_style,
+        "by_genre": by_genre,
+        "total_value_cents": total_value,
+        "total_value_usd": f"${total_value/100:.2f}",
+        "resolution_distribution": resolution_distribution
+    })
 
 
 @app.errorhandler(404)

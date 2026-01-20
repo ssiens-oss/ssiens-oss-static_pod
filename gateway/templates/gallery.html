@@ -493,6 +493,46 @@
         </div>
     </div>
 
+    <!-- Bulk Actions & Search Toolbar -->
+    <div style="background: #1a1a1a; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333;">
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <!-- Search Bar -->
+            <input type="text" id="search-input" placeholder="🔍 Search by title, prompt, style..."
+                style="flex: 1; min-width: 250px; padding: 10px 15px; background: #0a0a0a; border: 1px solid #444; border-radius: 8px; color: #fff; font-size: 14px;">
+
+            <!-- Bulk Selection -->
+            <button type="button" id="select-all-btn" class="btn" style="background: #444; border: none; padding: 10px 15px;">
+                ☑ Select All
+            </button>
+            <button type="button" id="deselect-all-btn" class="btn" style="background: #444; border: none; padding: 10px 15px;">
+                ☐ Deselect All
+            </button>
+
+            <!-- Bulk Actions -->
+            <div id="bulk-actions" style="display: none; gap: 10px; flex-wrap: wrap;">
+                <button type="button" id="bulk-approve-btn" class="btn btn-approve" style="padding: 10px 15px;">
+                    ✓ Approve (<span id="selected-count">0</span>)
+                </button>
+                <button type="button" id="bulk-reject-btn" class="btn btn-reject" style="padding: 10px 15px;">
+                    ✗ Reject (<span id="selected-count-2">0</span>)
+                </button>
+                <button type="button" id="bulk-delete-btn" class="btn" style="background: #dc2626; padding: 10px 15px;">
+                    🗑 Delete (<span id="selected-count-3">0</span>)
+                </button>
+            </div>
+
+            <!-- Export Button -->
+            <button type="button" id="export-btn" class="btn" style="background: #10b981; padding: 10px 15px; margin-left: auto;">
+                📥 Export Data
+            </button>
+
+            <!-- Stats Button -->
+            <button type="button" id="stats-btn" class="btn" style="background: #3b82f6; padding: 10px 15px;">
+                📊 Stats
+            </button>
+        </div>
+    </div>
+
     <div class="prompter">
         <div class="prompter-header">
             <div>
@@ -710,6 +750,7 @@
         let currentPromptId = null;
         let statusInterval = null;
         let pendingPublishId = null;
+        let selectedImages = new Set();  // Track selected image IDs
 
         const prompterStatus = document.getElementById('prompter-status');
         const prompterDetail = document.getElementById('prompter-detail');
@@ -868,7 +909,9 @@
             }
 
             gallery.innerHTML = filtered.map(img => `
-                <div class="card" data-status="${img.status}">
+                <div class="card" data-status="${img.status}" data-id="${img.id}">
+                    <input type="checkbox" class="image-checkbox" data-id="${img.id}" ${selectedImages.has(img.id) ? 'checked' : ''}
+                        style="position: absolute; top: 10px; left: 10px; width: 20px; height: 20px; cursor: pointer; z-index: 10;">
                     <img src="${img.path}" class="card-image" alt="${img.filename}" data-action="preview" data-id="${img.id}">
                     <div class="card-body">
                         <div class="card-title">${img.title || img.filename}</div>
@@ -1169,6 +1212,174 @@
                 setPrompterDetail(err.message || 'Unable to reach server');
             } finally {
                 prompterSubmit.disabled = false;
+            }
+        });
+
+        // =================================================================
+        // BULK ACTIONS & ADVANCED FEATURES
+        // =================================================================
+
+        // Update selected count displays
+        function updateSelectedCount() {
+            const count = selectedImages.size;
+            document.getElementById('selected-count').textContent = count;
+            document.getElementById('selected-count-2').textContent = count;
+            document.getElementById('selected-count-3').textContent = count;
+            document.getElementById('bulk-actions').style.display = count > 0 ? 'flex' : 'none';
+        }
+
+        // Checkbox change handler
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('image-checkbox')) {
+                const id = e.target.dataset.id;
+                if (e.target.checked) {
+                    selectedImages.add(id);
+                } else {
+                    selectedImages.delete(id);
+                }
+                updateSelectedCount();
+            }
+        });
+
+        // Select All
+        document.getElementById('select-all-btn').addEventListener('click', () => {
+            images.forEach(img => selectedImages.add(img.id));
+            updateSelectedCount();
+            renderGallery();
+        });
+
+        // Deselect All
+        document.getElementById('deselect-all-btn').addEventListener('click', () => {
+            selectedImages.clear();
+            updateSelectedCount();
+            renderGallery();
+        });
+
+        // Bulk Approve
+        document.getElementById('bulk-approve-btn').addEventListener('click', async () => {
+            if (selectedImages.size === 0) return;
+            if (!confirm(`Approve ${selectedImages.size} images?`)) return;
+
+            const res = await fetch('/api/bulk/approve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image_ids: Array.from(selectedImages)})
+            });
+
+            const data = await res.json();
+            alert(`Approved: ${data.approved}, Failed: ${data.failed}`);
+            selectedImages.clear();
+            updateSelectedCount();
+            await loadImages();
+        });
+
+        // Bulk Reject
+        document.getElementById('bulk-reject-btn').addEventListener('click', async () => {
+            if (selectedImages.size === 0) return;
+            if (!confirm(`Reject ${selectedImages.size} images?`)) return;
+
+            const res = await fetch('/api/bulk/reject', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image_ids: Array.from(selectedImages)})
+            });
+
+            const data = await res.json();
+            alert(`Rejected: ${data.rejected}, Failed: ${data.failed}`);
+            selectedImages.clear();
+            updateSelectedCount();
+            await loadImages();
+        });
+
+        // Bulk Delete
+        document.getElementById('bulk-delete-btn').addEventListener('click', async () => {
+            if (selectedImages.size === 0) return;
+            if (!confirm(`DELETE ${selectedImages.size} images permanently? This cannot be undone!`)) return;
+
+            const res = await fetch('/api/bulk/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image_ids: Array.from(selectedImages)})
+            });
+
+            const data = await res.json();
+            alert(`Deleted: ${data.deleted}, Failed: ${data.failed}`);
+            selectedImages.clear();
+            updateSelectedCount();
+            await loadImages();
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('search-input');
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const query = searchInput.value.trim();
+                if (!query) {
+                    await loadImages();
+                    return;
+                }
+
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                images = data.images.map(img => ({
+                    id: img.id,
+                    filename: img.filename,
+                    path: `/api/image/${img.id}`,
+                    status: img.status,
+                    title: img.title,
+                    price_cents: img.price_cents
+                }));
+                renderGallery();
+                updateStats();
+            }, 300);
+        });
+
+        // Export functionality
+        document.getElementById('export-btn').addEventListener('click', () => {
+            const format = prompt('Export format? (json or csv)', 'json');
+            if (!format) return;
+            window.open(`/api/export?format=${format}`, '_blank');
+        });
+
+        // Stats modal
+        document.getElementById('stats-btn').addEventListener('click', async () => {
+            const res = await fetch('/api/statistics/detailed');
+            const data = await res.json();
+
+            const statsText = `
+📊 DETAILED STATISTICS
+
+Total Images: ${data.total_images}
+Total Value: ${data.total_value_usd}
+
+By Status:
+${Object.entries(data.by_status).map(([k,v]) => `  ${k}: ${v}`).join('\n')}
+
+By Style:
+${Object.entries(data.by_style).slice(0, 5).map(([k,v]) => `  ${k}: ${v}`).join('\n')}
+
+By Genre:
+${Object.entries(data.by_genre).slice(0, 5).map(([k,v]) => `  ${k}: ${v}`).join('\n')}
+
+Resolution Distribution:
+${Object.entries(data.resolution_distribution).map(([k,v]) => `  ${k}: ${v}`).join('\n')}
+            `.trim();
+
+            alert(statsText);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + A = Select All
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                document.getElementById('select-all-btn').click();
+            }
+            // Escape = Deselect All
+            if (e.key === 'Escape' && selectedImages.size > 0) {
+                document.getElementById('deselect-all-btn').click();
             }
         });
 
