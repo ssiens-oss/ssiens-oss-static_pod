@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POD Gateway - Design Approval</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #222;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            font-size: 2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            padding: 10px 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .toolbar {
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-box {
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            min-width: 250px;
+        }
+
+        .select-box {
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 0.9em;
+        }
+
+        .prompter {
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .prompter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .prompter-header h2 {
+            font-size: 1.1em;
+            color: #fff;
+        }
+
+        .prompter-header p {
+            font-size: 0.85em;
+            color: #9ca3af;
+        }
+
+        .prompter-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .prompter textarea,
+        .prompter select {
+            width: 100%;
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 0.9em;
+        }
+
+        .prompter textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .prompter label {
+            font-size: 0.75em;
+            color: #9ca3af;
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .prompter-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .prompter-actions button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .prompter-actions button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .prompter-status {
+            font-size: 0.85em;
+            color: #9ca3af;
+        }
+
+        .prompter-status.error {
+            color: #f87171;
+        }
+
+        .prompter-status.success {
+            color: #34d399;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #2a2a2a;
+            border-color: #667eea;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+
+        .bulk-actions {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .bulk-actions.active {
+            display: flex;
+        }
+
+        .bulk-actions-info {
+            font-size: 0.9em;
+            color: #888;
+            margin-right: auto;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+        }
+
+        .card.selected {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .card-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 10;
+            accent-color: #667eea;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            background: #0a0a0a;
+            cursor: pointer;
+        }
+
+        .card-body {
+            padding: 15px;
+        }
+
+        .card-title {
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .card-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .status-pending {
+            background: #333;
+            color: #fff;
+        }
+
+        .status-approved {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .status-rejected {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .status-published {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .status-publishing {
+            background: #f59e0b;
+            color: #fff;
+        }
+
+        .status-failed {
+            background: #991b1b;
+            color: #fff;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85em;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .btn-approve:hover {
+            background: #059669;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .btn-reject:hover {
+            background: #dc2626;
+        }
+
+        .btn-publish {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .btn-publish:hover {
+            background: #2563eb;
+        }
+
+        .btn-delete {
+            background: #991b1b;
+            color: #fff;
+        }
+
+        .btn-delete:hover {
+            background: #7f1d1d;
+        }
+
+        .btn-download {
+            background: #6b7280;
+            color: #fff;
+        }
+
+        .btn-download:hover {
+            background: #4b5563;
+        }
+
+        .btn-reset {
+            background: #6b7280;
+            color: #fff;
+        }
+
+        .btn-reset:hover {
+            background: #4b5563;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            width: min(640px, 95vw);
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .modal-header h2 {
+            font-size: 1.2em;
+            margin-bottom: 6px;
+        }
+
+        .modal-header p {
+            font-size: 0.9em;
+            color: #9ca3af;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #2a2a2a;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .modal input,
+        .modal textarea,
+        .modal select {
+            width: 100%;
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 0.9em;
+        }
+
+        .modal textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .modal label {
+            font-size: 0.75em;
+            color: #9ca3af;
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-actions .btn {
+            flex: 0 0 auto;
+            min-width: 120px;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #0a0a0a;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+            max-width: 400px;
+        }
+
+        .notification.success {
+            border-color: #10b981;
+        }
+
+        .notification.error {
+            border-color: #ef4444;
+        }
+
+        .notification.info {
+            border-color: #3b82f6;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .settings-panel {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .prompter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 POD Gateway</h1>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Total</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value" id="stat-pending">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Approved</div>
+                <div class="stat-value" id="stat-approved">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Published</div>
+                <div class="stat-value" id="stat-published">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-section">
+            <input type="text" id="search-box" class="search-box" placeholder="🔍 Search images...">
+        </div>
+        <div class="toolbar-section">
+            <select id="sort-select" class="select-box">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+            </select>
+        </div>
+        <div class="toolbar-section settings-panel">
+            <label for="auto-refresh-toggle">Auto-refresh:</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="auto-refresh-toggle" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="toolbar-section">
+            <button class="filter-btn" onclick="selectAll()">✓ Select All</button>
+            <button class="filter-btn" onclick="deselectAll()">✗ Deselect All</button>
+        </div>
+    </div>
+
+    <div class="prompter">
+        <div class="prompter-header">
+            <div>
+                <h2>🎨 ComfyUI Prompter</h2>
+                <p>Queue RunPod generations with style + genre guidance.</p>
+            </div>
+            <div class="prompter-status" id="prompter-status">Idle • Awaiting prompt</div>
+        </div>
+        <form id="prompter-form">
+            <div class="prompter-grid">
+                <div>
+                    <label for="prompt-input">Prompt</label>
+                    <textarea id="prompt-input" placeholder="Describe the design you'd like to generate..."></textarea>
+                </div>
+                <div>
+                    <label for="prompt-style">Style</label>
+                    <select id="prompt-style">
+                        <option value="">Any style</option>
+                        <option value="minimalist">Minimalist</option>
+                        <option value="vintage">Vintage</option>
+                        <option value="retro">Retro</option>
+                        <option value="watercolor">Watercolor</option>
+                        <option value="vector art">Vector art</option>
+                        <option value="line art">Line art</option>
+                        <option value="pop art">Pop art</option>
+                        <option value="cyberpunk">Cyberpunk</option>
+                        <option value="grunge">Grunge</option>
+                        <option value="surreal">Surreal</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="prompt-genre">Genre</label>
+                    <select id="prompt-genre">
+                        <option value="">Any genre</option>
+                        <option value="nature">Nature</option>
+                        <option value="fantasy">Fantasy</option>
+                        <option value="sci-fi">Sci-Fi</option>
+                        <option value="typography">Typography</option>
+                        <option value="streetwear">Streetwear</option>
+                        <option value="sports">Sports</option>
+                        <option value="music">Music</option>
+                        <option value="gaming">Gaming</option>
+                        <option value="holiday">Holiday</option>
+                        <option value="motivational">Motivational</option>
+                    </select>
+                </div>
+            </div>
+            <div class="prompter-actions">
+                <button type="submit" id="prompter-submit">Generate with ComfyUI</button>
+                <span class="prompter-status" id="prompter-detail">Waiting for submission.</span>
+            </div>
+        </form>
+    </div>
+
+    <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pending">Pending</button>
+        <button class="filter-btn" data-filter="approved">Approved</button>
+        <button class="filter-btn" data-filter="published">Published</button>
+        <button class="filter-btn" data-filter="rejected">Rejected</button>
+        <button class="filter-btn" data-filter="failed">Failed</button>
+    </div>
+
+    <div class="bulk-actions" id="bulk-actions">
+        <div class="bulk-actions-info">
+            <strong id="selected-count">0</strong> items selected
+        </div>
+        <button class="btn btn-approve" onclick="bulkApprove()">✓ Approve</button>
+        <button class="btn btn-reject" onclick="bulkReject()">✗ Reject</button>
+        <button class="btn btn-publish" onclick="bulkPublish()">→ Publish All</button>
+        <button class="btn btn-download" onclick="bulkDownload()">⬇ Download</button>
+        <button class="btn btn-delete" onclick="bulkDelete()">🗑 Delete</button>
+    </div>
+
+    <div class="gallery" id="gallery">
+        <div class="loading">Loading images...</div>
+    </div>
+
+    <!-- Publish Modal -->
+    <div class="modal" id="publish-modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="publish-title">
+            <div class="modal-header">
+                <div>
+                    <h2 id="publish-title">Publish to Printify</h2>
+                    <p>Fine-tune product details before sending to your Printify store.</p>
+                </div>
+                <button class="icon-btn" id="publish-close" type="button">✕</button>
+            </div>
+            <form id="publish-form">
+                <div>
+                    <label for="publish-title-input">Product title</label>
+                    <input id="publish-title-input" type="text" placeholder="Design Title" required>
+                </div>
+                <div>
+                    <label for="publish-description">Description</label>
+                    <textarea id="publish-description" placeholder="Optional product description for Printify/Shopify"></textarea>
+                </div>
+                <div class="modal-grid">
+                    <div>
+                        <label for="publish-preset">Product preset</label>
+                        <select id="publish-preset">
+                            <option value="default">Use gateway defaults</option>
+                            <option value="tshirt">T-Shirt (Blueprint 3, Provider 99)</option>
+                            <option value="hoodie">Hoodie (Blueprint 165, Provider 99)</option>
+                            <option value="custom">Custom blueprint/provider</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="publish-price">Price (USD)</label>
+                        <input id="publish-price" type="number" step="0.01" min="0" placeholder="Leave blank for default">
+                    </div>
+                    <div>
+                        <label for="publish-blueprint">Blueprint ID</label>
+                        <input id="publish-blueprint" type="number" min="1" placeholder="e.g. 3">
+                    </div>
+                    <div>
+                        <label for="publish-provider">Provider ID</label>
+                        <input id="publish-provider" type="number" min="1" placeholder="e.g. 99">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-reset" type="button" id="publish-cancel">Cancel</button>
+                    <button class="btn btn-publish" type="submit" id="publish-submit">Publish Now</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal" id="preview-modal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2 id="preview-title">Image Preview</h2>
+                    <p id="preview-filename"></p>
+                </div>
+                <button class="icon-btn" id="preview-close" type="button">✕</button>
+            </div>
+            <img id="preview-image" class="preview-image" src="" alt="Preview">
+            <div class="modal-actions">
+                <button class="btn btn-download" onclick="downloadCurrent()">⬇ Download</button>
+                <button class="btn btn-reset" onclick="closePreview()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFilter = 'all';
+        let images = [];
+        let selectedImages = new Set();
+        let currentPromptId = null;
+        let statusInterval = null;
+        let autoRefreshInterval = null;
+        let pendingPublishId = null;
+        let searchQuery = '';
+        let sortOrder = 'newest';
+
+        const prompterStatus = document.getElementById('prompter-status');
+        const prompterDetail = document.getElementById('prompter-detail');
+        const prompterSubmit = document.getElementById('prompter-submit');
+        const prompterForm = document.getElementById('prompter-form');
+        const promptInput = document.getElementById('prompt-input');
+        const promptStyle = document.getElementById('prompt-style');
+        const promptGenre = document.getElementById('prompt-genre');
+        const publishModal = document.getElementById('publish-modal');
+        const publishForm = document.getElementById('publish-form');
+        const publishTitleInput = document.getElementById('publish-title-input');
+        const publishDescription = document.getElementById('publish-description');
+        const publishPreset = document.getElementById('publish-preset');
+        const publishPrice = document.getElementById('publish-price');
+        const publishBlueprint = document.getElementById('publish-blueprint');
+        const publishProvider = document.getElementById('publish-provider');
+        const publishSubmit = document.getElementById('publish-submit');
+        const previewModal = document.getElementById('preview-modal');
+        const previewImage = document.getElementById('preview-image');
+        const previewTitle = document.getElementById('preview-title');
+        const previewFilename = document.getElementById('preview-filename');
+        const searchBox = document.getElementById('search-box');
+        const sortSelect = document.getElementById('sort-select');
+        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+        const bulkActions = document.getElementById('bulk-actions');
+        const selectedCount = document.getElementById('selected-count');
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notif = document.createElement('div');
+            notif.className = `notification ${type}`;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        // Prompter functions
+        function setPrompterStatus(message, state = '') {
+            prompterStatus.textContent = message;
+            prompterStatus.classList.remove('error', 'success');
+            if (state) {
+                prompterStatus.classList.add(state);
+            }
+        }
+
+        function setPrompterDetail(message) {
+            prompterDetail.textContent = message;
+        }
+
+        async function pollGenerationStatus() {
+            if (!currentPromptId) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/generation_status?prompt_id=${currentPromptId}`);
+                if (!res.ok) {
+                    setPrompterStatus('Status check failed', 'error');
+                    return;
+                }
+
+                const data = await res.json();
+                const history = data.history || {};
+                const entry = history[currentPromptId];
+                if (!entry) {
+                    return;
+                }
+
+                const statusInfo = entry.status || {};
+                if (statusInfo.completed) {
+                    setPrompterStatus('Generation complete', 'success');
+                    setPrompterDetail(`Prompt ${currentPromptId} finished. Downloaded ${data.downloaded?.length || 0} image(s).`);
+                    showNotification('Image generation completed!', 'success');
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                    currentPromptId = null;
+                    await loadImages();
+                    return;
+                }
+
+                if (statusInfo.status_str === 'error') {
+                    setPrompterStatus('Generation failed', 'error');
+                    setPrompterDetail(`Prompt ${currentPromptId} failed.`);
+                    showNotification('Image generation failed', 'error');
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                    currentPromptId = null;
+                    return;
+                }
+
+                setPrompterStatus('Generation in progress');
+                setPrompterDetail(`Prompt ${currentPromptId} running...`);
+            } catch (err) {
+                console.error('Status polling failed:', err);
+            }
+        }
+
+        // Load images
+        async function loadImages() {
+            try {
+                const res = await fetch('/api/images');
+                const data = await res.json();
+                images = data.images || [];
+                renderGallery();
+                updateStats();
+            } catch (e) {
+                console.error('Failed to load images:', e);
+                showNotification('Failed to load images', 'error');
+            }
+        }
+
+        // Update stats
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                document.getElementById('stat-total').textContent = images.length;
+                document.getElementById('stat-pending').textContent = stats.pending || 0;
+                document.getElementById('stat-approved').textContent = stats.approved || 0;
+                document.getElementById('stat-published').textContent = stats.published || 0;
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        // Render gallery
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            let filtered = [...images];
+
+            // Apply search filter
+            if (searchQuery) {
+                filtered = filtered.filter(img =>
+                    img.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    img.id.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }
+
+            // Apply status filter
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(img => img.status === currentFilter);
+            }
+
+            // Apply sort
+            filtered.sort((a, b) => {
+                switch (sortOrder) {
+                    case 'oldest':
+                        return a.filename.localeCompare(b.filename);
+                    case 'name-asc':
+                        return a.filename.localeCompare(b.filename);
+                    case 'name-desc':
+                        return b.filename.localeCompare(a.filename);
+                    case 'newest':
+                    default:
+                        return b.filename.localeCompare(a.filename);
+                }
+            });
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '<div class="loading">No images found</div>';
+                return;
+            }
+
+            gallery.innerHTML = filtered.map(img => `
+                <div class="card ${selectedImages.has(img.id) ? 'selected' : ''}" data-status="${img.status}" data-id="${img.id}">
+                    <input type="checkbox" class="card-checkbox"
+                           data-id="${img.id}"
+                           ${selectedImages.has(img.id) ? 'checked' : ''}
+                           onchange="toggleSelection('${img.id}')">
+                    <img src="${img.path}" class="card-image" alt="${img.filename}" onclick="openPreview('${img.id}', '${img.path}', '${img.filename}')">
+                    <div class="card-body">
+                        <div class="card-title">${img.filename}</div>
+                        <div class="card-status status-${img.status}">${img.status}</div>
+                        <div class="card-actions">
+                            ${getActions(img)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            attachEventListeners();
+            updateBulkActionsBar();
+        }
+
+        // Get action buttons based on status
+        function getActions(img) {
+            const download = `<button class="btn btn-download" onclick="downloadImage('${img.id}')">⬇</button>`;
+
+            switch (img.status) {
+                case 'pending':
+                    return `
+                        <button class="btn btn-approve" data-action="approve" data-id="${img.id}">✓ Approve</button>
+                        <button class="btn btn-reject" data-action="reject" data-id="${img.id}">✗ Reject</button>
+                        ${download}
+                    `;
+                case 'approved':
+                    return `
+                        <button class="btn btn-publish" data-action="publish" data-id="${img.id}">→ Publish</button>
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺</button>
+                        ${download}
+                    `;
+                case 'published':
+                    return `
+                        <div style="color: #10b981; text-align: center; flex: 1;">✓ Live on Printify</div>
+                        ${download}
+                    `;
+                case 'rejected':
+                    return `
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
+                        ${download}
+                    `;
+                case 'failed':
+                    return `
+                        <button class="btn btn-publish" data-action="publish" data-id="${img.id}">↻ Retry</button>
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺</button>
+                        ${download}
+                    `;
+                default:
+                    return download;
+            }
+        }
+
+        // Attach event listeners
+        function attachEventListeners() {
+            document.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', handleAction);
+            });
+        }
+
+        // Handle button actions
+        async function handleAction(e) {
+            const action = e.target.dataset.action;
+            const id = e.target.dataset.id;
+
+            if (action === 'publish') {
+                openPublishModal(id);
+                return;
+            }
+
+            e.target.disabled = true;
+
+            try {
+                const res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
+
+                if (res.ok) {
+                    showNotification(`Image ${action}d successfully`, 'success');
+                    await loadImages();
+                } else {
+                    const error = await res.json();
+                    showNotification(`Error: ${error.error || 'Unknown error'}`, 'error');
+                    e.target.disabled = false;
+                }
+            } catch (err) {
+                showNotification(`Failed: ${err.message}`, 'error');
+                e.target.disabled = false;
+            }
+        }
+
+        // Selection functions
+        function toggleSelection(id) {
+            if (selectedImages.has(id)) {
+                selectedImages.delete(id);
+            } else {
+                selectedImages.add(id);
+            }
+            updateBulkActionsBar();
+            renderGallery();
+        }
+
+        function selectAll() {
+            const filtered = getFilteredImages();
+            filtered.forEach(img => selectedImages.add(img.id));
+            updateBulkActionsBar();
+            renderGallery();
+        }
+
+        function deselectAll() {
+            selectedImages.clear();
+            updateBulkActionsBar();
+            renderGallery();
+        }
+
+        function getFilteredImages() {
+            let filtered = [...images];
+            if (searchQuery) {
+                filtered = filtered.filter(img =>
+                    img.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    img.id.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(img => img.status === currentFilter);
+            }
+            return filtered;
+        }
+
+        function updateBulkActionsBar() {
+            selectedCount.textContent = selectedImages.size;
+            if (selectedImages.size > 0) {
+                bulkActions.classList.add('active');
+            } else {
+                bulkActions.classList.remove('active');
+            }
+        }
+
+        // Bulk operations
+        async function bulkApprove() {
+            if (!confirm(`Approve ${selectedImages.size} images?`)) return;
+            await bulkAction('approve');
+        }
+
+        async function bulkReject() {
+            if (!confirm(`Reject ${selectedImages.size} images?`)) return;
+            await bulkAction('reject');
+        }
+
+        async function bulkDelete() {
+            if (!confirm(`Delete ${selectedImages.size} images? This cannot be undone!`)) return;
+            showNotification('Bulk delete not yet implemented', 'info');
+        }
+
+        async function bulkPublish() {
+            const approvedImages = [...selectedImages].filter(id => {
+                const img = images.find(i => i.id === id);
+                return img && img.status === 'approved';
+            });
+
+            if (approvedImages.length === 0) {
+                showNotification('No approved images selected for publishing', 'error');
+                return;
+            }
+
+            if (!confirm(`Publish ${approvedImages.length} approved images to Printify?`)) return;
+
+            for (const id of approvedImages) {
+                try {
+                    const img = images.find(i => i.id === id);
+                    const res = await fetch(`/api/publish/${id}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            title: `Design ${id.substring(0, 8)}`
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const error = await res.json();
+                        showNotification(`Failed to publish ${id}: ${error.error}`, 'error');
+                    }
+                } catch (err) {
+                    showNotification(`Error publishing ${id}: ${err.message}`, 'error');
+                }
+            }
+
+            showNotification(`Bulk publish completed`, 'success');
+            deselectAll();
+            await loadImages();
+        }
+
+        async function bulkDownload() {
+            showNotification(`Downloading ${selectedImages.size} images...`, 'info');
+            for (const id of selectedImages) {
+                await downloadImage(id);
+            }
+            showNotification('Download completed', 'success');
+        }
+
+        async function bulkAction(action) {
+            let success = 0;
+            let failed = 0;
+
+            for (const id of selectedImages) {
+                try {
+                    const res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
+                    if (res.ok) {
+                        success++;
+                    } else {
+                        failed++;
+                    }
+                } catch (err) {
+                    failed++;
+                }
+            }
+
+            showNotification(`Bulk ${action}: ${success} succeeded, ${failed} failed`, success > 0 ? 'success' : 'error');
+            deselectAll();
+            await loadImages();
+        }
+
+        // Download functions
+        async function downloadImage(id) {
+            const img = images.find(i => i.id === id);
+            if (!img) return;
+
+            const link = document.createElement('a');
+            link.href = img.path;
+            link.download = img.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function downloadCurrent() {
+            const id = previewImage.dataset.currentId;
+            if (id) downloadImage(id);
+        }
+
+        // Preview modal
+        function openPreview(id, path, filename) {
+            previewImage.src = path;
+            previewImage.dataset.currentId = id;
+            previewFilename.textContent = filename;
+            previewModal.classList.add('active');
+            previewModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closePreview() {
+            previewModal.classList.remove('active');
+            previewModal.setAttribute('aria-hidden', 'true');
+        }
+
+        document.getElementById('preview-close').addEventListener('click', closePreview);
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) closePreview();
+        });
+
+        // Publish modal
+        function openPublishModal(id) {
+            pendingPublishId = id;
+            publishTitleInput.value = `Design ${id.substring(0, 8)}`;
+            publishDescription.value = '';
+            publishPrice.value = '';
+            publishPreset.value = 'default';
+            publishBlueprint.value = '';
+            publishProvider.value = '';
+            updatePresetFields();
+            publishModal.classList.add('active');
+            publishModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closePublishModal() {
+            pendingPublishId = null;
+            publishModal.classList.remove('active');
+            publishModal.setAttribute('aria-hidden', 'true');
+            publishSubmit.disabled = false;
+        }
+
+        function updatePresetFields() {
+            const preset = publishPreset.value;
+            const presets = {
+                tshirt: { blueprint: 3, provider: 99 },
+                hoodie: { blueprint: 165, provider: 99 }
+            };
+
+            if (preset === 'tshirt' || preset === 'hoodie') {
+                publishBlueprint.value = presets[preset].blueprint;
+                publishProvider.value = presets[preset].provider;
+                publishBlueprint.readOnly = true;
+                publishProvider.readOnly = true;
+            } else if (preset === 'custom') {
+                publishBlueprint.readOnly = false;
+                publishProvider.readOnly = false;
+            } else {
+                publishBlueprint.value = '';
+                publishProvider.value = '';
+                publishBlueprint.readOnly = true;
+                publishProvider.readOnly = true;
+            }
+        }
+
+        publishPreset.addEventListener('change', updatePresetFields);
+        document.getElementById('publish-close').addEventListener('click', closePublishModal);
+        document.getElementById('publish-cancel').addEventListener('click', closePublishModal);
+        publishModal.addEventListener('click', (e) => {
+            if (e.target === publishModal) closePublishModal();
+        });
+
+        publishForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!pendingPublishId) return;
+
+            const payload = {
+                title: publishTitleInput.value.trim(),
+            };
+
+            if (publishDescription.value.trim()) {
+                payload.description = publishDescription.value.trim();
+            }
+
+            const priceValue = parseFloat(publishPrice.value);
+            if (!Number.isNaN(priceValue)) {
+                payload.price_cents = Math.round(priceValue * 100);
+            }
+
+            const blueprintValue = parseInt(publishBlueprint.value, 10);
+            const providerValue = parseInt(publishProvider.value, 10);
+            if (!Number.isNaN(blueprintValue)) {
+                payload.blueprint_id = blueprintValue;
+            }
+            if (!Number.isNaN(providerValue)) {
+                payload.provider_id = providerValue;
+            }
+
+            if (!payload.title) {
+                showNotification('Product title is required', 'error');
+                return;
+            }
+
+            publishSubmit.disabled = true;
+
+            try {
+                const res = await fetch(`/api/publish/${pendingPublishId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    showNotification('Published successfully!', 'success');
+                    closePublishModal();
+                    await loadImages();
+                } else {
+                    const error = await res.json();
+                    showNotification(`Error: ${error.error || 'Unknown error'}`, 'error');
+                    publishSubmit.disabled = false;
+                }
+            } catch (err) {
+                showNotification(`Failed: ${err.message}`, 'error');
+                publishSubmit.disabled = false;
+            }
+        });
+
+        // Prompter form
+        prompterForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const prompt = promptInput.value.trim();
+            const style = promptStyle.value;
+            const genre = promptGenre.value;
+
+            if (!prompt) {
+                setPrompterStatus('Prompt is required', 'error');
+                setPrompterDetail('Please enter a prompt before generating.');
+                return;
+            }
+
+            prompterSubmit.disabled = true;
+            setPrompterStatus('Submitting prompt...');
+            setPrompterDetail('Queueing ComfyUI generation.');
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, style, genre })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to queue prompt');
+                }
+
+                currentPromptId = data.prompt_id;
+                setPrompterStatus('Queued', 'success');
+                setPrompterDetail(`Prompt queued: ${currentPromptId}`);
+                showNotification('Generation started', 'info');
+
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                }
+                statusInterval = setInterval(pollGenerationStatus, 2000);
+            } catch (err) {
+                setPrompterStatus('Queue failed', 'error');
+                setPrompterDetail(err.message || 'Unable to reach ComfyUI.');
+                showNotification('Failed to start generation', 'error');
+            } finally {
+                prompterSubmit.disabled = false;
+            }
+        });
+
+        // Filter buttons
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderGallery();
+            });
+        });
+
+        // Search and sort
+        searchBox.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            renderGallery();
+        });
+
+        sortSelect.addEventListener('change', (e) => {
+            sortOrder = e.target.value;
+            renderGallery();
+        });
+
+        // Auto-refresh toggle
+        autoRefreshToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                autoRefreshInterval = setInterval(loadImages, 10000);
+                showNotification('Auto-refresh enabled', 'info');
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+                showNotification('Auto-refresh disabled', 'info');
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + A: Select all
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                selectAll();
+            }
+            // Escape: Close modals or deselect
+            if (e.key === 'Escape') {
+                if (publishModal.classList.contains('active')) {
+                    closePublishModal();
+                } else if (previewModal.classList.contains('active')) {
+                    closePreview();
+                } else {
+                    deselectAll();
+                }
+            }
+        });
+
+        // Initial load
+        loadImages();
+
+        // Start auto-refresh
+        autoRefreshInterval = setInterval(loadImages, 10000);
+    </script>
+</body>
+</html>

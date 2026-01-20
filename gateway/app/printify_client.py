@@ -123,10 +123,15 @@ class PrintifyClient:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
 
+                # Merge headers properly - kwargs headers override default headers
+                request_headers = self.headers.copy()
+                if 'headers' in kwargs:
+                    request_headers.update(kwargs.pop('headers'))
+
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=request_headers,
                     timeout=30,
                     **kwargs
                 )
@@ -231,11 +236,15 @@ class PrintifyClient:
             with open(image_path, "rb") as f:
                 files = {"file": (filename, f, "image/png")}
 
+                # For file uploads, don't include Content-Type header
+                # Let requests set it automatically for multipart/form-data
+                upload_headers = {"Authorization": f"Bearer {self.api_key}"}
+
                 response = self._make_request(
                     "POST",
                     "/uploads/images.json",
                     files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    headers=upload_headers
                 )
 
             image_id = response.json().get("id")
@@ -244,6 +253,7 @@ class PrintifyClient:
 
         except Exception as e:
             logger.error(f"Error uploading image: {e}")
+            logger.error(f"Failed to upload image")
             return None
 
     def create_product(

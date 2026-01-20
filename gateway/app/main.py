@@ -308,7 +308,7 @@ def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
 
 @app.route('/')
 def index():
-    """Gallery UI - v2.0 with 60+ features"""
+    """Gallery UI - Complete Overhaul with Modern Design"""
     response = make_response(render_template('gallery.html'))
     # Force browser to never cache this page
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -558,6 +558,83 @@ def reject_image(image_id):
     except StateManagerError as e:
         logger.error(f"Failed to reject image {image_id}: {e}")
         return jsonify({"success": False, "error": "Failed to update status"}), 500
+
+
+# =================================================================
+# BULK ACTIONS - Process multiple images at once
+# =================================================================
+
+@app.route('/api/bulk/approve', methods=['POST'])
+def bulk_approve():
+    """Bulk approve multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+            results["success"].append(image_id)
+            logger.info(f"Bulk approved: {image_id}")
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+            logger.error(f"Failed to approve {image_id}: {e}")
+
+    return jsonify(results)
+
+
+@app.route('/api/bulk/reject', methods=['POST'])
+def bulk_reject():
+    """Bulk reject multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.REJECTED.value)
+            results["success"].append(image_id)
+            logger.info(f"Bulk rejected: {image_id}")
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+            logger.error(f"Failed to reject {image_id}: {e}")
+
+    return jsonify(results)
+
+
+@app.route('/api/bulk/delete', methods=['POST'])
+def bulk_delete():
+    """Bulk delete multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            # Delete from state
+            state_manager.delete_image(image_id)
+
+            # Delete physical file
+            image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+            if os.path.exists(image_path):
+                os.remove(image_path)
+
+            results["success"].append(image_id)
+            logger.info(f"Bulk deleted: {image_id}")
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+            logger.error(f"Failed to delete {image_id}: {e}")
+
+    return jsonify(results)
 
 
 @app.route('/api/publish/<image_id>', methods=['POST'])
