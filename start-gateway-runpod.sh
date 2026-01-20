@@ -1,15 +1,21 @@
 #!/bin/bash
-export POD_IMAGE_DIR="/home/user/ssiens-oss-static_pod/gateway/images"
 # Complete setup and start script for POD Gateway with RunPod serverless
 # This script fixes any merge conflicts, configures .env, and starts the gateway
 
 set -e
 
+# Get the actual directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+export POD_IMAGE_DIR="$SCRIPT_DIR/gateway/images"
+mkdir -p "$POD_IMAGE_DIR"
+
 echo "🚀 POD Gateway - RunPod Serverless Setup"
 echo "========================================"
+echo "📁 Working directory: $SCRIPT_DIR"
+echo "🖼️  Image directory: $POD_IMAGE_DIR"
 echo ""
-
-cd /home/user/ssiens-oss-static_pod
 
 GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
 

@@ -125,8 +125,11 @@ class GatewayConfig:
     """Main configuration class that aggregates all config sections"""
 
     def __init__(self):
+        # Use gateway/images relative to project root if POD_IMAGE_DIR not set
+        default_image_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "images")
+
         self.filesystem = FilesystemConfig(
-            image_dir=Path(os.getenv("POD_IMAGE_DIR", "/workspace/comfyui/output")),
+            image_dir=Path(os.getenv("POD_IMAGE_DIR", default_image_dir)),
             state_file=Path(os.getenv("POD_STATE_FILE", "/workspace/gateway/state.json")),
             archive_dir=Path(os.getenv("POD_ARCHIVE_DIR", "/workspace/gateway/archive"))
         )
