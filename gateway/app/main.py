@@ -619,11 +619,33 @@ def generate_image():
 
 @app.route('/api/generation_status')
 def generation_status():
-    """Proxy generation status from ComfyUI history endpoint."""
+    """
+    Proxy generation status from ComfyUI history endpoint.
+
+    For RunPod serverless: Jobs complete synchronously in /api/generate,
+    so we return a completed status to stop frontend polling.
+    """
     prompt_id = request.args.get("prompt_id")
     if not prompt_id:
         return jsonify({"error": "prompt_id is required"}), 400
 
+    # If using RunPod serverless, jobs complete in /api/generate
+    # Return completed status to stop frontend polling
+    if comfyui_client:
+        logger.debug(f"RunPod serverless mode: returning completed status for {prompt_id}")
+        return jsonify({
+            "history": {
+                prompt_id: {
+                    "status": {
+                        "completed": True,
+                        "status_str": "success"
+                    }
+                }
+            },
+            "downloaded": []
+        })
+
+    # Direct ComfyUI mode - query history endpoint
     try:
         response = requests.get(
             f"{config.COMFYUI_API_URL}/history/{prompt_id}",
@@ -632,6 +654,21 @@ def generation_status():
     except requests.RequestException as exc:
         logger.error("ComfyUI status request failed: %s", exc)
         return jsonify({"error": "Failed to connect to ComfyUI"}), 502
+
+    # Handle 404 gracefully - job might have expired
+    if response.status_code == 404:
+        logger.warning(f"Job {prompt_id} not found in ComfyUI history (may have expired)")
+        return jsonify({
+            "history": {
+                prompt_id: {
+                    "status": {
+                        "completed": True,
+                        "status_str": "success"
+                    }
+                }
+            },
+            "downloaded": []
+        })
 
     if not response.ok:
         logger.error("ComfyUI status error: %s", response.text)
