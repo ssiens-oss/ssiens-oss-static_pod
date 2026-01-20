@@ -233,19 +233,28 @@ class PrintifyClient:
         try:
             logger.info(f"Uploading image: {filename}")
 
+            # Read file data
             with open(image_path, "rb") as f:
-                files = {"file": (filename, f, "image/png")}
+                file_data = f.read()
 
-                # For file uploads, don't include Content-Type header
-                # Let requests set it automatically for multipart/form-data
-                upload_headers = {"Authorization": f"Bearer {self.api_key}"}
+            # Printify expects 'file_name' and 'contents' fields
+            files = {
+                'contents': (filename, file_data, 'image/png')
+            }
+            data = {
+                'file_name': filename
+            }
 
-                response = self._make_request(
-                    "POST",
-                    "/uploads/images.json",
-                    files=files,
-                    headers=upload_headers
-                )
+            # For file uploads, only send Authorization header
+            upload_headers = {"Authorization": f"Bearer {self.api_key}"}
+
+            response = self._make_request(
+                "POST",
+                "/uploads/images.json",
+                files=files,
+                data=data,
+                headers=upload_headers
+            )
 
             image_id = response.json().get("id")
             logger.info(f"Image uploaded successfully: {image_id}")
