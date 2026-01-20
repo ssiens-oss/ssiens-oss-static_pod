@@ -28,7 +28,7 @@ class RunPodServerlessClient:
         }
         logger.info(f"RunPod serverless client initialized for: {endpoint_url}")
 
-    def submit_workflow(self, workflow: Dict[str, Any], client_id: str, timeout: int = 120) -> Dict[str, Any]:
+    def submit_workflow(self, workflow: Dict[str, Any], client_id: str, timeout: int = 120, poll_for_completion: bool = True) -> Dict[str, Any]:
         """
         Submit a ComfyUI workflow to RunPod serverless endpoint
 
@@ -36,6 +36,7 @@ class RunPodServerlessClient:
             workflow: ComfyUI workflow dict
             client_id: Client identifier
             timeout: Request timeout in seconds
+            poll_for_completion: If True, poll until job completes (default: True)
 
         Returns:
             Response dict with prompt_id or error
@@ -52,52 +53,80 @@ class RunPodServerlessClient:
             }
         }
 
-        logger.info(f"Calling RunPod serverless: {self.endpoint_url}")
+        # Use /run endpoint for async submission instead of /runsync
+        submit_url = self.endpoint_url.replace("/runsync", "/run")
+        logger.info(f"Submitting to RunPod: {submit_url}")
         logger.debug(f"Payload keys: {list(payload.keys())}, input keys: {list(payload['input'].keys())}")
 
         try:
             response = requests.post(
-                self.endpoint_url,
+                submit_url,
                 json=payload,
                 headers=self.headers,
-                timeout=timeout
+                timeout=30  # Short timeout for submission
             )
             response.raise_for_status()
 
             result = response.json()
-            logger.info(f"RunPod serverless generation completed")
-            logger.debug(f"Response status: {result.get('status', 'unknown')}")
+            job_id = result.get("id")
+            if not job_id:
+                raise Exception(f"No job ID in response: {result}")
 
-            # RunPod serverless returns: {"id": "...", "status": "COMPLETED", "output": {...}}
-            if result.get("status") == "COMPLETED":
-                output = result.get("output", {})
-                # Extract prompt_id from output if available
-                prompt_id = output.get("prompt_id") or result.get("id")
-                logger.info(f"✓ RunPod job completed successfully: {prompt_id}")
-                return {
-                    "prompt_id": prompt_id,
-                    "status": "COMPLETED",
-                    "output": output
-                }
-            elif result.get("status") in ["IN_QUEUE", "IN_PROGRESS"]:
-                # For async responses, return the job ID
-                job_id = result.get("id")
-                logger.info(f"RunPod job queued: {job_id}")
+            logger.info(f"✓ RunPod job submitted: {job_id}")
+
+            # If polling is disabled, return immediately
+            if not poll_for_completion:
                 return {
                     "prompt_id": job_id,
-                    "status": result.get("status"),
+                    "status": result.get("status", "IN_QUEUE"),
                     "job_id": job_id
                 }
-            elif result.get("status") == "FAILED":
-                # Job failed
-                error_msg = result.get("error", "Unknown error from RunPod serverless")
-                logger.error(f"RunPod job failed: {error_msg}")
-                raise Exception(error_msg)
-            else:
-                # Unknown status
-                error_msg = result.get("error", f"Unknown status: {result.get('status')}")
-                logger.error(f"RunPod serverless error: {error_msg}")
-                raise Exception(error_msg)
+
+            # Poll for completion
+            import time
+            start_time = time.time()
+            poll_interval = 3  # Start with 3 seconds
+            max_poll_interval = 10  # Max 10 seconds between polls
+
+            while True:
+                # Check timeout
+                elapsed = time.time() - start_time
+                if elapsed > timeout:
+                    logger.warning(f"Job {job_id} timed out after {timeout}s")
+                    return {
+                        "prompt_id": job_id,
+                        "status": "TIMEOUT",
+                        "job_id": job_id,
+                        "error": f"Job did not complete within {timeout}s"
+                    }
+
+                # Poll job status
+                status_result = self.get_job_status(job_id)
+                status = status_result.get("status")
+
+                logger.info(f"Job {job_id} status: {status} (elapsed: {int(elapsed)}s)")
+
+                if status == "COMPLETED":
+                    output = status_result.get("output", {})
+                    logger.info(f"✓ Job {job_id} completed successfully")
+                    return {
+                        "prompt_id": job_id,
+                        "status": "COMPLETED",
+                        "output": output,
+                        "job_id": job_id
+                    }
+                elif status == "FAILED":
+                    error_msg = status_result.get("error", "Unknown error from RunPod")
+                    logger.error(f"Job {job_id} failed: {error_msg}")
+                    raise Exception(error_msg)
+                elif status in ["IN_QUEUE", "IN_PROGRESS"]:
+                    # Continue polling
+                    time.sleep(poll_interval)
+                    # Gradually increase poll interval
+                    poll_interval = min(poll_interval * 1.2, max_poll_interval)
+                else:
+                    logger.warning(f"Unknown job status: {status}")
+                    time.sleep(poll_interval)
 
         except requests.HTTPError as e:
             logger.error(f"RunPod HTTP error: {e.response.status_code} - {e.response.text}")

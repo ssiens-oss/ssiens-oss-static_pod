@@ -306,6 +306,86 @@ def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
     return downloaded
 
 
+def extract_runpod_images(output: Dict[str, Any]) -> List[str]:
+    """
+    Extract and save images from RunPod serverless output.
+
+    RunPod output format can be:
+    - {"images": [{"image": "base64_data", ...}]}
+    - {"output": {"images": [...]}}
+    - Direct base64 image data
+
+    Returns:
+        List of local image paths
+    """
+    import base64
+
+    saved_images = []
+
+    # Try to find images in various output formats
+    images_data = None
+
+    if "images" in output:
+        images_data = output["images"]
+    elif "output" in output and isinstance(output["output"], dict):
+        if "images" in output["output"]:
+            images_data = output["output"]["images"]
+
+    if not images_data:
+        logger.warning(f"⚠️ No recognized image format in RunPod output. Keys: {list(output.keys())}")
+        return []
+
+    # Process each image
+    for idx, img_data in enumerate(images_data):
+        try:
+            # Extract base64 data
+            base64_str = None
+
+            if isinstance(img_data, dict):
+                # Try common keys for base64 data
+                base64_str = img_data.get("image") or img_data.get("data") or img_data.get("base64")
+            elif isinstance(img_data, str):
+                # Direct base64 string
+                base64_str = img_data
+
+            if not base64_str:
+                logger.warning(f"Could not extract base64 data from image {idx}")
+                continue
+
+            # Remove data URL prefix if present
+            if "base64," in base64_str:
+                base64_str = base64_str.split("base64,")[1]
+
+            # Decode base64
+            image_bytes = base64.b64decode(base64_str)
+
+            # Generate unique filename
+            image_id = f"runpod_{uuid.uuid4().hex[:12]}"
+            filename = f"{image_id}.png"
+            output_path = Path(config.IMAGE_DIR) / filename
+
+            # Save image
+            output_path.write_bytes(image_bytes)
+            logger.info(f"✓ Saved RunPod image: {filename}")
+
+            # Register in state manager
+            try:
+                state_manager.add_image(image_id, filename, str(output_path))
+            except StateManagerError:
+                pass
+
+            saved_images.append(str(output_path))
+
+        except Exception as e:
+            logger.error(f"Failed to process RunPod image {idx}: {e}")
+            continue
+
+    if not saved_images:
+        logger.error("❌ No images could be extracted from RunPod output!")
+
+    return saved_images
+
+
 @app.route('/')
 def index():
     """Gallery UI"""
@@ -408,14 +488,67 @@ def generate_image():
     try:
         # Use RunPod serverless client if available, otherwise direct ComfyUI
         if comfyui_client:
-            # RunPod serverless
-            result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
-            return jsonify({
-                "prompt_id": result.get("prompt_id"),
-                "job_id": result.get("job_id"),
-                "status": result.get("status"),
-                "prompt": full_prompt
-            })
+            # RunPod serverless - submit and poll for completion
+            logger.info(f"Submitting to RunPod serverless (timeout: 300s)")
+            result = comfyui_client.submit_workflow(
+                workflow,
+                client_id,
+                timeout=300,  # 5 minutes for Flux model generation
+                poll_for_completion=True
+            )
+
+            status = result.get("status")
+            job_id = result.get("job_id")
+
+            # Handle different statuses
+            if status == "COMPLETED":
+                # Extract and save images
+                output = result.get("output", {})
+                logger.info(f"Job completed, extracting images from output")
+                logger.debug(f"Full RunPod output: {output}")
+
+                saved_images = extract_runpod_images(output)
+
+                if saved_images:
+                    logger.info(f"✓ Generated {len(saved_images)} image(s)")
+                    return jsonify({
+                        "prompt_id": result.get("prompt_id"),
+                        "job_id": job_id,
+                        "status": "COMPLETED",
+                        "prompt": full_prompt,
+                        "images": [Path(img).name for img in saved_images],
+                        "image_count": len(saved_images)
+                    })
+                else:
+                    logger.warning("Job completed but no images extracted")
+                    return jsonify({
+                        "prompt_id": result.get("prompt_id"),
+                        "job_id": job_id,
+                        "status": "COMPLETED",
+                        "prompt": full_prompt,
+                        "warning": "No images were extracted from output"
+                    })
+
+            elif status == "TIMEOUT":
+                # Job timed out
+                logger.warning(f"Job {job_id} timed out")
+                return jsonify({
+                    "prompt_id": result.get("prompt_id"),
+                    "job_id": job_id,
+                    "status": "TIMEOUT",
+                    "prompt": full_prompt,
+                    "error": result.get("error", "Job timed out")
+                }), 408
+
+            else:
+                # Other status (IN_QUEUE, IN_PROGRESS, etc.)
+                return jsonify({
+                    "prompt_id": result.get("prompt_id"),
+                    "job_id": job_id,
+                    "status": status,
+                    "prompt": full_prompt
+                })
+
         else:
             # Direct ComfyUI connection
             payload = {
@@ -442,7 +575,7 @@ def generate_image():
         logger.error("ComfyUI request failed: %s", exc)
         return jsonify({"error": "Failed to connect to ComfyUI"}), 502
     except Exception as exc:
-        logger.error("Unexpected error: %s", exc)
+        logger.error("Unexpected error: %s", exc, exc_info=True)
         return jsonify({"error": str(exc)}), 502
 
 
