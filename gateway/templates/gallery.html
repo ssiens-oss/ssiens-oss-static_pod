@@ -58,91 +58,24 @@
             margin-top: 5px;
         }
 
-        .filters {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
         .prompter {
             background: #141414;
             border: 1px solid #2a2a2a;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
         }
 
         .prompter-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .prompter-header h2 {
             font-size: 1.1em;
             color: #fff;
-        }
-
-        .prompter-header p {
-            font-size: 0.85em;
-            color: #9ca3af;
-        }
-
-        .prompter-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 12px;
-        }
-
-        .prompter textarea,
-        .prompter select {
-            width: 100%;
-            background: #0f0f0f;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #fff;
-            padding: 10px 12px;
-            font-size: 0.9em;
-        }
-
-        .prompter textarea {
-            min-height: 110px;
-            resize: vertical;
-        }
-
-        .prompter label {
-            font-size: 0.75em;
-            color: #9ca3af;
-            display: block;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .prompter-actions {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .prompter-actions button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 18px;
-            color: #fff;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .prompter-actions button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
         }
 
         .prompter-status {
@@ -156,6 +89,111 @@
 
         .prompter-status.success {
             color: #34d399;
+        }
+
+        .prompter-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .prompter-full {
+            grid-column: 1 / -1;
+        }
+
+        .prompter label {
+            font-size: 0.75em;
+            color: #9ca3af;
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .prompter textarea,
+        .prompter select,
+        .prompter input {
+            width: 100%;
+            background: #0f0f0f;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 0.9em;
+        }
+
+        .prompter textarea {
+            min-height: 90px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .advanced-toggle {
+            background: transparent;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #9ca3af;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-bottom: 12px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .advanced-toggle:hover {
+            border-color: #667eea;
+            color: #fff;
+        }
+
+        .advanced-section {
+            display: none;
+            margin-bottom: 12px;
+        }
+
+        .advanced-section.active {
+            display: block;
+        }
+
+        .advanced-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .prompter-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .prompter-actions button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+
+        .prompter-actions button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .prompter-detail {
+            font-size: 0.85em;
+            color: #9ca3af;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         .filter-btn {
@@ -180,7 +218,7 @@
 
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
         }
 
@@ -199,9 +237,10 @@
 
         .card-image {
             width: 100%;
-            height: 300px;
+            height: 320px;
             object-fit: cover;
             background: #0a0a0a;
+            cursor: pointer;
         }
 
         .card-body {
@@ -256,15 +295,18 @@
 
         .card-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .btn {
             flex: 1;
+            min-width: 100px;
             padding: 10px;
             border: none;
             border-radius: 6px;
             font-weight: bold;
+            font-size: 0.85em;
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -305,6 +347,15 @@
             background: #4b5563;
         }
 
+        .btn-download {
+            background: #8b5cf6;
+            color: #fff;
+        }
+
+        .btn-download:hover {
+            background: #7c3aed;
+        }
+
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -319,7 +370,7 @@
         .modal {
             position: fixed;
             inset: 0;
-            background: rgba(10, 10, 10, 0.78);
+            background: rgba(10, 10, 10, 0.85);
             display: none;
             align-items: center;
             justify-content: center;
@@ -341,6 +392,8 @@
             flex-direction: column;
             gap: 16px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .modal-header {
@@ -411,6 +464,14 @@
             flex: 0 0 auto;
             min-width: 120px;
         }
+
+        .image-preview {
+            width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            background: #000;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -435,16 +496,16 @@
     <div class="prompter">
         <div class="prompter-header">
             <div>
-                <h2>ComfyUI Prompter</h2>
-                <p>Queue RunPod generations with style + genre guidance.</p>
+                <h2>🎨 AI Image Generator</h2>
+                <p>Generate print-ready, high-resolution POD designs with Flux Dev</p>
             </div>
-            <div class="prompter-status" id="prompter-status">Idle • Awaiting prompt</div>
+            <div class="prompter-status" id="prompter-status">Ready</div>
         </div>
         <form id="prompter-form">
             <div class="prompter-grid">
                 <div>
-                    <label for="prompt-input">Prompt</label>
-                    <textarea id="prompt-input" placeholder="Describe the design you'd like to generate..."></textarea>
+                    <label for="prompt-input">Prompt *</label>
+                    <textarea id="prompt-input" placeholder="Describe your design idea... (e.g., 'majestic mountain landscape at sunset')"></textarea>
                 </div>
                 <div>
                     <label for="prompt-style">Style</label>
@@ -460,6 +521,7 @@
                         <option value="cyberpunk">Cyberpunk</option>
                         <option value="grunge">Grunge</option>
                         <option value="surreal">Surreal</option>
+                        <option value="photorealistic">Photorealistic</option>
                     </select>
                 </div>
                 <div>
@@ -479,9 +541,81 @@
                     </select>
                 </div>
             </div>
+
+            <div class="prompter-full">
+                <label for="negative-prompt">Negative Prompt (what to avoid)</label>
+                <textarea id="negative-prompt" placeholder="Leave empty for default (blurry, low quality, etc.)"></textarea>
+            </div>
+
+            <button type="button" class="advanced-toggle" id="advanced-toggle">
+                ⚙️ Advanced Settings (Resolution, Quality, Sampling)
+            </button>
+
+            <div class="advanced-section" id="advanced-section">
+                <div class="advanced-grid">
+                    <div>
+                        <label for="resolution-preset">Resolution Preset</label>
+                        <select id="resolution-preset">
+                            <option value="2048x2048">Square 2K (2048x2048)</option>
+                            <option value="2400x3000">Print 8x10" (2400x3000)</option>
+                            <option value="3300x4200">Print 11x14" (3300x4200)</option>
+                            <option value="1024x1024">Square 1K (1024x1024)</option>
+                            <option value="1536x2048">Portrait 3:4 (1536x2048)</option>
+                            <option value="2048x1536">Landscape 4:3 (2048x1536)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="width-input">Width (px)</label>
+                        <input type="number" id="width-input" value="2048" min="512" max="4096" step="64">
+                    </div>
+                    <div>
+                        <label for="height-input">Height (px)</label>
+                        <input type="number" id="height-input" value="2048" min="512" max="4096" step="64">
+                    </div>
+                    <div>
+                        <label for="steps-input">Steps (quality)</label>
+                        <input type="number" id="steps-input" value="30" min="10" max="50" step="1">
+                    </div>
+                    <div>
+                        <label for="cfg-input">CFG Scale</label>
+                        <input type="number" id="cfg-input" value="3.5" min="1" max="20" step="0.5">
+                    </div>
+                    <div>
+                        <label for="sampler-input">Sampler</label>
+                        <select id="sampler-input">
+                            <option value="euler" selected>Euler (recommended)</option>
+                            <option value="euler_ancestral">Euler Ancestral</option>
+                            <option value="heun">Heun</option>
+                            <option value="dpm_2">DPM 2</option>
+                            <option value="dpm_2_ancestral">DPM 2 Ancestral</option>
+                            <option value="lms">LMS</option>
+                            <option value="dpm_fast">DPM Fast</option>
+                            <option value="dpm_adaptive">DPM Adaptive</option>
+                            <option value="dpmpp_2s_ancestral">DPM++ 2S Ancestral</option>
+                            <option value="dpmpp_sde">DPM++ SDE</option>
+                            <option value="dpmpp_2m">DPM++ 2M</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="scheduler-input">Scheduler</label>
+                        <select id="scheduler-input">
+                            <option value="normal" selected>Normal</option>
+                            <option value="karras">Karras</option>
+                            <option value="exponential">Exponential</option>
+                            <option value="simple">Simple</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="seed-input">Seed (optional)</label>
+                        <input type="number" id="seed-input" placeholder="Random">
+                    </div>
+                </div>
+            </div>
+
             <div class="prompter-actions">
-                <button type="submit" id="prompter-submit">Generate with ComfyUI</button>
-                <span class="prompter-status" id="prompter-detail">Waiting for submission.</span>
+                <button type="submit" id="prompter-submit">🚀 Generate Image</button>
+                <span class="prompter-detail" id="prompter-detail">Configure settings and click Generate</span>
             </div>
         </form>
     </div>
@@ -498,12 +632,31 @@
         <div class="loading">Loading images...</div>
     </div>
 
+    <!-- Image Preview Modal -->
+    <div class="modal" id="preview-modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <div>
+                    <h2 id="preview-title">Image Preview</h2>
+                    <p id="preview-filename"></p>
+                </div>
+                <button class="icon-btn" id="preview-close" type="button">✕</button>
+            </div>
+            <img class="image-preview" id="preview-image" alt="Preview">
+            <div class="modal-actions">
+                <button class="btn btn-download" id="preview-download">⬇ Download</button>
+                <button class="btn btn-reset" id="preview-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Publish Modal -->
     <div class="modal" id="publish-modal" aria-hidden="true">
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="publish-title">
             <div class="modal-header">
                 <div>
                     <h2 id="publish-title">Publish to Printify</h2>
-                    <p>Fine-tune product details before sending to your Printify store.</p>
+                    <p>Fine-tune product details before sending to your Printify store</p>
                 </div>
                 <button class="icon-btn" id="publish-close" type="button">✕</button>
             </div>
@@ -514,21 +667,21 @@
                 </div>
                 <div>
                     <label for="publish-description">Description</label>
-                    <textarea id="publish-description" placeholder="Optional product description for Printify/Shopify"></textarea>
+                    <textarea id="publish-description" placeholder="Optional product description"></textarea>
                 </div>
                 <div class="modal-grid">
                     <div>
                         <label for="publish-preset">Product preset</label>
                         <select id="publish-preset">
-                            <option value="default">Use gateway defaults</option>
-                            <option value="tshirt">T-Shirt (Blueprint 3, Provider 99)</option>
-                            <option value="hoodie">Hoodie (Blueprint 165, Provider 99)</option>
-                            <option value="custom">Custom blueprint/provider</option>
+                            <option value="default">Gateway defaults</option>
+                            <option value="tshirt">T-Shirt</option>
+                            <option value="hoodie">Hoodie</option>
+                            <option value="custom">Custom</option>
                         </select>
                     </div>
                     <div>
                         <label for="publish-price">Price (USD)</label>
-                        <input id="publish-price" type="number" step="0.01" min="0" placeholder="Leave blank for default">
+                        <input id="publish-price" type="number" step="0.01" min="0" placeholder="Default">
                     </div>
                     <div>
                         <label for="publish-blueprint">Blueprint ID</label>
@@ -561,6 +714,26 @@
         const promptInput = document.getElementById('prompt-input');
         const promptStyle = document.getElementById('prompt-style');
         const promptGenre = document.getElementById('prompt-genre');
+        const negativePrompt = document.getElementById('negative-prompt');
+        const resolutionPreset = document.getElementById('resolution-preset');
+        const widthInput = document.getElementById('width-input');
+        const heightInput = document.getElementById('height-input');
+        const stepsInput = document.getElementById('steps-input');
+        const cfgInput = document.getElementById('cfg-input');
+        const samplerInput = document.getElementById('sampler-input');
+        const schedulerInput = document.getElementById('scheduler-input');
+        const seedInput = document.getElementById('seed-input');
+        const advancedToggle = document.getElementById('advanced-toggle');
+        const advancedSection = document.getElementById('advanced-section');
+
+        // Preview modal elements
+        const previewModal = document.getElementById('preview-modal');
+        const previewImage = document.getElementById('preview-image');
+        const previewTitle = document.getElementById('preview-title');
+        const previewFilename = document.getElementById('preview-filename');
+        const previewDownload = document.getElementById('preview-download');
+
+        // Publish modal elements
         const publishModal = document.getElementById('publish-modal');
         const publishForm = document.getElementById('publish-form');
         const publishTitleInput = document.getElementById('publish-title-input');
@@ -571,12 +744,41 @@
         const publishProvider = document.getElementById('publish-provider');
         const publishSubmit = document.getElementById('publish-submit');
 
+        // Advanced settings toggle
+        advancedToggle.addEventListener('click', () => {
+            advancedSection.classList.toggle('active');
+            advancedToggle.textContent = advancedSection.classList.contains('active')
+                ? '⚙️ Advanced Settings (Hide)'
+                : '⚙️ Advanced Settings (Resolution, Quality, Sampling)';
+        });
+
+        // Resolution preset handler
+        resolutionPreset.addEventListener('change', () => {
+            const preset = resolutionPreset.value;
+            const presets = {
+                '2048x2048': {w: 2048, h: 2048},
+                '2400x3000': {w: 2400, h: 3000},
+                '3300x4200': {w: 3300, h: 4200},
+                '1024x1024': {w: 1024, h: 1024},
+                '1536x2048': {w: 1536, h: 2048},
+                '2048x1536': {w: 2048, h: 1536}
+            };
+
+            if (presets[preset]) {
+                widthInput.value = presets[preset].w;
+                heightInput.value = presets[preset].h;
+                widthInput.readOnly = true;
+                heightInput.readOnly = true;
+            } else {
+                widthInput.readOnly = false;
+                heightInput.readOnly = false;
+            }
+        });
+
         function setPrompterStatus(message, state = '') {
             prompterStatus.textContent = message;
             prompterStatus.classList.remove('error', 'success');
-            if (state) {
-                prompterStatus.classList.add(state);
-            }
+            if (state) prompterStatus.classList.add(state);
         }
 
         function setPrompterDetail(message) {
@@ -584,9 +786,7 @@
         }
 
         async function pollGenerationStatus() {
-            if (!currentPromptId) {
-                return;
-            }
+            if (!currentPromptId) return;
 
             try {
                 const res = await fetch(`/api/generation_status?prompt_id=${currentPromptId}`);
@@ -598,14 +798,12 @@
                 const data = await res.json();
                 const history = data.history || {};
                 const entry = history[currentPromptId];
-                if (!entry) {
-                    return;
-                }
+                if (!entry) return;
 
                 const statusInfo = entry.status || {};
                 if (statusInfo.completed) {
-                    setPrompterStatus('Generation complete', 'success');
-                    setPrompterDetail(`Prompt ${currentPromptId} finished. Downloaded ${data.downloaded?.length || 0} image(s).`);
+                    setPrompterStatus('✓ Complete', 'success');
+                    setPrompterDetail(`Downloaded ${data.downloaded?.length || 0} image(s)`);
                     clearInterval(statusInterval);
                     statusInterval = null;
                     currentPromptId = null;
@@ -614,22 +812,21 @@
                 }
 
                 if (statusInfo.status_str === 'error') {
-                    setPrompterStatus('Generation failed', 'error');
-                    setPrompterDetail(`Prompt ${currentPromptId} failed.`);
+                    setPrompterStatus('✗ Failed', 'error');
+                    setPrompterDetail('Generation failed');
                     clearInterval(statusInterval);
                     statusInterval = null;
                     currentPromptId = null;
                     return;
                 }
 
-                setPrompterStatus('Generation in progress');
-                setPrompterDetail(`Prompt ${currentPromptId} running...`);
+                setPrompterStatus('⏳ Generating...');
+                setPrompterDetail(`Job ${currentPromptId.substring(0, 16)}...`);
             } catch (err) {
                 console.error('Status polling failed:', err);
             }
         }
 
-        // Load images
         async function loadImages() {
             try {
                 const res = await fetch('/api/images');
@@ -642,7 +839,6 @@
             }
         }
 
-        // Update stats
         async function updateStats() {
             try {
                 const res = await fetch('/api/stats');
@@ -655,7 +851,6 @@
             }
         }
 
-        // Render gallery
         function renderGallery() {
             const gallery = document.getElementById('gallery');
             const filtered = currentFilter === 'all'
@@ -669,7 +864,7 @@
 
             gallery.innerHTML = filtered.map(img => `
                 <div class="card" data-status="${img.status}">
-                    <img src="${img.path}" class="card-image" alt="${img.filename}">
+                    <img src="${img.path}" class="card-image" alt="${img.filename}" data-action="preview" data-id="${img.id}">
                     <div class="card-body">
                         <div class="card-title">${img.filename}</div>
                         <div class="card-status status-${img.status}">${img.status}</div>
@@ -683,41 +878,48 @@
             attachEventListeners();
         }
 
-        // Get action buttons based on status
         function getActions(img) {
+            const downloadBtn = `<button class="btn btn-download" data-action="download" data-id="${img.id}">⬇</button>`;
             switch (img.status) {
                 case 'pending':
                     return `
                         <button class="btn btn-approve" data-action="approve" data-id="${img.id}">✓ Approve</button>
                         <button class="btn btn-reject" data-action="reject" data-id="${img.id}">✗ Reject</button>
+                        ${downloadBtn}
                     `;
                 case 'approved':
                     return `
                         <button class="btn btn-publish" data-action="publish" data-id="${img.id}">→ Publish</button>
-                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺</button>
+                        ${downloadBtn}
                     `;
                 case 'published':
-                    return `<div style="color: #10b981; text-align: center;">✓ Live on Printify</div>`;
+                    return `
+                        <div style="color: #10b981; text-align: center;">✓ Live</div>
+                        ${downloadBtn}
+                    `;
                 case 'rejected':
-                    return `<button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>`;
+                    return `
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
+                        ${downloadBtn}
+                    `;
                 case 'failed':
                     return `
                         <button class="btn btn-publish" data-action="publish" data-id="${img.id}">↻ Retry</button>
-                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
+                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺</button>
+                        ${downloadBtn}
                     `;
                 default:
-                    return '';
+                    return downloadBtn;
             }
         }
 
-        // Attach event listeners
         function attachEventListeners() {
             document.querySelectorAll('[data-action]').forEach(btn => {
                 btn.addEventListener('click', handleAction);
             });
         }
 
-        // Handle button actions
         async function handleAction(e) {
             const action = e.target.dataset.action;
             const id = e.target.dataset.id;
@@ -727,12 +929,20 @@
                 return;
             }
 
+            if (action === 'preview') {
+                openPreviewModal(id);
+                return;
+            }
+
+            if (action === 'download') {
+                downloadImage(id);
+                return;
+            }
+
             e.target.disabled = true;
 
             try {
-                let res;
-                res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
-
+                const res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
                 if (res.ok) {
                     await loadImages();
                 } else {
@@ -746,7 +956,35 @@
             }
         }
 
-        // Filter buttons
+        function openPreviewModal(id) {
+            const img = images.find(i => i.id === id);
+            if (!img) return;
+
+            previewImage.src = img.path;
+            previewTitle.textContent = 'Image Preview';
+            previewFilename.textContent = img.filename;
+            previewDownload.onclick = () => downloadImage(id);
+            previewModal.classList.add('active');
+            previewModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closePreviewModal() {
+            previewModal.classList.remove('active');
+            previewModal.setAttribute('aria-hidden', 'true');
+        }
+
+        function downloadImage(id) {
+            const img = images.find(i => i.id === id);
+            if (!img) return;
+
+            const link = document.createElement('a');
+            link.href = img.path;
+            link.download = img.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -755,9 +993,6 @@
                 renderGallery();
             });
         });
-
-        // Auto-refresh every 10 seconds
-        setInterval(loadImages, 10000);
 
         function openPublishModal(id) {
             pendingPublishId = id;
@@ -802,24 +1037,25 @@
             }
         }
 
+        document.getElementById('preview-close').addEventListener('click', closePreviewModal);
+        document.getElementById('preview-close-btn').addEventListener('click', closePreviewModal);
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) closePreviewModal();
+        });
+
         publishPreset.addEventListener('change', updatePresetFields);
         document.getElementById('publish-close').addEventListener('click', closePublishModal);
         document.getElementById('publish-cancel').addEventListener('click', closePublishModal);
-        publishModal.addEventListener('click', (event) => {
-            if (event.target === publishModal) {
-                closePublishModal();
-            }
+        publishModal.addEventListener('click', (e) => {
+            if (e.target === publishModal) closePublishModal();
         });
 
-        publishForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-
-            if (!pendingPublishId) {
-                return;
-            }
+        publishForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!pendingPublishId) return;
 
             const payload = {
-                title: publishTitleInput.value.trim(),
+                title: publishTitleInput.value.trim()
             };
 
             if (publishDescription.value.trim()) {
@@ -833,15 +1069,11 @@
 
             const blueprintValue = parseInt(publishBlueprint.value, 10);
             const providerValue = parseInt(publishProvider.value, 10);
-            if (!Number.isNaN(blueprintValue)) {
-                payload.blueprint_id = blueprintValue;
-            }
-            if (!Number.isNaN(providerValue)) {
-                payload.provider_id = providerValue;
-            }
+            if (!Number.isNaN(blueprintValue)) payload.blueprint_id = blueprintValue;
+            if (!Number.isNaN(providerValue)) payload.provider_id = providerValue;
 
             if (!payload.title) {
-                alert('Product title is required.');
+                alert('Product title is required');
                 return;
             }
 
@@ -868,52 +1100,64 @@
             }
         });
 
-        prompterForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
+        prompterForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
             const prompt = promptInput.value.trim();
-            const style = promptStyle.value;
-            const genre = promptGenre.value;
-
             if (!prompt) {
-                setPrompterStatus('Prompt is required', 'error');
-                setPrompterDetail('Please enter a prompt before generating.');
+                setPrompterStatus('Prompt required', 'error');
+                setPrompterDetail('Please enter a prompt');
                 return;
             }
 
             prompterSubmit.disabled = true;
-            setPrompterStatus('Submitting prompt...');
-            setPrompterDetail('Queueing ComfyUI generation.');
+            setPrompterStatus('⏳ Submitting...');
+            setPrompterDetail('Sending to RunPod...');
+
+            const payload = {
+                prompt,
+                style: promptStyle.value,
+                genre: promptGenre.value,
+                negative_prompt: negativePrompt.value.trim(),
+                width: parseInt(widthInput.value),
+                height: parseInt(heightInput.value),
+                steps: parseInt(stepsInput.value),
+                cfg_scale: parseFloat(cfgInput.value),
+                sampler: samplerInput.value,
+                scheduler: schedulerInput.value
+            };
+
+            if (seedInput.value) {
+                payload.seed = parseInt(seedInput.value);
+            }
 
             try {
                 const res = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, style, genre })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await res.json();
                 if (!res.ok) {
-                    throw new Error(data.error || 'Failed to queue prompt');
+                    throw new Error(data.error || 'Failed to queue');
                 }
 
-                currentPromptId = data.prompt_id;
-                setPrompterStatus('Queued');
-                setPrompterDetail(`Prompt queued: ${currentPromptId}`);
+                currentPromptId = data.prompt_id || data.job_id;
+                setPrompterStatus('⏳ Queued');
+                setPrompterDetail(`Job: ${currentPromptId.substring(0, 16)}...`);
 
-                if (statusInterval) {
-                    clearInterval(statusInterval);
-                }
-                statusInterval = setInterval(pollGenerationStatus, 2000);
+                if (statusInterval) clearInterval(statusInterval);
+                statusInterval = setInterval(pollGenerationStatus, 3000);
             } catch (err) {
-                setPrompterStatus('Queue failed', 'error');
-                setPrompterDetail(err.message || 'Unable to reach ComfyUI.');
+                setPrompterStatus('✗ Failed', 'error');
+                setPrompterDetail(err.message || 'Unable to reach server');
             } finally {
                 prompterSubmit.disabled = false;
             }
         });
 
-        // Initial load
+        setInterval(loadImages, 10000);
         loadImages();
     </script>
 </body>

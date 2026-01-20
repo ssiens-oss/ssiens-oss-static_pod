@@ -169,14 +169,31 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
-    width: int = 1024,
-    height: int = 1024,
-    steps: int = 20,
-    cfg_scale: float = 7.0
+    width: int = 2048,
+    height: int = 2048,
+    steps: int = 30,
+    cfg_scale: float = 3.5,
+    negative_prompt: str = "",
+    sampler_name: str = "euler",
+    scheduler: str = "normal"
 ) -> Dict[str, Any]:
-    """Build a basic SDXL workflow for ComfyUI."""
+    """
+    Build an optimized Flux workflow for high-quality, print-ready images.
+
+    Default: 2048x2048 at 30 steps for sharp, detailed prints.
+    For 8x10" print at 300 DPI, use 2400x3000.
+    For 11x14" print at 300 DPI, use 3300x4200.
+    """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
+
+    # Enhance prompt with quality tags for sharper, more detailed output
+    quality_tags = "masterpiece, best quality, high resolution, extremely detailed, sharp focus, professional photography, 8k uhd"
+    enhanced_prompt = f"{prompt}, {quality_tags}"
+
+    # Default negative prompt for print quality
+    if not negative_prompt:
+        negative_prompt = "blurry, out of focus, low quality, worst quality, low res, jpeg artifacts, compression, noise, grainy, pixelated, watermark, text, signature, bad anatomy"
 
     return {
         "3": {
@@ -184,8 +201,8 @@ def build_comfyui_workflow(
                 "seed": seed,
                 "steps": steps,
                 "cfg": cfg_scale,
-                "sampler_name": "euler",
-                "scheduler": "normal",
+                "sampler_name": sampler_name,
+                "scheduler": scheduler,
                 "denoise": 1,
                 "model": ["4", 0],
                 "positive": ["6", 0],
@@ -210,14 +227,14 @@ def build_comfyui_workflow(
         },
         "6": {
             "inputs": {
-                "text": prompt,
+                "text": enhanced_prompt,
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
         },
         "7": {
             "inputs": {
-                "text": "text, watermark, low quality, worst quality",
+                "text": negative_prompt,
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
@@ -460,13 +477,21 @@ def generate_image():
     {
         "prompt": "Base prompt text",
         "style": "Optional style",
-        "genre": "Optional genre"
+        "genre": "Optional genre",
+        "width": 2048,
+        "height": 2048,
+        "steps": 30,
+        "cfg_scale": 3.5,
+        "negative_prompt": "Optional negative prompt",
+        "sampler": "euler",
+        "scheduler": "normal"
     }
     """
     data = request.get_json(silent=True) or {}
     prompt = (data.get("prompt") or "").strip()
     style = (data.get("style") or "").strip()
     genre = (data.get("genre") or "").strip()
+    negative_prompt = (data.get("negative_prompt") or "").strip()
 
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
@@ -477,10 +502,13 @@ def generate_image():
     workflow = build_comfyui_workflow(
         full_prompt,
         seed=data.get("seed"),
-        width=data.get("width", 1024),
-        height=data.get("height", 1024),
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
+        width=data.get("width", 2048),
+        height=data.get("height", 2048),
+        steps=data.get("steps", 30),
+        cfg_scale=data.get("cfg_scale", 3.5),
+        negative_prompt=negative_prompt,
+        sampler_name=data.get("sampler", "euler"),
+        scheduler=data.get("scheduler", "normal")
     )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
