@@ -558,6 +558,63 @@
         </div>
     </div>
 
+    <!-- Prompter Section -->
+    <div style="max-width: 1600px; margin: 2rem auto; padding: 0 2rem;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">🎨 Generate Images</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">Create new designs with AI</p>
+                </div>
+                <div id="prompter-status" style="padding: 0.75rem 1.5rem; background: rgba(156, 163, 175, 0.2); border-radius: 8px; font-weight: 600;">
+                    Idle
+                </div>
+            </div>
+            <form id="prompter-form" onsubmit="handleGenerate(event)">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="prompt-input">Prompt</label>
+                        <textarea id="prompt-input" class="form-control" placeholder="Describe your design..." required></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="prompt-style">Style</label>
+                            <select id="prompt-style" class="form-control">
+                                <option value="">Any Style</option>
+                                <option value="minimalist">Minimalist</option>
+                                <option value="vintage">Vintage</option>
+                                <option value="modern">Modern</option>
+                                <option value="abstract">Abstract</option>
+                                <option value="realistic">Realistic</option>
+                                <option value="cartoon">Cartoon</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="prompt-genre">Genre</label>
+                            <select id="prompt-genre" class="form-control">
+                                <option value="">Any Genre</option>
+                                <option value="nature">Nature</option>
+                                <option value="urban">Urban</option>
+                                <option value="fantasy">Fantasy</option>
+                                <option value="sci-fi">Sci-Fi</option>
+                                <option value="animals">Animals</option>
+                                <option value="typography">Typography</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="batch-size">Batch Size</label>
+                            <input type="number" id="batch-size" class="form-control" value="1" min="1" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; height: 100%;">🚀 Generate</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="bulk-actions-bar" id="bulk-actions-bar">
         <div class="bulk-actions-content">
             <div class="bulk-info">
@@ -678,20 +735,23 @@
 
         function getActionButtons(img) {
             const buttons = [];
-            
+
             if (img.status === 'pending') {
                 buttons.push(`<button class="btn btn-sm btn-success" onclick="approveImage('${img.id}')">✓ Approve</button>`);
                 buttons.push(`<button class="btn btn-sm btn-danger" onclick="rejectImage('${img.id}')">✗ Reject</button>`);
             }
-            
+
             if (img.status === 'approved') {
                 buttons.push(`<button class="btn btn-sm btn-primary" onclick="openPublishModal('${img.id}')">🚀 Publish</button>`);
             }
-            
+
             if (img.status === 'published') {
                 buttons.push(`<button class="btn btn-sm btn-secondary" onclick="viewProduct('${img.product_id}')">👁 View</button>`);
             }
-            
+
+            // Add delete button to ALL images
+            buttons.push(`<button class="btn btn-sm btn-danger" onclick="deleteImage('${img.id}')">🗑 Delete</button>`);
+
             return buttons.join('');
         }
 
@@ -751,7 +811,7 @@
 
         async function rejectImage(id) {
             if (!confirm('Are you sure you want to reject this image?')) return;
-            
+
             try {
                 const res = await fetch(`/api/reject/${id}`, { method: 'POST' });
                 if (res.ok) {
@@ -762,6 +822,27 @@
                 }
             } catch (e) {
                 showToast('Failed to reject image', 'error');
+            }
+        }
+
+        async function deleteImage(id) {
+            if (!confirm('⚠️ Permanently delete this image? This cannot be undone.')) return;
+
+            try {
+                const res = await fetch('/api/bulk/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: [id] })
+                });
+
+                if (res.ok) {
+                    showToast('Image deleted', 'success');
+                    loadImages();
+                } else {
+                    throw new Error('Failed to delete');
+                }
+            } catch (e) {
+                showToast('Failed to delete image', 'error');
             }
         }
 
@@ -887,6 +968,157 @@
             if (productId) {
                 window.open(`https://printify.com/app/products/${productId}`, '_blank');
             }
+        }
+
+        // Generation handling
+        let currentJobId = null;
+        let generationInterval = null;
+
+        async function handleGenerate(e) {
+            e.preventDefault();
+
+            const prompt = document.getElementById('prompt-input').value;
+            const style = document.getElementById('prompt-style').value;
+            const genre = document.getElementById('prompt-genre').value;
+            const batchSize = parseInt(document.getElementById('batch-size').value) || 1;
+
+            if (!prompt) {
+                showToast('Please enter a prompt', 'error');
+                return;
+            }
+
+            const statusEl = document.getElementById('prompter-status');
+            statusEl.textContent = 'Generating...';
+            statusEl.style.background = 'rgba(59, 130, 246, 0.2)';
+            statusEl.style.color = 'var(--info)';
+
+            try {
+                // Generate batch
+                for (let i = 0; i < batchSize; i++) {
+                    statusEl.textContent = `Generating ${i + 1}/${batchSize}...`;
+
+                    const res = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, style, genre })
+                    });
+
+                    if (!res.ok) {
+                        throw new Error('Generation failed');
+                    }
+
+                    const data = await res.json();
+
+                    if (data.source === 'runpod') {
+                        if (data.status === 'COMPLETED') {
+                            showToast(`Image ${i + 1}/${batchSize} generated!`, 'success');
+                        } else {
+                            // Start polling for this job
+                            currentJobId = data.job_id || data.prompt_id;
+                            await pollJobStatus(currentJobId, i + 1, batchSize);
+                        }
+                    } else {
+                        // Direct ComfyUI - poll for status
+                        if (data.prompt_id) {
+                            await pollComfyUIStatus(data.prompt_id, i + 1, batchSize);
+                        }
+                    }
+
+                    // Small delay between batch items
+                    if (i < batchSize - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+
+                statusEl.textContent = `✓ Generated ${batchSize} image(s)`;
+                statusEl.style.background = 'rgba(16, 185, 129, 0.2)';
+                statusEl.style.color = 'var(--success)';
+                showToast(`Batch complete! Generated ${batchSize} images`, 'success');
+                loadImages();
+
+                // Reset form
+                document.getElementById('prompter-form').reset();
+
+                // Reset status after 3 seconds
+                setTimeout(() => {
+                    statusEl.textContent = 'Idle';
+                    statusEl.style.background = 'rgba(156, 163, 175, 0.2)';
+                    statusEl.style.color = 'var(--text-secondary)';
+                }, 3000);
+
+            } catch (e) {
+                statusEl.textContent = '✗ Generation failed';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+                statusEl.style.color = 'var(--danger)';
+                showToast('Generation failed: ' + e.message, 'error');
+
+                setTimeout(() => {
+                    statusEl.textContent = 'Idle';
+                    statusEl.style.background = 'rgba(156, 163, 175, 0.2)';
+                    statusEl.style.color = 'var(--text-secondary)';
+                }, 3000);
+            }
+        }
+
+        async function pollJobStatus(jobId, current, total) {
+            const maxAttempts = 30;
+            let attempts = 0;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const res = await fetch(`/api/runpod_status?job_id=${jobId}`);
+                    const data = await res.json();
+
+                    if (data.status === 'COMPLETED') {
+                        showToast(`Image ${current}/${total} complete!`, 'success');
+                        return;
+                    }
+
+                    if (data.status === 'FAILED') {
+                        throw new Error('Job failed');
+                    }
+
+                    // Still in progress, wait and retry
+                    await new Promise(resolve => setTimeout(resolve, 4000));
+                    attempts++;
+
+                } catch (e) {
+                    throw new Error('Failed to check job status');
+                }
+            }
+
+            throw new Error('Job timed out');
+        }
+
+        async function pollComfyUIStatus(promptId, current, total) {
+            const maxAttempts = 30;
+            let attempts = 0;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const res = await fetch(`/api/generation_status?prompt_id=${promptId}`);
+                    const data = await res.json();
+                    const history = data.history?.[promptId];
+
+                    if (history?.status?.completed) {
+                        showToast(`Image ${current}/${total} complete!`, 'success');
+                        return;
+                    }
+
+                    if (history?.status?.status_str === 'error') {
+                        throw new Error('Generation error');
+                    }
+
+                    // Still in progress
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    attempts++;
+
+                } catch (e) {
+                    throw new Error('Failed to check generation status');
+                }
+            }
+
+            throw new Error('Generation timed out');
         }
 
         document.addEventListener('keydown', (e) => {
