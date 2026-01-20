@@ -14,11 +14,11 @@ cd ~/ssiens-oss-static_pod
 echo "1️⃣  Fixing merge conflicts..."
 git merge --abort 2>/dev/null || true
 git reset --hard HEAD 2>/dev/null || true
-git fetch origin claude/review-changes-mkljilavyj0p92rc-yIHnQ
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- gateway/app/main.py 2>/dev/null || true
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- gateway/app/runpod_adapter.py 2>/dev/null || true
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- gateway/app/config.py 2>/dev/null || true
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- RUNPOD_SETUP.md 2>/dev/null || true
+git fetch origin claude/fix-printify-upload-error-O45Ur
+git checkout origin/claude/fix-printify-upload-error-O45Ur -- gateway/app/main.py 2>/dev/null || true
+git checkout origin/claude/fix-printify-upload-error-O45Ur -- gateway/app/runpod_adapter.py 2>/dev/null || true
+git checkout origin/claude/fix-printify-upload-error-O45Ur -- gateway/app/config.py 2>/dev/null || true
+git checkout origin/claude/fix-printify-upload-error-O45Ur -- gateway/templates/gallery.html 2>/dev/null || true
 echo "   ✅ Files cleaned"
 echo ""
 
