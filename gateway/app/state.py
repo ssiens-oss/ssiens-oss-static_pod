@@ -45,6 +45,7 @@ class ImageMetadata:
     updated_at: str
     product_id: Optional[str] = None
     title: Optional[str] = None
+    price_cents: Optional[int] = None
     error_message: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -63,6 +64,7 @@ class ImageMetadata:
             updated_at=data.get("updated_at", now),
             product_id=data.get("product_id"),
             title=data.get("title"),
+            price_cents=data.get("price_cents"),
             error_message=data.get("error_message")
         )
 

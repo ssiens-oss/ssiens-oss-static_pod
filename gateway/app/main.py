@@ -166,6 +166,75 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
     return ", ".join(part for part in parts if part)
 
 
+def generate_auto_title(prompt: str, style: str = "", genre: str = "", index: int = 1) -> str:
+    """
+    Generate automatic title for an image based on prompt.
+
+    Args:
+        prompt: Base prompt text
+        style: Optional style descriptor
+        genre: Optional genre descriptor
+        index: Image index in batch (1-based)
+
+    Returns:
+        Generated title string
+    """
+    # Take first meaningful words from prompt (max 6 words)
+    words = prompt.strip().split()[:6]
+    title_base = " ".join(words)
+
+    # Capitalize first letter of each word
+    title_base = title_base.title()
+
+    # Add style/genre if provided
+    descriptors = []
+    if style:
+        descriptors.append(style.title())
+    if genre:
+        descriptors.append(genre.title())
+
+    if descriptors:
+        title = f"{title_base} - {' '.join(descriptors)}"
+    else:
+        title = title_base
+
+    # Add batch number if needed
+    if index > 1:
+        title = f"{title} #{index}"
+
+    # Limit to 100 chars for Printify
+    if len(title) > 100:
+        title = title[:97] + "..."
+
+    return title
+
+
+def calculate_auto_price(width: int, height: int, base_price: int = 1999) -> int:
+    """
+    Calculate automatic price based on image dimensions.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+        base_price: Base price in cents (default: $19.99)
+
+    Returns:
+        Price in cents
+    """
+    # Price tiers based on total pixels
+    total_pixels = width * height
+    megapixels = total_pixels / 1_000_000
+
+    if megapixels >= 8:  # 3300x4200 = 13.86 MP (11x14" print)
+        return 2999  # $29.99
+    elif megapixels >= 6:  # 2400x3000 = 7.2 MP (8x10" print)
+        return 2499  # $24.99
+    elif megapixels >= 4:  # 2048x2048 = 4.19 MP (square 2K)
+        return 1999  # $19.99
+    else:  # 1024x1024 = 1.05 MP (square 1K)
+        return 1499  # $14.99
+
+
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
@@ -175,7 +244,8 @@ def build_comfyui_workflow(
     cfg_scale: float = 1.5,
     negative_prompt: str = "",
     sampler_name: str = "euler",
-    scheduler: str = "simple"
+    scheduler: str = "simple",
+    batch_size: int = 1
 ) -> Dict[str, Any]:
     """
     Build an optimized Flux Dev FP8 workflow for high-quality, print-ready images.
@@ -184,6 +254,7 @@ def build_comfyui_workflow(
     - CFG Scale: 1.0-2.0 (Flux works best with low guidance)
     - Scheduler: "simple" (best for Flux models)
     - Steps: 40 (FP8 quantized models need more steps than full precision)
+    - Batch Size: 1-25 images per generation
 
     Default: 2048x2048 at 40 steps for sharp, detailed prints.
     For 8x10" print at 300 DPI, use 2400x3000.
@@ -191,6 +262,9 @@ def build_comfyui_workflow(
     """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
+
+    # Clamp batch size to valid range
+    batch_size = max(1, min(25, batch_size))
 
     # Enhance prompt with quality tags for sharper, more detailed output
     quality_tags = "masterpiece, best quality, high resolution, extremely detailed, sharp focus, professional photography, 8k uhd"
@@ -226,7 +300,7 @@ def build_comfyui_workflow(
             "inputs": {
                 "width": width,
                 "height": height,
-                "batch_size": 1
+                "batch_size": batch_size
             },
             "class_type": "EmptyLatentImage"
         },
@@ -328,14 +402,29 @@ def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
     return downloaded
 
 
-def extract_runpod_images(output: Dict[str, Any]) -> List[str]:
+def extract_runpod_images(
+    output: Dict[str, Any],
+    prompt: str = "",
+    style: str = "",
+    genre: str = "",
+    width: int = 2048,
+    height: int = 2048
+) -> List[str]:
     """
-    Extract and save images from RunPod serverless output.
+    Extract and save images from RunPod serverless output with auto-titling and pricing.
 
     RunPod output format can be:
     - {"images": [{"image": "base64_data", ...}]}
     - {"output": {"images": [...]}}
     - Direct base64 image data
+
+    Args:
+        output: RunPod output dict
+        prompt: Base prompt for title generation
+        style: Style for title generation
+        genre: Genre for title generation
+        width: Image width for price calculation
+        height: Image height for price calculation
 
     Returns:
         List of local image paths
@@ -393,8 +482,21 @@ def extract_runpod_images(output: Dict[str, Any]) -> List[str]:
             # Register in state manager
             try:
                 state_manager.add_image(image_id, filename, str(output_path))
-            except StateManagerError:
-                pass
+
+                # Generate and store title and price
+                title = generate_auto_title(prompt, style, genre, idx + 1)
+                price_cents = calculate_auto_price(width, height)
+
+                state_manager.set_image_status(
+                    image_id,
+                    ImageStatus.PENDING.value,
+                    metadata={"title": title, "price_cents": price_cents}
+                )
+                logger.info(f"   Title: {title}")
+                logger.info(f"   Price: ${price_cents/100:.2f}")
+
+            except StateManagerError as e:
+                logger.warning(f"Failed to set metadata for {image_id}: {e}")
 
             saved_images.append(str(output_path))
 
@@ -489,13 +591,15 @@ def generate_image():
         "cfg_scale": 1.5,
         "negative_prompt": "Optional negative prompt",
         "sampler": "euler",
-        "scheduler": "simple"
+        "scheduler": "simple",
+        "batch_size": 1
     }
 
     Optimized defaults for Flux Dev FP8:
     - steps: 40 (FP8 quantized models need more steps)
     - cfg_scale: 1.5 (Flux works best with 1.0-2.0)
     - scheduler: "simple" (best for Flux)
+    - batch_size: 1-25 images per generation
     """
     data = request.get_json(silent=True) or {}
     prompt = (data.get("prompt") or "").strip()
@@ -506,19 +610,25 @@ def generate_image():
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
 
+    # Get and validate parameters
+    width = data.get("width", 2048)
+    height = data.get("height", 2048)
+    batch_size = max(1, min(25, data.get("batch_size", 1)))
+
     full_prompt = build_prompt_text(prompt, style, genre)
-    logger.info(f"Using {'RunPod Serverless' if comfyui_client else 'direct ComfyUI'} for generation: {prompt[:50]}...")
+    logger.info(f"Using {'RunPod Serverless' if comfyui_client else 'direct ComfyUI'} for generation: {prompt[:50]}... (batch: {batch_size})")
 
     workflow = build_comfyui_workflow(
         full_prompt,
         seed=data.get("seed"),
-        width=data.get("width", 2048),
-        height=data.get("height", 2048),
+        width=width,
+        height=height,
         steps=data.get("steps", 40),
         cfg_scale=data.get("cfg_scale", 1.5),
         negative_prompt=negative_prompt,
         sampler_name=data.get("sampler", "euler"),
-        scheduler=data.get("scheduler", "simple")
+        scheduler=data.get("scheduler", "simple"),
+        batch_size=batch_size
     )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
@@ -545,7 +655,14 @@ def generate_image():
                 logger.info(f"Job completed, extracting images from output")
                 logger.debug(f"Full RunPod output: {output}")
 
-                saved_images = extract_runpod_images(output)
+                saved_images = extract_runpod_images(
+                    output,
+                    prompt=prompt,
+                    style=style,
+                    genre=genre,
+                    width=width,
+                    height=height
+                )
 
                 if saved_images:
                     logger.info(f"✓ Generated {len(saved_images)} image(s)")
@@ -808,7 +925,11 @@ def publish_image(image_id):
     except Exception as e:
         return jsonify({"success": False, "error": "Invalid JSON"}), 400
 
-    title = request_data.get("title", f"Design {image_id[:8]}")
+    # Get stored metadata (title and price)
+    metadata = state_manager.get_image_metadata(image_id)
+
+    # Use request title/price if provided, otherwise fall back to stored values
+    title = request_data.get("title") or (metadata.title if metadata else None) or f"Design {image_id[:8]}"
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
@@ -823,7 +944,14 @@ def publish_image(image_id):
     # Publish to Printify
     try:
         description = request_data.get("description")
-        price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+
+        # Use request price if provided, otherwise stored price, otherwise default
+        if request_data.get("price_cents"):
+            price_cents = request_data.get("price_cents")
+        elif metadata and metadata.price_cents:
+            price_cents = metadata.price_cents
+        else:
+            price_cents = config.config.printify.default_price_cents
         blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
         provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
 

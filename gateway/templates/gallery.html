@@ -610,11 +610,15 @@
                         <label for="seed-input">Seed (optional)</label>
                         <input type="number" id="seed-input" placeholder="Random">
                     </div>
+                    <div>
+                        <label for="batch-size-input">Batch Size (1-25 images)</label>
+                        <input type="number" id="batch-size-input" value="1" min="1" max="25" step="1">
+                    </div>
                 </div>
             </div>
 
             <div class="prompter-actions">
-                <button type="submit" id="prompter-submit">🚀 Generate Image</button>
+                <button type="submit" id="prompter-submit">🚀 Generate Images</button>
                 <span class="prompter-detail" id="prompter-detail">Configure settings and click Generate</span>
             </div>
         </form>
@@ -723,6 +727,7 @@
         const samplerInput = document.getElementById('sampler-input');
         const schedulerInput = document.getElementById('scheduler-input');
         const seedInput = document.getElementById('seed-input');
+        const batchSizeInput = document.getElementById('batch-size-input');
         const advancedToggle = document.getElementById('advanced-toggle');
         const advancedSection = document.getElementById('advanced-section');
 
@@ -866,7 +871,8 @@
                 <div class="card" data-status="${img.status}">
                     <img src="${img.path}" class="card-image" alt="${img.filename}" data-action="preview" data-id="${img.id}">
                     <div class="card-body">
-                        <div class="card-title">${img.filename}</div>
+                        <div class="card-title">${img.title || img.filename}</div>
+                        ${img.price_cents ? `<div style="color: #10b981; font-weight: 600; font-size: 0.9rem;">$${(img.price_cents / 100).toFixed(2)}</div>` : ''}
                         <div class="card-status status-${img.status}">${img.status}</div>
                         <div class="card-actions">
                             ${getActions(img)}
@@ -996,9 +1002,17 @@
 
         function openPublishModal(id) {
             pendingPublishId = id;
-            publishTitleInput.value = `Design ${id.substring(0, 8)}`;
+
+            // Get image metadata
+            const img = images.find(i => i.id === id);
+
+            // Use stored title or generate default
+            publishTitleInput.value = img?.title || `Design ${id.substring(0, 8)}`;
             publishDescription.value = '';
-            publishPrice.value = '';
+
+            // Use stored price in cents converted to dollars, or leave empty
+            publishPrice.value = img?.price_cents ? (img.price_cents / 100).toFixed(2) : '';
+
             publishPreset.value = 'default';
             publishBlueprint.value = '';
             publishProvider.value = '';
@@ -1124,7 +1138,8 @@
                 steps: parseInt(stepsInput.value),
                 cfg_scale: parseFloat(cfgInput.value),
                 sampler: samplerInput.value,
-                scheduler: schedulerInput.value
+                scheduler: schedulerInput.value,
+                batch_size: parseInt(batchSizeInput.value)
             };
 
             if (seedInput.value) {
