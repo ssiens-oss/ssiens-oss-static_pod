@@ -572,6 +572,24 @@ def index():
     return render_template('gallery.html')
 
 
+@app.route('/api/version')
+def version():
+    """Check version - has bulk actions and 50+ features"""
+    return jsonify({
+        "version": "2.0.0-mega-upgrade",
+        "features": [
+            "bulk_actions", "ai_descriptions", "search", "export",
+            "statistics", "keyboard_shortcuts", "batch_generation"
+        ],
+        "api_endpoints": {
+            "bulk": ["/api/bulk/approve", "/api/bulk/reject", "/api/bulk/delete"],
+            "search": "/api/search",
+            "export": "/api/export",
+            "stats": "/api/statistics/detailed"
+        }
+    })
+
+
 @app.route('/api/images')
 def list_images():
     """
