@@ -123,10 +123,15 @@ class PrintifyClient:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
 
+                # Merge headers properly - kwargs headers override default headers
+                request_headers = self.headers.copy()
+                if 'headers' in kwargs:
+                    request_headers.update(kwargs.pop('headers'))
+
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=request_headers,
                     timeout=30,
                     **kwargs
                 )
@@ -216,7 +221,7 @@ class PrintifyClient:
 
     def upload_image(self, image_path: str, filename: str) -> Optional[str]:
         """
-        Upload image to Printify
+        Upload image to Printify using base64 encoding
 
         Args:
             image_path: Local path to image file
@@ -226,17 +231,24 @@ class PrintifyClient:
             Printify image ID or None on failure
         """
         try:
+            import base64
             logger.info(f"Uploading image: {filename}")
 
+            # Read and encode image as base64
             with open(image_path, "rb") as f:
-                files = {"file": (filename, f, "image/png")}
+                image_data = base64.b64encode(f.read()).decode('utf-8')
 
-                response = self._make_request(
-                    "POST",
-                    "/uploads/images.json",
-                    files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
-                )
+            # Printify accepts base64 with file_name and contents fields
+            payload = {
+                "file_name": filename,
+                "contents": image_data
+            }
+
+            response = self._make_request(
+                "POST",
+                "/uploads/images.json",
+                json=payload
+            )
 
             image_id = response.json().get("id")
             logger.info(f"Image uploaded successfully: {image_id}")
