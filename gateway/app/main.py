@@ -2,7 +2,7 @@
 POD Gateway - Main Flask Application
 Human-in-the-loop approval system for POD designs
 """
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, make_response
 from dotenv import load_dotenv
 import os
 import logging
@@ -245,7 +245,7 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
     if not image_data:
         return None
 
-    image_id = f"generated_{uuid.uuid4().hex[:8]}_0"
+    image_id = f"runpod_{uuid.uuid4().hex[:12]}"
     if not filename:
         filename = f"{image_id}.png"
 
@@ -263,12 +263,10 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
             file_path.write_bytes(base64.b64decode(data_to_decode))
 
         state_manager.add_image(image_id, filename, str(file_path))
+        logger.info(f"Saved image: {image_id} at {file_path}")
         return image_id, str(file_path)
-    except (requests.RequestException, ValueError, base64.binascii.Error) as exc:
+    except (requests.RequestException, ValueError, Exception) as exc:
         logger.error("Failed to save image data: %s", exc)
-        return None
-    except StateManagerError as exc:
-        logger.error("Failed to register image in state: %s", exc)
         return None
 
 
@@ -303,9 +301,7 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
 
     logger.info(f"Found {len(payloads)} image payloads in RunPod output")
 
-    for idx, payload in enumerate(payloads):
-        logger.debug(f"Processing payload {idx}: keys={list(payload.keys())}")
-
+    for payload in payloads:
         image_data = (
             payload.get("url")
             or payload.get("data")
@@ -313,31 +309,23 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
             or payload.get("base64")
         )
         if image_data:
-            logger.info(f"Found image data (type: {'url' if image_data.startswith('http') else 'base64'}, length: {len(image_data) if isinstance(image_data, str) else 'N/A'})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
-                logger.info(f"✓ Saved RunPod image: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
-            else:
-                logger.warning(f"Failed to save image data from payload {idx}")
             continue
 
         if payload.get("filename"):
-            logger.info(f"Attempting to download ComfyUI image: {payload.get('filename')}")
             local_path = download_comfyui_image(payload)
             if local_path:
                 image_id = Path(local_path).stem
                 try:
                     state_manager.add_image(image_id, Path(local_path).name, local_path)
-                    logger.info(f"✓ Downloaded and registered ComfyUI image: {image_id}")
-                except StateManagerError as e:
-                    logger.warning(f"State registration failed for {image_id}: {e}")
+                except StateManagerError:
+                    pass
                 saved_images.append({"id": image_id, "path": local_path})
-            else:
-                logger.warning(f"Failed to download image: {payload.get('filename')}")
 
-    logger.info(f"Total images saved from RunPod: {len(saved_images)}")
+    logger.info(f"Successfully saved {len(saved_images)} images")
     return saved_images
 
 
@@ -410,8 +398,13 @@ def sync_comfyui_outputs(history: Dict[str, Any], prompt_id: str) -> List[str]:
 
 @app.route('/')
 def index():
-    """Gallery UI"""
-    return render_template('gallery.html')
+    """Gallery UI - Complete Overhaul with Modern Design"""
+    response = make_response(render_template('gallery.html'))
+    # Force browser to never cache this page
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/api/images')
@@ -460,10 +453,7 @@ def list_images():
                 "status": status,
                 "path": f"/api/image/{img_id}",
                 "created_at": img_state.get("created_at"),
-                "updated_at": img_state.get("updated_at"),
-                "error_message": img_state.get("error_message"),
-                "product_id": img_state.get("product_id"),
-                "title": img_state.get("title")
+                "updated_at": img_state.get("updated_at")
             })
 
         # Sort by filename (newest first)
@@ -516,9 +506,12 @@ def generate_image():
             # RunPod serverless
             result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
             saved_images: List[Dict[str, str]] = []
+
+            # If job completed immediately, save images now
             if result.get("status") == "COMPLETED":
                 output = result.get("output", {})
                 saved_images = save_runpod_output_images(output)
+                logger.info(f"Generated and saved {len(saved_images)} images immediately")
 
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
@@ -547,8 +540,7 @@ def generate_image():
             result = response.json()
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
-                "prompt": full_prompt,
-                "source": "comfyui"
+                "prompt": full_prompt
             })
 
     except requests.RequestException as exc:
@@ -610,6 +602,7 @@ def runpod_status():
         if status == "COMPLETED":
             output = result.get("output", {})
             saved_images = save_runpod_output_images(output)
+            logger.info(f"RunPod job {job_id} completed, saved {len(saved_images)} images")
 
         if status == "FAILED":
             return jsonify({
@@ -701,6 +694,83 @@ def reject_image(image_id):
     except StateManagerError as e:
         logger.error(f"Failed to reject image {image_id}: {e}")
         return jsonify({"success": False, "error": "Failed to update status"}), 500
+
+
+# =================================================================
+# BULK ACTIONS - Process multiple images at once
+# =================================================================
+
+@app.route('/api/bulk/approve', methods=['POST'])
+def bulk_approve():
+    """Bulk approve multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+            results["success"].append(image_id)
+            logger.info(f"Bulk approved: {image_id}")
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+            logger.error(f"Failed to approve {image_id}: {e}")
+
+    return jsonify(results)
+
+
+@app.route('/api/bulk/reject', methods=['POST'])
+def bulk_reject():
+    """Bulk reject multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.REJECTED.value)
+            results["success"].append(image_id)
+            logger.info(f"Bulk rejected: {image_id}")
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+            logger.error(f"Failed to reject {image_id}: {e}")
+
+    return jsonify(results)
+
+
+@app.route('/api/bulk/delete', methods=['POST'])
+def bulk_delete():
+    """Bulk delete multiple images"""
+    data = request.get_json() or {}
+    image_ids = data.get("image_ids", [])
+
+    if not image_ids or not isinstance(image_ids, list):
+        return jsonify({"success": False, "error": "Invalid image_ids"}), 400
+
+    results = {"success": [], "failed": []}
+    for image_id in image_ids:
+        try:
+            # Delete from state
+            state_manager.delete_image(image_id)
+
+            # Delete physical file
+            image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+            if os.path.exists(image_path):
+                os.remove(image_path)
+
+            results["success"].append(image_id)
+            logger.info(f"Bulk deleted: {image_id}")
+        except Exception as e:
+            results["failed"].append({"id": image_id, "error": str(e)})
+            logger.error(f"Failed to delete {image_id}: {e}")
+
+    return jsonify(results)
 
 
 @app.route('/api/publish/<image_id>', methods=['POST'])
