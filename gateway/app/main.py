@@ -175,40 +175,36 @@ def build_comfyui_workflow(
     steps: int = 20,
     cfg_scale: float = 7.0
 ) -> Dict[str, Any]:
-    """Build a basic SDXL workflow for ComfyUI."""
+    """
+    Build enhanced workflow for 4500x5400 print-ready images.
+
+    Pipeline:
+    1. Generate at 1024x1024 base
+    2. Latent upscale 4x to 4096x4096
+    3. Decode VAE
+    4. Final resize to exactly 4500x5400
+    """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
 
     return {
-        "3": {
-            "inputs": {
-                "seed": seed,
-                "steps": steps,
-                "cfg": cfg_scale,
-                "sampler_name": "euler",
-                "scheduler": "normal",
-                "denoise": 1,
-                "model": ["4", 0],
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["5", 0]
-            },
-            "class_type": "KSampler"
-        },
+        # Checkpoint Loader
         "4": {
             "inputs": {
                 "ckpt_name": "flux1-dev-fp8.safetensors"
             },
             "class_type": "CheckpointLoaderSimple"
         },
+        # Base latent image (1024x1024)
         "5": {
             "inputs": {
-                "width": width,
-                "height": height,
+                "width": 1024,
+                "height": 1024,
                 "batch_size": 1
             },
             "class_type": "EmptyLatentImage"
         },
+        # Positive prompt
         "6": {
             "inputs": {
                 "text": prompt,
@@ -216,24 +212,81 @@ def build_comfyui_workflow(
             },
             "class_type": "CLIPTextEncode"
         },
+        # Negative prompt
         "7": {
             "inputs": {
-                "text": "text, watermark, low quality, worst quality",
+                "text": "text, watermark, low quality, worst quality, blurry, out of focus",
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
         },
-        "8": {
+        # Base sampler (1024x1024)
+        "3": {
+            "inputs": {
+                "seed": seed,
+                "steps": max(steps, 25),
+                "cfg": cfg_scale,
+                "sampler_name": "dpmpp_2m_sde",
+                "scheduler": "karras",
+                "denoise": 1.0,
+                "model": ["4", 0],
+                "positive": ["6", 0],
+                "negative": ["7", 0],
+                "latent_image": ["5", 0]
+            },
+            "class_type": "KSampler"
+        },
+        # Latent upscale 4x (1024 -> 4096)
+        "10": {
             "inputs": {
                 "samples": ["3", 0],
+                "upscale_method": "nearest-exact",
+                "width": 4096,
+                "height": 4096,
+                "crop": "disabled"
+            },
+            "class_type": "LatentUpscale"
+        },
+        # High-res refiner pass
+        "11": {
+            "inputs": {
+                "seed": seed + 1,
+                "steps": 15,
+                "cfg": cfg_scale * 0.8,
+                "sampler_name": "dpmpp_2m_sde",
+                "scheduler": "karras",
+                "denoise": 0.35,
+                "model": ["4", 0],
+                "positive": ["6", 0],
+                "negative": ["7", 0],
+                "latent_image": ["10", 0]
+            },
+            "class_type": "KSampler"
+        },
+        # VAE decode
+        "8": {
+            "inputs": {
+                "samples": ["11", 0],
                 "vae": ["4", 2]
             },
             "class_type": "VAEDecode"
         },
+        # Final resize to exact 4500x5400
+        "12": {
+            "inputs": {
+                "upscale_method": "lanczos",
+                "width": 4500,
+                "height": 5400,
+                "crop": "disabled",
+                "image": ["8", 0]
+            },
+            "class_type": "ImageScale"
+        },
+        # Save final image
         "9": {
             "inputs": {
                 "filename_prefix": "ComfyUI",
-                "images": ["8", 0]
+                "images": ["12", 0]
             },
             "class_type": "SaveImage"
         }
@@ -258,12 +311,19 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
             response.raise_for_status()
             file_path.write_bytes(response.content)
         else:
-            logger.info("Decoding base64 image data")
+            logger.info("Decoding base64 image data (length: %d)", len(image_data))
             data_to_decode = image_data.split(",", 1)[1] if "," in image_data else image_data
             file_path.write_bytes(base64.b64decode(data_to_decode))
 
+        # Verify image resolution
+        try:
+            from PIL import Image
+            with Image.open(file_path) as img:
+                logger.info(f"✓ Saved image: {image_id} ({img.size[0]}x{img.size[1]}) at {file_path}")
+        except Exception:
+            logger.info(f"Saved image: {image_id} at {file_path}")
+
         state_manager.add_image(image_id, filename, str(file_path))
-        logger.info(f"Saved image: {image_id} at {file_path}")
         return image_id, str(file_path)
     except (requests.RequestException, ValueError, Exception) as exc:
         logger.error("Failed to save image data: %s", exc)
@@ -492,10 +552,10 @@ def generate_image():
     workflow = build_comfyui_workflow(
         full_prompt,
         seed=data.get("seed"),
-        width=data.get("width", 1024),
-        height=data.get("height", 1024),
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
+        width=data.get("width", 4500),  # Output resolution (final resize target)
+        height=data.get("height", 5400),  # Output resolution (final resize target)
+        steps=data.get("steps", 25),  # Higher quality default
+        cfg_scale=data.get("cfg_scale", 6.5)  # Optimized for quality
     )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
