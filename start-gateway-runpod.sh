@@ -4,9 +4,27 @@
 
 set -e
 
+# User-specific RunPod credentials
+# TODO: After git pull, replace these placeholders with your actual RunPod values
+# (I'll provide them separately - they can't be committed to git for security)
+RUNPOD_ENDPOINT_ID="YOUR_ENDPOINT_ID_HERE"
+RUNPOD_API_KEY="YOUR_API_KEY_HERE"
+
 echo "🚀 POD Gateway - RunPod Serverless Setup"
 echo "========================================"
 echo ""
+
+# Check if credentials are configured
+if [ "$RUNPOD_ENDPOINT_ID" = "YOUR_ENDPOINT_ID_HERE" ] || [ "$RUNPOD_API_KEY" = "YOUR_API_KEY_HERE" ]; then
+    echo "❌ ERROR: RunPod credentials not configured!"
+    echo ""
+    echo "Please edit this script (start-gateway-runpod.sh) at lines 11-12"
+    echo "Replace the placeholder values with your actual RunPod credentials"
+    echo "(See the comments on lines 9-10 for your specific values)"
+    echo ""
+    echo "Then run this script again."
+    exit 1
+fi
 
 cd ~/ssiens-oss-static_pod
 
@@ -43,10 +61,25 @@ echo ""
 echo "3️⃣  Configuring .env for RunPod serverless..."
 
 if [ ! -f ".env.runpod-config" ]; then
-    echo "   ❌ .env.runpod-config not found!"
-    echo "   Please create this file with your RunPod credentials"
-    echo "   See RUNPOD_SETUP.md for instructions"
-    exit 1
+    echo "   ⚠️  .env.runpod-config not found!"
+    echo ""
+    echo "   Creating it now with configured credentials..."
+    echo ""
+
+    # Check if template exists
+    if [ ! -f ".env.runpod-config.example" ]; then
+        echo "   ❌ .env.runpod-config.example not found!"
+        echo "   Please run: git pull origin claude/review-changes-mkljilavyj0p92rc-yIHnQ"
+        exit 1
+    fi
+
+    # Copy template and fill in credentials from variables
+    cp .env.runpod-config.example .env.runpod-config
+    sed -i "s|YOUR_ENDPOINT_ID|${RUNPOD_ENDPOINT_ID}|g" .env.runpod-config
+    sed -i "s|YOUR_RUNPOD_API_KEY|${RUNPOD_API_KEY}|g" .env.runpod-config
+
+    echo "   ✅ .env.runpod-config created successfully"
+    echo ""
 fi
 
 # Extract values from .env.runpod-config (they're in the comments/examples)
