@@ -171,16 +171,21 @@ def build_comfyui_workflow(
     seed: int | None = None,
     width: int = 2048,
     height: int = 2048,
-    steps: int = 30,
-    cfg_scale: float = 3.5,
+    steps: int = 40,
+    cfg_scale: float = 1.5,
     negative_prompt: str = "",
     sampler_name: str = "euler",
-    scheduler: str = "normal"
+    scheduler: str = "simple"
 ) -> Dict[str, Any]:
     """
-    Build an optimized Flux workflow for high-quality, print-ready images.
+    Build an optimized Flux Dev FP8 workflow for high-quality, print-ready images.
 
-    Default: 2048x2048 at 30 steps for sharp, detailed prints.
+    Optimized for Flux Dev FP8:
+    - CFG Scale: 1.0-2.0 (Flux works best with low guidance)
+    - Scheduler: "simple" (best for Flux models)
+    - Steps: 40 (FP8 quantized models need more steps than full precision)
+
+    Default: 2048x2048 at 40 steps for sharp, detailed prints.
     For 8x10" print at 300 DPI, use 2400x3000.
     For 11x14" print at 300 DPI, use 3300x4200.
     """
@@ -480,12 +485,17 @@ def generate_image():
         "genre": "Optional genre",
         "width": 2048,
         "height": 2048,
-        "steps": 30,
-        "cfg_scale": 3.5,
+        "steps": 40,
+        "cfg_scale": 1.5,
         "negative_prompt": "Optional negative prompt",
         "sampler": "euler",
-        "scheduler": "normal"
+        "scheduler": "simple"
     }
+
+    Optimized defaults for Flux Dev FP8:
+    - steps: 40 (FP8 quantized models need more steps)
+    - cfg_scale: 1.5 (Flux works best with 1.0-2.0)
+    - scheduler: "simple" (best for Flux)
     """
     data = request.get_json(silent=True) or {}
     prompt = (data.get("prompt") or "").strip()
@@ -504,11 +514,11 @@ def generate_image():
         seed=data.get("seed"),
         width=data.get("width", 2048),
         height=data.get("height", 2048),
-        steps=data.get("steps", 30),
-        cfg_scale=data.get("cfg_scale", 3.5),
+        steps=data.get("steps", 40),
+        cfg_scale=data.get("cfg_scale", 1.5),
         negative_prompt=negative_prompt,
         sampler_name=data.get("sampler", "euler"),
-        scheduler=data.get("scheduler", "normal")
+        scheduler=data.get("scheduler", "simple")
     )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"

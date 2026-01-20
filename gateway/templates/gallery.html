@@ -574,17 +574,17 @@
                         <input type="number" id="height-input" value="2048" min="512" max="4096" step="64">
                     </div>
                     <div>
-                        <label for="steps-input">Steps (quality)</label>
-                        <input type="number" id="steps-input" value="30" min="10" max="50" step="1">
+                        <label for="steps-input">Steps (quality) - FP8 optimized</label>
+                        <input type="number" id="steps-input" value="40" min="10" max="50" step="1">
                     </div>
                     <div>
-                        <label for="cfg-input">CFG Scale</label>
-                        <input type="number" id="cfg-input" value="3.5" min="1" max="20" step="0.5">
+                        <label for="cfg-input">CFG Scale - Flux optimized (1.0-2.0)</label>
+                        <input type="number" id="cfg-input" value="1.5" min="0.5" max="5" step="0.1">
                     </div>
                     <div>
                         <label for="sampler-input">Sampler</label>
                         <select id="sampler-input">
-                            <option value="euler" selected>Euler (recommended)</option>
+                            <option value="euler" selected>Euler (recommended for Flux)</option>
                             <option value="euler_ancestral">Euler Ancestral</option>
                             <option value="heun">Heun</option>
                             <option value="dpm_2">DPM 2</option>
@@ -600,10 +600,10 @@
                     <div>
                         <label for="scheduler-input">Scheduler</label>
                         <select id="scheduler-input">
-                            <option value="normal" selected>Normal</option>
+                            <option value="simple" selected>Simple (best for Flux)</option>
+                            <option value="normal">Normal</option>
                             <option value="karras">Karras</option>
                             <option value="exponential">Exponential</option>
-                            <option value="simple">Simple</option>
                         </select>
                     </div>
                     <div>

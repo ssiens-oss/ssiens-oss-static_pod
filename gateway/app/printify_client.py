@@ -99,6 +99,7 @@ class PrintifyClient:
         self,
         method: str,
         endpoint: str,
+        is_file_upload: bool = False,
         **kwargs
     ) -> requests.Response:
         """
@@ -107,6 +108,7 @@ class PrintifyClient:
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint path
+            is_file_upload: If True, omits Content-Type header for file uploads
             **kwargs: Additional arguments for requests
 
         Returns:
@@ -119,6 +121,11 @@ class PrintifyClient:
         retries = 0
         backoff = self.retry_config.initial_backoff
 
+        # For file uploads, don't set Content-Type (requests will set it with boundary)
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        if not is_file_upload:
+            headers["Content-Type"] = "application/json"
+
         while retries <= self.retry_config.max_retries:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
@@ -126,7 +133,7 @@ class PrintifyClient:
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=headers,
                     timeout=30,
                     **kwargs
                 )
@@ -234,8 +241,8 @@ class PrintifyClient:
                 response = self._make_request(
                     "POST",
                     "/uploads/images.json",
-                    files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    is_file_upload=True,
+                    files=files
                 )
 
             image_id = response.json().get("id")
