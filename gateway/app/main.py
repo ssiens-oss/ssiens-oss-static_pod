@@ -301,7 +301,11 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
     saved_images: List[Dict[str, str]] = []
     payloads = extract_image_payloads(output)
 
-    for payload in payloads:
+    logger.info(f"Found {len(payloads)} image payloads in RunPod output")
+
+    for idx, payload in enumerate(payloads):
+        logger.debug(f"Processing payload {idx}: keys={list(payload.keys())}")
+
         image_data = (
             payload.get("url")
             or payload.get("data")
@@ -309,22 +313,31 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
             or payload.get("base64")
         )
         if image_data:
+            logger.info(f"Found image data (type: {'url' if image_data.startswith('http') else 'base64'}, length: {len(image_data) if isinstance(image_data, str) else 'N/A'})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
+                logger.info(f"✓ Saved RunPod image: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
+            else:
+                logger.warning(f"Failed to save image data from payload {idx}")
             continue
 
         if payload.get("filename"):
+            logger.info(f"Attempting to download ComfyUI image: {payload.get('filename')}")
             local_path = download_comfyui_image(payload)
             if local_path:
                 image_id = Path(local_path).stem
                 try:
                     state_manager.add_image(image_id, Path(local_path).name, local_path)
-                except StateManagerError:
-                    pass
+                    logger.info(f"✓ Downloaded and registered ComfyUI image: {image_id}")
+                except StateManagerError as e:
+                    logger.warning(f"State registration failed for {image_id}: {e}")
                 saved_images.append({"id": image_id, "path": local_path})
+            else:
+                logger.warning(f"Failed to download image: {payload.get('filename')}")
 
+    logger.info(f"Total images saved from RunPod: {len(saved_images)}")
     return saved_images
 
 

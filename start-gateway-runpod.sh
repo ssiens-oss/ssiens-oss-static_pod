@@ -1,4 +1,5 @@
 #!/bin/bash
+export POD_IMAGE_DIR="/home/user/ssiens-oss-static_pod/gateway/images"
 # Complete setup and start script for POD Gateway with RunPod serverless
 # This script fixes any merge conflicts, configures .env, and starts the gateway
 
@@ -8,7 +9,7 @@ echo "🚀 POD Gateway - RunPod Serverless Setup"
 echo "========================================"
 echo ""
 
-cd ~/ssiens-oss-static_pod
+cd /home/user/ssiens-oss-static_pod
 
 GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
 
