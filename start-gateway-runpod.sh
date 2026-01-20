@@ -10,15 +10,18 @@ echo ""
 
 cd ~/ssiens-oss-static_pod
 
+GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
+
 # Step 1: Fix any merge conflicts
 echo "1️⃣  Fixing merge conflicts..."
 git merge --abort 2>/dev/null || true
 git reset --hard HEAD 2>/dev/null || true
-git fetch origin claude/review-changes-mkljilavyj0p92rc-yIHnQ
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- gateway/app/main.py 2>/dev/null || true
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- gateway/app/runpod_adapter.py 2>/dev/null || true
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- gateway/app/config.py 2>/dev/null || true
-git checkout origin/claude/review-changes-mkljilavyj0p92rc-yIHnQ -- RUNPOD_SETUP.md 2>/dev/null || true
+git fetch origin "${GATEWAY_BRANCH}"
+git checkout "origin/${GATEWAY_BRANCH}" -- gateway/app/main.py 2>/dev/null || true
+git checkout "origin/${GATEWAY_BRANCH}" -- gateway/app/runpod_adapter.py 2>/dev/null || true
+git checkout "origin/${GATEWAY_BRANCH}" -- gateway/app/config.py 2>/dev/null || true
+git checkout "origin/${GATEWAY_BRANCH}" -- gateway/templates/gallery.html 2>/dev/null || true
+git checkout "origin/${GATEWAY_BRANCH}" -- RUNPOD_SETUP.md 2>/dev/null || true
 echo "   ✅ Files cleaned"
 echo ""
 

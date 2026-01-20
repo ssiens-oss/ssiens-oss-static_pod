@@ -295,6 +295,13 @@
             margin-bottom: 10px;
         }
 
+        .card-meta {
+            font-size: 0.78em;
+            color: #9ca3af;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
         .card-status {
             display: inline-block;
             padding: 5px 10px;
@@ -837,7 +844,9 @@
         let images = [];
         let selectedImages = new Set();
         let currentPromptId = null;
+        let currentRunpodJobId = null;
         let statusInterval = null;
+        let runpodInterval = null;
         let autoRefreshInterval = null;
         let pendingPublishId = null;
         let searchQuery = '';
@@ -939,6 +948,47 @@
             }
         }
 
+        async function pollRunpodStatus() {
+            if (!currentRunpodJobId) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/runpod_status?job_id=${currentRunpodJobId}`);
+                if (!res.ok) {
+                    setPrompterStatus('RunPod status failed', 'error');
+                    return;
+                }
+
+                const data = await res.json();
+                if (data.status === 'COMPLETED') {
+                    setPrompterStatus('Generation complete', 'success');
+                    setPrompterDetail(`RunPod job ${currentRunpodJobId} finished. Saved ${data.images?.length || 0} image(s).`);
+                    showNotification('Image generation completed!', 'success');
+                    clearInterval(runpodInterval);
+                    runpodInterval = null;
+                    currentRunpodJobId = null;
+                    await loadImages();
+                    return;
+                }
+
+                if (data.status === 'FAILED') {
+                    setPrompterStatus('Generation failed', 'error');
+                    setPrompterDetail(`RunPod job ${currentRunpodJobId} failed.`);
+                    showNotification('Image generation failed', 'error');
+                    clearInterval(runpodInterval);
+                    runpodInterval = null;
+                    currentRunpodJobId = null;
+                    return;
+                }
+
+                setPrompterStatus('Generation in progress');
+                setPrompterDetail(`RunPod job ${currentRunpodJobId} running...`);
+            } catch (err) {
+                console.error('RunPod status polling failed:', err);
+            }
+        }
+
         // Load images
         async function loadImages() {
             try {
@@ -1014,6 +1064,9 @@
                     <img src="${img.path}" class="card-image" alt="${img.filename}" onclick="openPreview('${img.id}', '${img.path}', '${img.filename}')">
                     <div class="card-body">
                         <div class="card-title">${img.filename}</div>
+                        ${img.title ? `<div class="card-meta">Title: ${img.title}</div>` : ''}
+                        ${img.product_id ? `<div class="card-meta">Printify ID: ${img.product_id}</div>` : ''}
+                        ${img.error_message ? `<div class="card-meta">Error: ${img.error_message}</div>` : ''}
                         <div class="card-status status-${img.status}">${img.status}</div>
                         <div class="card-actions">
                             ${getActions(img)}
@@ -1405,15 +1458,34 @@
                     throw new Error(data.error || 'Failed to queue prompt');
                 }
 
-                currentPromptId = data.prompt_id;
-                setPrompterStatus('Queued', 'success');
-                setPrompterDetail(`Prompt queued: ${currentPromptId}`);
-                showNotification('Generation started', 'info');
+                if (data.source === 'runpod') {
+                    if (data.status === 'COMPLETED') {
+                        setPrompterStatus('Generation complete', 'success');
+                        setPrompterDetail(`Saved ${data.images?.length || 0} image(s).`);
+                        showNotification('Image generation completed!', 'success');
+                        await loadImages();
+                    } else {
+                        currentRunpodJobId = data.job_id || data.prompt_id;
+                        setPrompterStatus('Queued', 'success');
+                        setPrompterDetail(`RunPod job queued: ${currentRunpodJobId}`);
+                        showNotification('Generation started', 'info');
 
-                if (statusInterval) {
-                    clearInterval(statusInterval);
+                        if (runpodInterval) {
+                            clearInterval(runpodInterval);
+                        }
+                        runpodInterval = setInterval(pollRunpodStatus, 4000);
+                    }
+                } else {
+                    currentPromptId = data.prompt_id;
+                    setPrompterStatus('Queued', 'success');
+                    setPrompterDetail(`Prompt queued: ${currentPromptId}`);
+                    showNotification('Generation started', 'info');
+
+                    if (statusInterval) {
+                        clearInterval(statusInterval);
+                    }
+                    statusInterval = setInterval(pollGenerationStatus, 2000);
                 }
-                statusInterval = setInterval(pollGenerationStatus, 2000);
             } catch (err) {
                 setPrompterStatus('Queue failed', 'error');
                 setPrompterDetail(err.message || 'Unable to reach ComfyUI.');
