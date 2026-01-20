@@ -2,7 +2,7 @@
 POD Gateway - Main Flask Application
 Human-in-the-loop approval system for POD designs
 """
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, make_response
 from dotenv import load_dotenv
 import os
 import logging
@@ -568,8 +568,13 @@ def extract_runpod_images(
 
 @app.route('/')
 def index():
-    """Gallery UI"""
-    return render_template('gallery.html')
+    """Gallery UI - v2.0 with 60+ features"""
+    response = make_response(render_template('gallery.html'))
+    # Force browser to never cache this page
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/api/version')
