@@ -75,6 +75,28 @@ You should see:
 
 ### Step 5: Start Gateway
 
+**Option A: Direct Start (Recommended for fresh environments)**
+
+First, ensure your .env.runpod-config has your credentials, then:
+
+```bash
+./start-gateway-direct.sh
+```
+
+Or manually with all env vars:
+```bash
+# Replace YOUR_KEY and YOUR_ENDPOINT with your actual values
+cd gateway && \
+RUNPOD_API_KEY=your-runpod-api-key \
+COMFYUI_API_URL=https://api.runpod.ai/v2/your-endpoint-id/runsync \
+POD_IMAGE_DIR=/home/static/ssiens-oss-static_pod/output \
+POD_STATE_FILE=/home/static/ssiens-oss-static_pod/gateway/data/state.json \
+POD_ARCHIVE_DIR=/home/static/ssiens-oss-static_pod/gateway/data/archive \
+PYTHONPATH=$(pwd) python3 -m app.main
+```
+
+**Option B: Automated Script**
+
 ```bash
 ./start-gateway-runpod.sh
 ```
@@ -138,6 +160,25 @@ curl -X POST http://localhost:5000/api/generate \
 
 ### Still getting 401 errors?
 
+**CRITICAL FIX**: If gateway starts but you get 401 on generation, RUNPOD_API_KEY is not loaded!
+
+**Solution**: Use the direct start command which loads from .env.runpod-config:
+```bash
+./start-gateway-direct.sh
+```
+
+Or manually with your actual credentials:
+```bash
+# Replace with your actual RunPod API key and endpoint ID
+cd gateway && \
+RUNPOD_API_KEY=your-runpod-api-key \
+COMFYUI_API_URL=https://api.runpod.ai/v2/your-endpoint-id/runsync \
+POD_IMAGE_DIR=/home/static/ssiens-oss-static_pod/output \
+POD_STATE_FILE=/home/static/ssiens-oss-static_pod/gateway/data/state.json \
+POD_ARCHIVE_DIR=/home/static/ssiens-oss-static_pod/gateway/data/archive \
+PYTHONPATH=$(pwd) python3 -m app.main
+```
+
 1. **Check credentials are set**:
    ```bash
    grep RUNPOD_API_KEY .env
@@ -147,7 +188,7 @@ curl -X POST http://localhost:5000/api/generate \
 2. **Restart gateway** to load new credentials:
    ```bash
    # Press Ctrl+C in gateway terminal
-   ./start-gateway-runpod.sh
+   ./start-gateway-direct.sh
    ```
 
 3. **Check if new error handling is loaded**:
