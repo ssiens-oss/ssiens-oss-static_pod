@@ -174,10 +174,10 @@ def build_comfyui_workflow(
     seed: int | None = None,
     width: int = 1024,
     height: int = 1024,
-    steps: int = 20,
-    cfg_scale: float = 7.0
+    steps: int = 25,
+    cfg_scale: float = 3.5
 ) -> Dict[str, Any]:
-    """Build a basic SDXL workflow for ComfyUI."""
+    """Build a Flux-optimized workflow for ComfyUI (POD quality settings)."""
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
 
@@ -188,7 +188,7 @@ def build_comfyui_workflow(
                 "steps": steps,
                 "cfg": cfg_scale,
                 "sampler_name": "euler",
-                "scheduler": "normal",
+                "scheduler": "simple",  # Flux-optimized scheduler
                 "denoise": 1,
                 "model": ["4", 0],
                 "positive": ["6", 0],
@@ -220,7 +220,7 @@ def build_comfyui_workflow(
         },
         "7": {
             "inputs": {
-                "text": "text, watermark, low quality, worst quality",
+                "text": "",  # Flux handles negatives differently - empty is better
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
@@ -493,8 +493,8 @@ def generate_image():
         seed=data.get("seed"),
         width=data.get("width", 1024),
         height=data.get("height", 1024),
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
+        steps=data.get("steps", 25),  # Flux-optimized: higher quality
+        cfg_scale=data.get("cfg_scale", 3.5)  # Flux-optimized: prevents blur
     )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
