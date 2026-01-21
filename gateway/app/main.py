@@ -14,8 +14,10 @@ import uuid
 import requests
 import base64
 
-# Load environment
-load_dotenv()
+# Load environment from parent directory (where .env actually is)
+# Gateway runs from gateway/ subdirectory, but .env is in project root
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Import modules
 from app import config
