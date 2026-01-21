@@ -252,12 +252,18 @@ class PrintifyClient:
             with open(image_path, "rb") as f:
                 files = {"file": (filename, f, "image/png")}
 
-                response = self._make_request(
-                    "POST",
-                    "/uploads/images.json",
+                # File uploads need special handling - use session directly
+                # Don't set Content-Type (let requests handle multipart/form-data)
+                upload_headers = {"Authorization": f"Bearer {self.api_key}"}
+
+                response = self.session.post(
+                    f"{PRINTIFY_API}/uploads/images.json",
                     files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    headers=upload_headers,
+                    timeout=30
                 )
+
+                response.raise_for_status()
 
             image_id = response.json().get("id")
             logger.info(f"Image uploaded successfully: {image_id}")
