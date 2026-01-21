@@ -357,35 +357,55 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
 def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
     """Save any images found in a RunPod output payload."""
     saved_images: List[Dict[str, str]] = []
+
+    # Debug: Log the entire output structure
+    logger.info(f"RunPod output keys: {list(output.keys())}")
+    logger.debug(f"Full RunPod output: {output}")
+
     payloads = extract_image_payloads(output)
 
     logger.info(f"Found {len(payloads)} image payloads in RunPod output")
 
-    for payload in payloads:
+    if payloads:
+        logger.debug(f"First payload sample: {payloads[0]}")
+
+    for idx, payload in enumerate(payloads):
+        logger.debug(f"Processing payload {idx}: keys={list(payload.keys())}")
+
         image_data = (
             payload.get("url")
             or payload.get("data")
             or payload.get("image")
             or payload.get("base64")
         )
+
         if image_data:
+            logger.info(f"Payload {idx}: Found image data (type: {'url' if str(image_data).startswith('http') else 'base64'}, length: {len(str(image_data))})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
+                logger.info(f"✓ Saved payload {idx}: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
+            else:
+                logger.error(f"Failed to save payload {idx}")
             continue
 
+        # Fallback: try to download from ComfyUI if filename present
         if payload.get("filename"):
+            logger.info(f"Payload {idx}: Attempting ComfyUI HTTP download for {payload.get('filename')}")
             local_path = download_comfyui_image(payload)
             if local_path:
                 image_id = Path(local_path).stem
                 try:
                     state_manager.add_image(image_id, Path(local_path).name, local_path)
-                except StateManagerError:
-                    pass
+                    logger.info(f"✓ Downloaded via ComfyUI: {image_id}")
+                except StateManagerError as e:
+                    logger.warning(f"State registration failed for {image_id}: {e}")
                 saved_images.append({"id": image_id, "path": local_path})
+            else:
+                logger.warning(f"Failed to download {payload.get('filename')} via ComfyUI")
 
-    logger.info(f"Successfully saved {len(saved_images)} images")
+    logger.info(f"Total images saved from RunPod: {len(saved_images)}")
     return saved_images
 
 
