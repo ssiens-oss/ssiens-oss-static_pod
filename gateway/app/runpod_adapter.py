@@ -124,7 +124,23 @@ class RunPodServerlessClient:
                 raise Exception(error_msg)
 
         except requests.HTTPError as e:
-            logger.error(f"❌ RunPod HTTP error: {e.response.status_code} - {e.response.text}")
+            status_code = e.response.status_code
+            error_text = e.response.text
+
+            if status_code == 401:
+                logger.error(f"❌ RunPod authentication failed (401 Unauthorized)")
+                logger.error(f"💡 Fix: Set RUNPOD_API_KEY in .env file")
+                logger.error(f"   Example: RUNPOD_API_KEY=your-runpod-api-key-here")
+                logger.error(f"   Get your key from: https://www.runpod.io/console/user/settings")
+            elif status_code == 403:
+                logger.error(f"❌ RunPod access forbidden (403)")
+                logger.error(f"💡 Check: Endpoint ID and API key permissions")
+            elif status_code == 404:
+                logger.error(f"❌ RunPod endpoint not found (404)")
+                logger.error(f"💡 Check: COMFYUI_API_URL endpoint ID is correct")
+            else:
+                logger.error(f"❌ RunPod HTTP error: {status_code} - {error_text}")
+
             raise
         except requests.Timeout as e:
             logger.error(f"⏱️ RunPod request timeout after {timeout}s")

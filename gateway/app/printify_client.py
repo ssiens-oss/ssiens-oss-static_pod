@@ -325,12 +325,13 @@ class PrintifyClient:
             logger.error(f"Error creating product: {e}")
             return None
 
-    def publish_product(self, product_id: str) -> bool:
+    def publish_product(self, product_id: str, publish_to_channels: bool = True) -> bool:
         """
         Publish product to connected sales channels
 
         Args:
             product_id: Printify product ID
+            publish_to_channels: Whether to publish to sales channels (requires connected channels)
 
         Returns:
             True if published successfully, False otherwise
@@ -338,23 +339,39 @@ class PrintifyClient:
         try:
             logger.info(f"Publishing product: {product_id}")
 
+            # Printify publish requires at least one connected sales channel
+            # If no channels connected, this will fail with 400/422
+            # Common issue: "No sales channels connected to shop"
             self._make_request(
                 "POST",
                 f"/shops/{self.shop_id}/products/{product_id}/publish.json",
                 json={
-                    "title": True,
-                    "description": True,
-                    "images": True,
-                    "variants": True,
-                    "tags": True
+                    "title": publish_to_channels,
+                    "description": publish_to_channels,
+                    "images": publish_to_channels,
+                    "variants": publish_to_channels,
+                    "tags": publish_to_channels
                 }
             )
 
-            logger.info(f"Product published successfully: {product_id}")
+            logger.info(f"✅ Product published successfully: {product_id}")
             return True
 
+        except requests.HTTPError as e:
+            # Handle common publish errors gracefully
+            if e.response.status_code in [400, 422]:
+                error_msg = e.response.text
+                if "sales channel" in error_msg.lower() or "no channels" in error_msg.lower():
+                    logger.warning(f"⚠️ Product {product_id} created but not published: No sales channels connected")
+                    logger.info(f"💡 Tip: Connect a sales channel (Shopify, Etsy, etc.) in Printify dashboard to enable publishing")
+                else:
+                    logger.warning(f"⚠️ Product {product_id} created but publishing failed: {error_msg}")
+            else:
+                logger.error(f"❌ Error publishing product {product_id}: {e}")
+            return False
+
         except Exception as e:
-            logger.error(f"Error publishing product: {e}")
+            logger.error(f"❌ Unexpected error publishing product {product_id}: {e}")
             return False
 
     def create_and_publish(
