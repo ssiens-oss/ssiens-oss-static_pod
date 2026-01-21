@@ -17,7 +17,7 @@ echo "📁 Working directory: $SCRIPT_DIR"
 echo "🖼️  Image directory: $POD_IMAGE_DIR"
 echo ""
 
-GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
+GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/restart-gateway-test-zTZ9F}"
 
 # Step 1: Fix any merge conflicts
 echo "1️⃣  Fixing merge conflicts..."
