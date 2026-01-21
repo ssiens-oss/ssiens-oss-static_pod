@@ -10,7 +10,9 @@ echo ""
 
 cd ~/ssiens-oss-static_pod
 
-GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
+# Get current branch or use environment variable
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+GATEWAY_BRANCH="${GATEWAY_BRANCH:-$CURRENT_BRANCH}"
 
 # Step 1: Fix any merge conflicts
 echo "1️⃣  Fixing merge conflicts..."
@@ -98,9 +100,23 @@ echo "============================================================"
 echo "🌐 Gateway will start on http://127.0.0.1:5000"
 echo "🧠 Using RunPod Serverless: qm6ofmy96f3htl"
 echo "🎨 Model: Flux Dev FP8"
+echo "🔧 POD Pipeline: Available at /pod-pipeline.py"
 echo "============================================================"
 echo ""
+
+# Optional: Run POD proof-of-life on startup if PROOF_OF_LIFE=true
+if [ "${PROOF_OF_LIFE:-false}" = "true" ]; then
+    echo "🚀 Running POD Proof of Life on startup..."
+    (
+        sleep 10  # Wait for gateway to be ready
+        python3 ../pod-pipeline.py --theme "vibrant abstract art" --output /tmp/pod-proof-of-life.json &
+    )
+fi
+
 echo "Press Ctrl+C to stop"
+echo ""
+echo "💡 Tip: Run POD pipeline manually with:"
+echo "   python3 pod-pipeline.py --theme 'your theme here'"
 echo ""
 
 cd gateway
