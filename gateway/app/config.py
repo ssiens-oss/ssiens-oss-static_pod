@@ -40,12 +40,16 @@ class FlaskConfig:
 
 @dataclass
 class PrintifyConfig:
-    """Printify API configuration"""
+    """Printify API configuration with POD optimizations"""
     api_key: Optional[str]
     shop_id: Optional[str]
     blueprint_id: int = 77  # Gildan 18500 Heavy Blend Hoodie (most popular POD product)
     provider_id: int = 39  # SwiftPOD (US-based, reliable, fast shipping)
     default_price_cents: int = 3499  # $34.99 (typical hoodie price)
+
+    # POD optimization settings (reduce SKU complexity and costs)
+    color_filter: str = "black"  # Limit to single color for simplified inventory
+    max_variants: int = 50  # Cap variants to reduce complexity and improve manageability
 
     def validate(self) -> None:
         """Validate Printify configuration"""
@@ -55,6 +59,8 @@ class PrintifyConfig:
             raise ValueError("Invalid Printify Shop ID (must be numeric)")
         if self.default_price_cents < 0:
             raise ValueError("Price must be non-negative")
+        if self.max_variants < 1:
+            raise ValueError("max_variants must be at least 1")
 
     def is_configured(self) -> bool:
         """Check if Printify is fully configured"""
@@ -142,7 +148,9 @@ class GatewayConfig:
             shop_id=os.getenv("PRINTIFY_SHOP_ID"),
             blueprint_id=int(os.getenv("PRINTIFY_BLUEPRINT_ID", "77")),  # Gildan 18500 Heavy Blend Hoodie
             provider_id=int(os.getenv("PRINTIFY_PROVIDER_ID", "39")),  # SwiftPOD
-            default_price_cents=int(os.getenv("PRINTIFY_DEFAULT_PRICE_CENTS", "3499"))  # $34.99
+            default_price_cents=int(os.getenv("PRINTIFY_DEFAULT_PRICE_CENTS", "3499")),  # $34.99
+            color_filter=os.getenv("PRINTIFY_COLOR_FILTER", "black"),  # POD optimization: single color
+            max_variants=int(os.getenv("PRINTIFY_MAX_VARIANTS", "50"))  # POD optimization: limit SKU count
         )
 
         self.shopify = ShopifyConfig(

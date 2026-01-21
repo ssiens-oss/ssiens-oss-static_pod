@@ -332,7 +332,9 @@ Make the title and description appealing for customers browsing t-shirts and hoo
                 json={
                     "title": metadata["title"],
                     "description": metadata.get("description", ""),
-                    "auto_approve": True  # Skip manual approval for proof of life
+                    "auto_approve": True,  # Skip manual approval for proof of life
+                    "color_filter": "black",  # POD optimization: black only
+                    "max_variants": 50  # POD optimization: limit SKU complexity
                 },
                 timeout=60
             )

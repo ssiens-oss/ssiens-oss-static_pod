@@ -756,6 +756,10 @@ def publish_image(image_id):
         blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
         provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
 
+        # POD optimization: configurable color filter and variant limit
+        color_filter = request_data.get("color_filter", config.config.printify.color_filter)
+        max_variants = request_data.get("max_variants", config.config.printify.max_variants)
+
         # Validate price
         if not isinstance(price_cents, int) or price_cents < 0:
             return jsonify({"success": False, "error": "Invalid price"}), 400
@@ -770,7 +774,9 @@ def publish_image(image_id):
             blueprint_id=blueprint_id,
             provider_id=provider_id,
             price_cents=price_cents,
-            description=description
+            description=description,
+            color_filter=color_filter,
+            max_variants=max_variants
         )
 
         if product_id:

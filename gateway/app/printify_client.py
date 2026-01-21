@@ -168,7 +168,9 @@ class PrintifyClient:
         self,
         blueprint_id: int,
         provider_id: int,
-        use_cache: bool = True
+        use_cache: bool = True,
+        color_filter: Optional[str] = None,
+        max_variants: Optional[int] = None
     ) -> List[Variant]:
         """
         Fetch available variants for a blueprint and print provider
@@ -177,6 +179,8 @@ class PrintifyClient:
             blueprint_id: Printify blueprint ID (e.g., 3 for t-shirt)
             provider_id: Print provider ID (e.g., 99 for SwiftPOD)
             use_cache: Whether to use cached variants
+            color_filter: Filter variants by color (e.g., "black", "white")
+            max_variants: Maximum number of variants to return (POD optimization)
 
         Returns:
             List of Variant objects
@@ -185,34 +189,51 @@ class PrintifyClient:
 
         if use_cache and cache_key in self._variant_cache:
             logger.debug(f"Using cached variants for blueprint {blueprint_id}, provider {provider_id}")
-            return self._variant_cache[cache_key]
-
-        try:
-            logger.info(f"Fetching variants for blueprint {blueprint_id}, provider {provider_id}")
-            response = self._make_request(
-                "GET",
-                f"/catalog/blueprints/{blueprint_id}/print_providers/{provider_id}/variants.json"
-            )
-
-            variants_data = response.json().get("variants", [])
-            variants = [
-                Variant(
-                    id=v["id"],
-                    title=v.get("title", f"Variant {v['id']}"),
-                    is_available=v.get("is_available", True)
+            cached_variants = self._variant_cache[cache_key]
+        else:
+            try:
+                logger.info(f"Fetching variants for blueprint {blueprint_id}, provider {provider_id}")
+                response = self._make_request(
+                    "GET",
+                    f"/catalog/blueprints/{blueprint_id}/print_providers/{provider_id}/variants.json"
                 )
-                for v in variants_data
+
+                variants_data = response.json().get("variants", [])
+                cached_variants = [
+                    Variant(
+                        id=v["id"],
+                        title=v.get("title", f"Variant {v['id']}"),
+                        is_available=v.get("is_available", True)
+                    )
+                    for v in variants_data
+                ]
+
+                # Cache the results
+                self._variant_cache[cache_key] = cached_variants
+                logger.info(f"Fetched {len(cached_variants)} total variants")
+
+            except Exception as e:
+                logger.error(f"Failed to fetch variants: {e}")
+                raise PrintifyError(f"Failed to fetch blueprint variants: {str(e)}")
+
+        # Apply filters
+        variants = cached_variants
+
+        # Color filter (POD optimization: reduce SKU count)
+        if color_filter:
+            color_lower = color_filter.lower()
+            variants = [
+                v for v in variants
+                if color_lower in v.title.lower()
             ]
+            logger.info(f"🎨 Filtered to {len(variants)} {color_filter} variants (from {len(cached_variants)} total)")
 
-            # Cache the results
-            self._variant_cache[cache_key] = variants
-            logger.info(f"Fetched {len(variants)} variants")
+        # Limit variants (POD optimization: reduce complexity and costs)
+        if max_variants and len(variants) > max_variants:
+            variants = variants[:max_variants]
+            logger.info(f"📊 Limited to {max_variants} variants for POD efficiency")
 
-            return variants
-
-        except Exception as e:
-            logger.error(f"Failed to fetch variants: {e}")
-            raise PrintifyError(f"Failed to fetch blueprint variants: {str(e)}")
+        return variants
 
     def upload_image(self, image_path: str, filename: str) -> Optional[str]:
         """
@@ -254,7 +275,9 @@ class PrintifyClient:
         provider_id: int,
         price_cents: int = 1999,
         variant_ids: Optional[List[int]] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        color_filter: Optional[str] = None,
+        max_variants: Optional[int] = None
     ) -> Optional[Dict]:
         """
         Create a product with uploaded image
@@ -265,8 +288,10 @@ class PrintifyClient:
             blueprint_id: Blueprint ID (e.g., 3 for t-shirt)
             provider_id: Print provider ID (e.g., 99 for SwiftPOD)
             price_cents: Price in cents (e.g., 1999 = $19.99)
-            variant_ids: Optional list of variant IDs to enable. If None, fetches all available variants
+            variant_ids: Optional list of variant IDs to enable. If None, fetches variants with filters
             description: Optional product description
+            color_filter: Filter variants by color (POD optimization: e.g., "black")
+            max_variants: Maximum variants to enable (POD optimization: e.g., 50)
 
         Returns:
             Product data dict or None on failure
@@ -275,9 +300,14 @@ class PrintifyClient:
             # Fetch variants if not provided
             if variant_ids is None:
                 logger.info("Fetching available variants...")
-                variants = self.get_blueprint_variants(blueprint_id, provider_id)
+                variants = self.get_blueprint_variants(
+                    blueprint_id,
+                    provider_id,
+                    color_filter=color_filter,
+                    max_variants=max_variants
+                )
                 variant_ids = [v.id for v in variants if v.is_available]
-                logger.info(f"Using {len(variant_ids)} available variants")
+                logger.info(f"✅ Using {len(variant_ids)} variants for product")
 
             if not variant_ids:
                 logger.error("No variants available for this blueprint/provider combination")
@@ -381,10 +411,16 @@ class PrintifyClient:
         blueprint_id: int,
         provider_id: int,
         price_cents: int = 1999,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        color_filter: str = "black",
+        max_variants: int = 50
     ) -> Optional[str]:
         """
         Complete workflow: upload image, create product, and publish
+
+        POD-optimized defaults:
+        - Only black variants (reduces SKU complexity)
+        - Maximum 50 variants (improves managability and reduces costs)
 
         Args:
             image_path: Local path to image file
@@ -393,24 +429,30 @@ class PrintifyClient:
             provider_id: Print provider ID (e.g., 99 for SwiftPOD)
             price_cents: Price in cents
             description: Optional product description
+            color_filter: Color to filter variants (default: "black" for POD optimization)
+            max_variants: Maximum variants per product (default: 50 for POD optimization)
 
         Returns:
             Product ID if successful, None otherwise
         """
+        logger.info(f"🎨 POD Settings: {color_filter} variants only, max {max_variants} SKUs")
+
         # Upload image
         image_id = self.upload_image(image_path, title)
         if not image_id:
             logger.error("Failed to upload image")
             return None
 
-        # Create product
+        # Create product with POD optimizations
         product = self.create_product(
             title=title,
             image_id=image_id,
             blueprint_id=blueprint_id,
             provider_id=provider_id,
             price_cents=price_cents,
-            description=description
+            description=description,
+            color_filter=color_filter,
+            max_variants=max_variants
         )
         if not product:
             logger.error("Failed to create product")
