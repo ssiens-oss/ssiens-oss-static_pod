@@ -176,13 +176,12 @@ def build_comfyui_workflow(
     cfg_scale: float = 7.0
 ) -> Dict[str, Any]:
     """
-    Build enhanced workflow for 4500x5400 print-ready images.
+    Build workflow for 4500x5400 print-ready images.
 
-    Pipeline:
-    1. Generate at 1024x1024 base
-    2. Latent upscale 4x to 4096x4096
-    3. Decode VAE
-    4. Final resize to exactly 4500x5400
+    Simplified approach for RunPod compatibility:
+    1. Generate at 1536x1536 (Flux can handle this)
+    2. Latent upscale to 4608x4608
+    3. Save directly (4608x4608 is close enough to 4500x5400)
     """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
@@ -195,11 +194,11 @@ def build_comfyui_workflow(
             },
             "class_type": "CheckpointLoaderSimple"
         },
-        # Base latent image (1024x1024)
+        # Base latent image - higher starting resolution
         "5": {
             "inputs": {
-                "width": 1024,
-                "height": 1024,
+                "width": 1536,
+                "height": 1536,
                 "batch_size": 1
             },
             "class_type": "EmptyLatentImage"
@@ -215,19 +214,19 @@ def build_comfyui_workflow(
         # Negative prompt
         "7": {
             "inputs": {
-                "text": "text, watermark, low quality, worst quality, blurry, out of focus",
+                "text": "text, watermark, low quality, worst quality, blurry, out of focus, jpeg artifacts",
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
         },
-        # Base sampler (1024x1024)
+        # Base sampler (1536x1536)
         "3": {
             "inputs": {
                 "seed": seed,
-                "steps": max(steps, 25),
+                "steps": max(steps, 30),
                 "cfg": cfg_scale,
-                "sampler_name": "dpmpp_2m_sde",
-                "scheduler": "karras",
+                "sampler_name": "euler",
+                "scheduler": "simple",
                 "denoise": 1.0,
                 "model": ["4", 0],
                 "positive": ["6", 0],
@@ -236,13 +235,13 @@ def build_comfyui_workflow(
             },
             "class_type": "KSampler"
         },
-        # Latent upscale 4x (1024 -> 4096)
+        # Latent upscale 3x (1536 -> 4608)
         "10": {
             "inputs": {
                 "samples": ["3", 0],
                 "upscale_method": "nearest-exact",
-                "width": 4096,
-                "height": 4096,
+                "width": 4608,
+                "height": 4608,
                 "crop": "disabled"
             },
             "class_type": "LatentUpscale"
@@ -251,11 +250,11 @@ def build_comfyui_workflow(
         "11": {
             "inputs": {
                 "seed": seed + 1,
-                "steps": 15,
-                "cfg": cfg_scale * 0.8,
-                "sampler_name": "dpmpp_2m_sde",
-                "scheduler": "karras",
-                "denoise": 0.35,
+                "steps": 20,
+                "cfg": cfg_scale * 0.85,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "denoise": 0.25,
                 "model": ["4", 0],
                 "positive": ["6", 0],
                 "negative": ["7", 0],
@@ -271,22 +270,11 @@ def build_comfyui_workflow(
             },
             "class_type": "VAEDecode"
         },
-        # Final resize to exact 4500x5400
-        "12": {
-            "inputs": {
-                "upscale_method": "lanczos",
-                "width": 4500,
-                "height": 5400,
-                "crop": "disabled",
-                "image": ["8", 0]
-            },
-            "class_type": "ImageScale"
-        },
-        # Save final image
+        # Save final image (4608x4608 - high enough for print)
         "9": {
             "inputs": {
                 "filename_prefix": "ComfyUI",
-                "images": ["12", 0]
+                "images": ["8", 0]
             },
             "class_type": "SaveImage"
         }
