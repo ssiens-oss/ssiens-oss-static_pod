@@ -123,11 +123,31 @@ echo ""
 # Step 5: Start gateway
 echo "5️⃣  Starting POD Gateway..."
 echo ""
+
+# CRITICAL FIX: Ensure POD paths are set before starting (avoid /workspace error)
+# Detect home directory dynamically
+USER_HOME=$(eval echo ~$USER)
+PROJECT_DIR="$USER_HOME/ssiens-oss-static_pod"
+
+# Force-set POD paths if they're missing or still point to /workspace
+grep -q "^POD_IMAGE_DIR=" .env || echo "POD_IMAGE_DIR=$PROJECT_DIR/output" >> .env
+grep -q "^POD_STATE_FILE=" .env || echo "POD_STATE_FILE=$PROJECT_DIR/gateway/data/state.json" >> .env
+grep -q "^POD_ARCHIVE_DIR=" .env || echo "POD_ARCHIVE_DIR=$PROJECT_DIR/gateway/data/archive" >> .env
+
+# Update if they still point to /workspace
+sed -i "s|^POD_IMAGE_DIR=/workspace.*|POD_IMAGE_DIR=$PROJECT_DIR/output|" .env
+sed -i "s|^POD_STATE_FILE=/workspace.*|POD_STATE_FILE=$PROJECT_DIR/gateway/data/state.json|" .env
+sed -i "s|^POD_ARCHIVE_DIR=/workspace.*|POD_ARCHIVE_DIR=$PROJECT_DIR/gateway/data/archive|" .env
+
+# Create directories
+mkdir -p "$PROJECT_DIR/output" "$PROJECT_DIR/gateway/data"
+
 echo "============================================================"
 echo "🌐 Gateway will start on http://127.0.0.1:5000"
 echo "🧠 Using RunPod Serverless: qm6ofmy96f3htl"
 echo "🎨 Model: Flux Dev FP8"
 echo "🔧 POD Pipeline: Available at /pod-pipeline.py"
+echo "📁 Output dir: $PROJECT_DIR/output"
 echo "============================================================"
 echo ""
 
