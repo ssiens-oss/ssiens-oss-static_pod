@@ -59,6 +59,9 @@ fi
 # This is a placeholder - users should have their own .env.runpod-config
 RUNPOD_URL=$(grep "^COMFYUI_API_URL=" .env.runpod-config | head -1 | cut -d= -f2)
 RUNPOD_KEY=$(grep "^RUNPOD_API_KEY=" .env.runpod-config | head -1 | cut -d= -f2)
+POD_IMG_DIR=$(grep "^POD_IMAGE_DIR=" .env.runpod-config | head -1 | cut -d= -f2)
+POD_STATE=$(grep "^POD_STATE_FILE=" .env.runpod-config | head -1 | cut -d= -f2)
+POD_ARCHIVE=$(grep "^POD_ARCHIVE_DIR=" .env.runpod-config | head -1 | cut -d= -f2)
 
 if [ -z "$RUNPOD_URL" ] || [ -z "$RUNPOD_KEY" ]; then
     echo "   ℹ️  .env.runpod-config exists but credentials not extracted"
@@ -76,6 +79,18 @@ else
     sed -i "s|^RUNPOD_API_KEY=.*|RUNPOD_API_KEY=$RUNPOD_KEY|" .env
     sed -i 's|^PRINTIFY_API_KEY=.*|PRINTIFY_API_KEY=|' .env
     sed -i 's|^PRINTIFY_SHOP_ID=.*|PRINTIFY_SHOP_ID=|' .env
+
+    # Apply local paths from .env.runpod-config (avoid /workspace permission errors)
+    if [ -n "$POD_IMG_DIR" ]; then
+        sed -i "s|^POD_IMAGE_DIR=.*|POD_IMAGE_DIR=$POD_IMG_DIR|" .env
+    fi
+    if [ -n "$POD_STATE" ]; then
+        sed -i "s|^POD_STATE_FILE=.*|POD_STATE_FILE=$POD_STATE|" .env
+    fi
+    if [ -n "$POD_ARCHIVE" ]; then
+        sed -i "s|^POD_ARCHIVE_DIR=.*|POD_ARCHIVE_DIR=$POD_ARCHIVE|" .env
+    fi
+
     echo "   ✅ .env configured from .env.runpod-config"
 fi
 echo ""
