@@ -12,7 +12,10 @@ cd "$(dirname "$0")"
 
 # Load .env if exists
 if [ -f ".env" ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    # Load environment variables while properly handling comments and empty lines
+    set -a
+    source <(grep -v '^#' .env | grep -v '^$' | sed 's/#.*$//')
+    set +a
 else
     echo "❌ .env file not found!"
     echo ""
