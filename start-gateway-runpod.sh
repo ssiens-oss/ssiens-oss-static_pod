@@ -82,13 +82,25 @@ else
 
     # Apply local paths from .env.runpod-config (avoid /workspace permission errors)
     if [ -n "$POD_IMG_DIR" ]; then
-        sed -i "s|^POD_IMAGE_DIR=.*|POD_IMAGE_DIR=$POD_IMG_DIR|" .env
+        if grep -q "^POD_IMAGE_DIR=" .env; then
+            sed -i "s|^POD_IMAGE_DIR=.*|POD_IMAGE_DIR=$POD_IMG_DIR|" .env
+        else
+            echo "POD_IMAGE_DIR=$POD_IMG_DIR" >> .env
+        fi
     fi
     if [ -n "$POD_STATE" ]; then
-        sed -i "s|^POD_STATE_FILE=.*|POD_STATE_FILE=$POD_STATE|" .env
+        if grep -q "^POD_STATE_FILE=" .env; then
+            sed -i "s|^POD_STATE_FILE=.*|POD_STATE_FILE=$POD_STATE|" .env
+        else
+            echo "POD_STATE_FILE=$POD_STATE" >> .env
+        fi
     fi
     if [ -n "$POD_ARCHIVE" ]; then
-        sed -i "s|^POD_ARCHIVE_DIR=.*|POD_ARCHIVE_DIR=$POD_ARCHIVE|" .env
+        if grep -q "^POD_ARCHIVE_DIR=" .env; then
+            sed -i "s|^POD_ARCHIVE_DIR=.*|POD_ARCHIVE_DIR=$POD_ARCHIVE|" .env
+        else
+            echo "POD_ARCHIVE_DIR=$POD_ARCHIVE" >> .env
+        fi
     fi
 
     echo "   ✅ .env configured from .env.runpod-config"
