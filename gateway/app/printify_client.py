@@ -249,12 +249,12 @@ class PrintifyClient:
         try:
             logger.info(f"Uploading image: {filename}")
 
+            # File uploads need special handling - use session directly
+            # Don't set Content-Type (let requests handle multipart/form-data)
+            upload_headers = {"Authorization": f"Bearer {self.api_key}"}
+
             with open(image_path, "rb") as f:
                 files = {"file": (filename, f, "image/png")}
-
-                # File uploads need special handling - use session directly
-                # Don't set Content-Type (let requests handle multipart/form-data)
-                upload_headers = {"Authorization": f"Bearer {self.api_key}"}
 
                 response = self.session.post(
                     f"{PRINTIFY_API}/uploads/images.json",
@@ -263,12 +263,21 @@ class PrintifyClient:
                     timeout=30
                 )
 
+            # Check for errors and log detailed response
+            if not response.ok:
+                error_detail = response.text
+                logger.error(f"Printify upload failed ({response.status_code}): {error_detail}")
                 response.raise_for_status()
 
             image_id = response.json().get("id")
-            logger.info(f"Image uploaded successfully: {image_id}")
+            logger.info(f"✅ Image uploaded successfully: {image_id}")
             return image_id
 
+        except requests.HTTPError as e:
+            logger.error(f"HTTP error uploading image: {e}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response body: {e.response.text}")
+            return None
         except Exception as e:
             logger.error(f"Error uploading image: {e}")
             return None
