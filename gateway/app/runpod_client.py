@@ -4,8 +4,10 @@ Handles API calls to RunPod serverless endpoints with proper authentication and 
 """
 import requests
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import time
+import base64
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +123,96 @@ class RunPodServerlessClient:
         except requests.RequestException as e:
             logger.error(f"RunPod status request failed: {e}")
             raise
+
+    def download_images_from_output(self, output: Dict[str, Any], target_dir: Path) -> List[str]:
+        """
+        Download images from RunPod serverless output to local directory
+
+        Args:
+            output: RunPod output dict containing image data
+            target_dir: Directory to save images
+
+        Returns:
+            List of saved image file paths
+        """
+        saved_images = []
+        target_dir = Path(target_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # RunPod ComfyUI typically returns images in output['images'] or output['files']
+        images_data = output.get('images', []) or output.get('files', [])
+
+        if not images_data:
+            # Check if there's a direct base64 encoded image
+            if 'image' in output and isinstance(output['image'], str):
+                images_data = [output['image']]
+            # Check for message with base64 data
+            elif 'message' in output and isinstance(output['message'], dict):
+                if 'images' in output['message']:
+                    images_data = output['message']['images']
+
+        logger.info(f"Found {len(images_data)} images in RunPod output")
+
+        for idx, image_data in enumerate(images_data):
+            try:
+                # Handle different image formats from RunPod
+                if isinstance(image_data, str):
+                    # Could be URL or base64
+                    if image_data.startswith('http'):
+                        # Download from URL
+                        filename = f"runpod_generated_{int(time.time())}_{idx}.png"
+                        filepath = target_dir / filename
+
+                        logger.info(f"Downloading image from URL: {image_data[:50]}...")
+                        response = requests.get(image_data, timeout=30)
+                        response.raise_for_status()
+
+                        filepath.write_bytes(response.content)
+                        logger.info(f"✓ Downloaded image: {filepath}")
+                        saved_images.append(str(filepath))
+
+                    elif image_data.startswith('data:image') or ';base64,' in image_data:
+                        # Base64 encoded image
+                        filename = f"runpod_generated_{int(time.time())}_{idx}.png"
+                        filepath = target_dir / filename
+
+                        # Extract base64 data
+                        if ';base64,' in image_data:
+                            base64_data = image_data.split(';base64,')[1]
+                        else:
+                            base64_data = image_data
+
+                        # Decode and save
+                        image_bytes = base64.b64decode(base64_data)
+                        filepath.write_bytes(image_bytes)
+                        logger.info(f"✓ Saved base64 image: {filepath}")
+                        saved_images.append(str(filepath))
+
+                elif isinstance(image_data, dict):
+                    # Structured image data
+                    url = image_data.get('url') or image_data.get('image_url')
+                    base64_data = image_data.get('data') or image_data.get('base64')
+                    filename = image_data.get('filename', f"runpod_generated_{int(time.time())}_{idx}.png")
+
+                    filepath = target_dir / filename
+
+                    if url:
+                        response = requests.get(url, timeout=30)
+                        response.raise_for_status()
+                        filepath.write_bytes(response.content)
+                        logger.info(f"✓ Downloaded image from dict: {filepath}")
+                        saved_images.append(str(filepath))
+                    elif base64_data:
+                        image_bytes = base64.b64decode(base64_data)
+                        filepath.write_bytes(image_bytes)
+                        logger.info(f"✓ Saved base64 image from dict: {filepath}")
+                        saved_images.append(str(filepath))
+
+            except Exception as e:
+                logger.error(f"Failed to process image {idx}: {e}")
+                continue
+
+        return saved_images
 
 
 def create_comfyui_client(api_url: str, runpod_api_key: Optional[str] = None):

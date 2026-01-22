@@ -408,12 +408,31 @@ def generate_image():
         if comfyui_client:
             # RunPod serverless
             result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
-            return jsonify({
-                "prompt_id": result.get("prompt_id"),
-                "job_id": result.get("job_id"),
-                "status": result.get("status"),
-                "prompt": full_prompt
-            })
+
+            # Download generated images if completed
+            if result.get("status") == "COMPLETED" and result.get("output"):
+                logger.info("Downloading generated images from RunPod...")
+                downloaded_images = comfyui_client.download_images_from_output(
+                    result.get("output"),
+                    config.IMAGE_DIR
+                )
+                logger.info(f"✓ Downloaded {len(downloaded_images)} images")
+
+                return jsonify({
+                    "prompt_id": result.get("prompt_id"),
+                    "job_id": result.get("job_id"),
+                    "status": result.get("status"),
+                    "prompt": full_prompt,
+                    "images_downloaded": len(downloaded_images),
+                    "image_files": [Path(img).name for img in downloaded_images]
+                })
+            else:
+                return jsonify({
+                    "prompt_id": result.get("prompt_id"),
+                    "job_id": result.get("job_id"),
+                    "status": result.get("status"),
+                    "prompt": full_prompt
+                })
         else:
             # Direct ComfyUI connection
             payload = {
