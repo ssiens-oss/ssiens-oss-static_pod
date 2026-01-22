@@ -1,9 +1,9 @@
-# ✅ WORKING STATE - POD Pipeline v1.1
+# ✅ WORKING STATE - POD Pipeline v1.2
 
 **Date**: 2026-01-21
-**Git Commit**: 5fed34e
+**Git Commit**: cce44cc
 **Branch**: claude/rebuild-pod-pipeline-gateway-Xf829
-**Status**: FULLY FUNCTIONAL + POD OPTIMIZED
+**Status**: FULLY FUNCTIONAL + POD OPTIMIZED + BATCH PUBLISHING
 
 ---
 
@@ -35,7 +35,7 @@
 - All environment variables loaded
 - Listens on 0.0.0.0:5000
 
-### ✅ POD Optimizations (NEW in v1.1!)
+### ✅ POD Optimizations (v1.1)
 - **Black-only variants**: Reduces SKU count by 94% (216 → 12 for hoodies)
 - **50 variant limit**: Improves manageability and reduces costs
 - **Configurable**: Via `PRINTIFY_COLOR_FILTER` and `PRINTIFY_MAX_VARIANTS`
@@ -47,6 +47,31 @@
 PRINTIFY_COLOR_FILTER=black
 PRINTIFY_MAX_VARIANTS=50
 ```
+
+### ✨ Batch Publishing & Auto-Metadata (NEW in v1.2!)
+- **Auto-Titles**: Intelligent title generation from prompts or image IDs
+- **Auto-Descriptions**: Template-based descriptions with style customization
+- **Batch Processing**: Publish 10s or 100s of images in one operation
+- **Auto-Approval**: Optionally auto-approve pending images before publishing
+- **CLI Tool**: Simple command-line interface for batch operations
+- **Progress Tracking**: Detailed results showing succeeded/failed/skipped
+
+**Quick Example:**
+```bash
+# Publish all approved images with auto-metadata
+./batch-publish.sh --all
+
+# Auto-approve and publish everything
+./batch-publish.sh --all --auto-approve
+
+# Custom style and pricing
+./batch-publish.sh --all --style "geometric art" --price 4499
+```
+
+**Performance:**
+- 10 images: ~2-3 minutes
+- 50 images: ~12-15 minutes
+- 100 images: ~25-30 minutes
 
 ---
 
@@ -125,6 +150,8 @@ CLAUDE_API_KEY=your-claude-api-key
 
 | Commit | Fix |
 |--------|-----|
+| cce44cc | **Batch publishing + auto-metadata generation (v1.2)** |
+| 9615ac9 | Fix Printify image upload format (base64 JSON) |
 | 5fed34e | **POD optimization - black-only, 50 variant limit (v1.1)** |
 | 7454ce0 | Optimize Flux workflow - fixes blurry images |
 | 83ecb76 | Add direct gateway start script with all env vars |
@@ -150,10 +177,17 @@ CLAUDE_API_KEY=your-claude-api-key
 
 ### Documentation
 - **POD_PIPELINE_GUIDE.md**: Complete usage guide
-- **POD_OPTIMIZATION_GUIDE.md**: POD optimization settings and best practices (NEW!)
+- **POD_OPTIMIZATION_GUIDE.md**: POD optimization settings and best practices
+- **BATCH_PUBLISHING_GUIDE.md**: Batch publishing and auto-metadata (NEW in v1.2!)
 - **CONFIGURATION_GUIDE.md**: Credential setup instructions
 - **QUICK_SETUP.md**: Quick reference for fresh environments
 - **WORKING_STATE.md**: This file - working state documentation
+
+### CLI Tools
+- **start-gateway-direct.sh**: Start gateway with all credentials
+- **batch-publish.sh**: Batch publish with auto-metadata (NEW in v1.2!)
+- **setup-printify.sh**: Interactive Printify credential setup
+- **run-pod-pipeline.sh**: POD pipeline operations
 
 ---
 
