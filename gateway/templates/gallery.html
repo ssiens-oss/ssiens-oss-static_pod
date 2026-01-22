@@ -624,6 +624,75 @@
             font-size: 0.9em;
         }
 
+        .progress-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1a1a1a;
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            min-width: 300px;
+        }
+
+        .progress-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .progress-text {
+            font-size: 0.9em;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .settings-modal.active {
+            display: flex;
+        }
+
+        .template-input {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            border: 1px solid #667eea;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .template-help {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -690,6 +759,10 @@
         <div class="toolbar-section">
             <button class="filter-btn" onclick="selectAll()">✓ Select All</button>
             <button class="filter-btn" onclick="deselectAll()">✗ Deselect All</button>
+        </div>
+        <div class="toolbar-section">
+            <button class="filter-btn" id="undo-btn" onclick="performUndo()" disabled>↶ Undo</button>
+            <button class="filter-btn" onclick="openSettingsModal()">⚙ Settings</button>
         </div>
     </div>
 
@@ -839,7 +912,55 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="modal settings-modal" id="settings-modal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>⚙ Gateway Settings</h2>
+                    <p>Customize title generation and other preferences</p>
+                </div>
+                <button class="icon-btn" id="settings-close" type="button">✕</button>
+            </div>
+            <form id="settings-form">
+                <div>
+                    <label for="title-template">Title Template</label>
+                    <input id="title-template" type="text" class="template-input" placeholder="{style} {prompt} Design">
+                    <div class="template-help">
+                        Available tokens:<br>
+                        • {style} - Design style (minimalist, vintage, etc.)<br>
+                        • {genre} - Design genre (nature, fantasy, etc.)<br>
+                        • {prompt} - First 3 keywords from prompt<br>
+                        • {date} - Current date (YYYY-MM-DD)<br>
+                        • {id} - Short image ID (6 chars)<br>
+                        • {filename} - Original filename without extension
+                    </div>
+                </div>
+                <div>
+                    <label>Preset Templates</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                        <button type="button" class="btn btn-reset" onclick="applyTemplatePreset('default')">Default</button>
+                        <button type="button" class="btn btn-reset" onclick="applyTemplatePreset('descriptive')">Descriptive</button>
+                        <button type="button" class="btn btn-reset" onclick="applyTemplatePreset('date')">Date-Based</button>
+                        <button type="button" class="btn btn-reset" onclick="applyTemplatePreset('simple')">Simple</button>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-reset" type="button" id="settings-cancel">Cancel</button>
+                    <button class="btn btn-publish" type="submit" id="settings-save">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // Constants
+        const AUTO_REFRESH_INTERVAL = 10000; // 10 seconds
+        const POLL_INTERVAL = 2000; // 2 seconds
+        const RUNPOD_POLL_INTERVAL = 4000; // 4 seconds
+        const NOTIFICATION_DURATION = 3000; // 3 seconds
+
+        // State
         let currentFilter = 'all';
         let images = [];
         let selectedImages = new Set();
@@ -851,6 +972,11 @@
         let pendingPublishId = null;
         let searchQuery = '';
         let sortOrder = 'newest';
+        let undoStack = [];
+        let titleTemplate = '{style} {prompt} Design';
+        let currentPromptText = '';
+        let currentStyle = '';
+        let currentGenre = '';
 
         const prompterStatus = document.getElementById('prompter-status');
         const prompterDetail = document.getElementById('prompter-detail');
@@ -884,7 +1010,136 @@
             notif.className = `notification ${type}`;
             notif.textContent = message;
             document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 3000);
+            setTimeout(() => notif.remove(), NOTIFICATION_DURATION);
+        }
+
+        // Progress indicator
+        function createProgressIndicator(action, total) {
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'progress-indicator';
+            progressDiv.innerHTML = `
+                <div class="progress-content">
+                    <div class="progress-text">${action}: <span class="progress-current">0</span> / ${total}</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(progressDiv);
+            return progressDiv;
+        }
+
+        function updateProgressIndicator(progressDiv, current, total) {
+            const percentage = Math.round((current / total) * 100);
+            const currentSpan = progressDiv.querySelector('.progress-current');
+            const progressBar = progressDiv.querySelector('.progress-bar');
+            if (currentSpan) currentSpan.textContent = current;
+            if (progressBar) progressBar.style.width = `${percentage}%`;
+        }
+
+        function removeProgressIndicator(progressDiv) {
+            setTimeout(() => progressDiv.remove(), 1000);
+        }
+
+        // Smart title generation
+        function generateSmartTitle(img, template = null) {
+            const useTemplate = template || titleTemplate;
+            const date = new Date().toISOString().split('T')[0];
+            const shortId = img.id.substring(0, 6);
+
+            // Extract first 3-4 keywords from prompt if available
+            let promptKeywords = '';
+            if (img.metadata?.prompt || img.prompt) {
+                const prompt = img.metadata?.prompt || img.prompt || '';
+                const words = prompt.split(/\s+/).filter(w => w.length > 3).slice(0, 3);
+                promptKeywords = words.join(' ');
+            }
+
+            // Use metadata if available
+            const style = img.metadata?.style || img.style || currentStyle || '';
+            const genre = img.metadata?.genre || img.genre || currentGenre || '';
+
+            // Template replacements
+            let title = useTemplate
+                .replace('{style}', style ? style.charAt(0).toUpperCase() + style.slice(1) : '')
+                .replace('{genre}', genre ? genre.charAt(0).toUpperCase() + genre.slice(1) : '')
+                .replace('{prompt}', promptKeywords ? promptKeywords : '')
+                .replace('{date}', date)
+                .replace('{id}', shortId)
+                .replace('{filename}', img.filename.replace(/\.[^/.]+$/, ''));
+
+            // Clean up multiple spaces and trim
+            title = title.replace(/\s+/g, ' ').trim();
+
+            // Fallback if template results in empty/very short title
+            if (title.length < 5) {
+                title = `Design ${date} ${shortId}`;
+            }
+
+            return title;
+        }
+
+        // Undo system
+        function saveUndoState(action, affectedImages) {
+            undoStack.push({
+                action,
+                timestamp: Date.now(),
+                images: affectedImages.map(id => {
+                    const img = images.find(i => i.id === id);
+                    return {
+                        id: img.id,
+                        status: img.status,
+                        title: img.title,
+                        product_id: img.product_id
+                    };
+                })
+            });
+
+            // Keep only last 10 undo states
+            if (undoStack.length > 10) {
+                undoStack.shift();
+            }
+
+            updateUndoButton();
+        }
+
+        function updateUndoButton() {
+            const undoBtn = document.getElementById('undo-btn');
+            if (undoBtn) {
+                undoBtn.disabled = undoStack.length === 0;
+                undoBtn.textContent = undoStack.length > 0
+                    ? `↶ Undo (${undoStack.length})`
+                    : '↶ Undo';
+            }
+        }
+
+        async function performUndo() {
+            if (undoStack.length === 0) {
+                showNotification('Nothing to undo', 'info');
+                return;
+            }
+
+            const lastAction = undoStack.pop();
+            let success = 0;
+            let failed = 0;
+
+            for (const imgState of lastAction.images) {
+                try {
+                    // Reset to previous status
+                    const res = await fetch(`/api/reset/${imgState.id}`, {method: 'POST'});
+                    if (res.ok) {
+                        success++;
+                    } else {
+                        failed++;
+                    }
+                } catch (err) {
+                    failed++;
+                }
+            }
+
+            showNotification(`Undo complete: ${success} restored, ${failed} failed`, success > 0 ? 'success' : 'error');
+            updateUndoButton();
+            await loadImages();
         }
 
         // Prompter functions
@@ -1039,6 +1294,10 @@
             filtered.sort((a, b) => {
                 switch (sortOrder) {
                     case 'oldest':
+                        // Use created_at if available, fallback to filename
+                        if (a.created_at && b.created_at) {
+                            return new Date(a.created_at) - new Date(b.created_at);
+                        }
                         return a.filename.localeCompare(b.filename);
                     case 'name-asc':
                         return a.filename.localeCompare(b.filename);
@@ -1046,6 +1305,10 @@
                         return b.filename.localeCompare(a.filename);
                     case 'newest':
                     default:
+                        // Use created_at if available, fallback to filename
+                        if (a.created_at && b.created_at) {
+                            return new Date(b.created_at) - new Date(a.created_at);
+                        }
                         return b.filename.localeCompare(a.filename);
                 }
             });
@@ -1203,11 +1466,13 @@
         // Bulk operations
         async function bulkApprove() {
             if (!confirm(`Approve ${selectedImages.size} images?`)) return;
+            saveUndoState('bulkApprove', [...selectedImages]);
             await bulkAction('approve');
         }
 
         async function bulkReject() {
             if (!confirm(`Reject ${selectedImages.size} images?`)) return;
+            saveUndoState('bulkReject', [...selectedImages]);
             await bulkAction('reject');
         }
 
@@ -1227,48 +1492,94 @@
                 return;
             }
 
-            if (!confirm(`Publish ${approvedImages.length} approved images to Printify?`)) return;
+            // Generate preview of titles
+            const titlePreviews = approvedImages.map(id => {
+                const img = images.find(i => i.id === id);
+                return {
+                    id,
+                    filename: img.filename,
+                    title: generateSmartTitle(img)
+                };
+            });
 
-            for (const id of approvedImages) {
+            // Show preview dialog
+            const previewHtml = titlePreviews.slice(0, 5).map(p =>
+                `• ${p.filename} → "${p.title}"`
+            ).join('\n');
+
+            const moreText = titlePreviews.length > 5 ? `\n...and ${titlePreviews.length - 5} more` : '';
+
+            if (!confirm(`Publish ${approvedImages.length} approved images to Printify?\n\nTitle Preview:\n${previewHtml}${moreText}`)) {
+                return;
+            }
+
+            // Save undo state
+            saveUndoState('bulkPublish', approvedImages);
+
+            // Show progress
+            const progressDiv = createProgressIndicator('Publishing', approvedImages.length);
+
+            let success = 0;
+            let failed = 0;
+
+            for (let i = 0; i < approvedImages.length; i++) {
+                const id = approvedImages[i];
                 try {
                     const img = images.find(i => i.id === id);
+                    const title = generateSmartTitle(img);
+
                     const res = await fetch(`/api/publish/${id}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            title: `Design ${id.substring(0, 8)}`
-                        })
+                        body: JSON.stringify({ title })
                     });
 
-                    if (!res.ok) {
+                    if (res.ok) {
+                        success++;
+                    } else {
                         const error = await res.json();
-                        showNotification(`Failed to publish ${id}: ${error.error}`, 'error');
+                        console.error(`Failed to publish ${id}:`, error.error);
+                        failed++;
                     }
                 } catch (err) {
-                    showNotification(`Error publishing ${id}: ${err.message}`, 'error');
+                    console.error(`Error publishing ${id}:`, err.message);
+                    failed++;
                 }
+
+                updateProgressIndicator(progressDiv, i + 1, approvedImages.length);
             }
 
-            showNotification(`Bulk publish completed`, 'success');
+            removeProgressIndicator(progressDiv);
+            showNotification(`Bulk publish: ${success} succeeded, ${failed} failed`, success > 0 ? 'success' : 'error');
             deselectAll();
             await loadImages();
         }
 
         async function bulkDownload() {
-            showNotification(`Downloading ${selectedImages.size} images...`, 'info');
-            for (const id of selectedImages) {
-                await downloadImage(id);
+            const imageIds = [...selectedImages];
+            const progressDiv = createProgressIndicator('Downloading', imageIds.length);
+
+            for (let i = 0; i < imageIds.length; i++) {
+                await downloadImage(imageIds[i]);
+                updateProgressIndicator(progressDiv, i + 1, imageIds.length);
+                // Small delay to prevent browser from blocking multiple downloads
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
+
+            removeProgressIndicator(progressDiv);
             showNotification('Download completed', 'success');
         }
 
         async function bulkAction(action) {
+            const imageIds = [...selectedImages];
+            const progressDiv = createProgressIndicator(action.charAt(0).toUpperCase() + action.slice(1) + 'ing', imageIds.length);
+
             let success = 0;
             let failed = 0;
 
-            for (const id of selectedImages) {
+            for (let i = 0; i < imageIds.length; i++) {
                 try {
-                    const res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
+                    const res = await fetch(`/api/${action}/${imageIds[i]}`, {method: 'POST'});
                     if (res.ok) {
                         success++;
                     } else {
@@ -1277,8 +1588,10 @@
                 } catch (err) {
                     failed++;
                 }
+                updateProgressIndicator(progressDiv, i + 1, imageIds.length);
             }
 
+            removeProgressIndicator(progressDiv);
             showNotification(`Bulk ${action}: ${success} succeeded, ${failed} failed`, success > 0 ? 'success' : 'error');
             deselectAll();
             await loadImages();
@@ -1321,10 +1634,57 @@
             if (e.target === previewModal) closePreview();
         });
 
+        // Settings modal
+        const settingsModal = document.getElementById('settings-modal');
+        const settingsForm = document.getElementById('settings-form');
+        const titleTemplateInput = document.getElementById('title-template');
+
+        function openSettingsModal() {
+            titleTemplateInput.value = titleTemplate;
+            settingsModal.classList.add('active');
+            settingsModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeSettingsModal() {
+            settingsModal.classList.remove('active');
+            settingsModal.setAttribute('aria-hidden', 'true');
+        }
+
+        function applyTemplatePreset(preset) {
+            const presets = {
+                default: '{style} {prompt} Design',
+                descriptive: '{genre} {style} {prompt} - {date}',
+                date: 'Design {date} {id}',
+                simple: '{prompt} {id}'
+            };
+            titleTemplateInput.value = presets[preset] || presets.default;
+        }
+
+        document.getElementById('settings-close').addEventListener('click', closeSettingsModal);
+        document.getElementById('settings-cancel').addEventListener('click', closeSettingsModal);
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeSettingsModal();
+        });
+
+        settingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            titleTemplate = titleTemplateInput.value.trim() || '{style} {prompt} Design';
+            localStorage.setItem('titleTemplate', titleTemplate);
+            showNotification('Settings saved successfully', 'success');
+            closeSettingsModal();
+        });
+
+        // Load saved settings
+        const savedTemplate = localStorage.getItem('titleTemplate');
+        if (savedTemplate) {
+            titleTemplate = savedTemplate;
+        }
+
         // Publish modal
         function openPublishModal(id) {
             pendingPublishId = id;
-            publishTitleInput.value = `Design ${id.substring(0, 8)}`;
+            const img = images.find(i => i.id === id);
+            publishTitleInput.value = img ? generateSmartTitle(img) : `Design ${id.substring(0, 8)}`;
             publishDescription.value = '';
             publishPrice.value = '';
             publishPreset.value = 'default';
@@ -1442,6 +1802,11 @@
                 return;
             }
 
+            // Store current generation context for title generation
+            currentPromptText = prompt;
+            currentStyle = style;
+            currentGenre = genre;
+
             prompterSubmit.disabled = true;
             setPrompterStatus('Submitting prompt...');
             setPrompterDetail('Queueing ComfyUI generation.');
@@ -1473,7 +1838,7 @@
                         if (runpodInterval) {
                             clearInterval(runpodInterval);
                         }
-                        runpodInterval = setInterval(pollRunpodStatus, 4000);
+                        runpodInterval = setInterval(pollRunpodStatus, RUNPOD_POLL_INTERVAL);
                     }
                 } else {
                     currentPromptId = data.prompt_id;
@@ -1484,7 +1849,7 @@
                     if (statusInterval) {
                         clearInterval(statusInterval);
                     }
-                    statusInterval = setInterval(pollGenerationStatus, 2000);
+                    statusInterval = setInterval(pollGenerationStatus, POLL_INTERVAL);
                 }
             } catch (err) {
                 setPrompterStatus('Queue failed', 'error');
@@ -1519,7 +1884,7 @@
         // Auto-refresh toggle
         autoRefreshToggle.addEventListener('change', (e) => {
             if (e.target.checked) {
-                autoRefreshInterval = setInterval(loadImages, 10000);
+                autoRefreshInterval = setInterval(loadImages, AUTO_REFRESH_INTERVAL);
                 showNotification('Auto-refresh enabled', 'info');
             } else {
                 if (autoRefreshInterval) {
@@ -1553,7 +1918,7 @@
         loadImages();
 
         // Start auto-refresh
-        autoRefreshInterval = setInterval(loadImages, 10000);
+        autoRefreshInterval = setInterval(loadImages, AUTO_REFRESH_INTERVAL);
     </script>
 </body>
 </html>

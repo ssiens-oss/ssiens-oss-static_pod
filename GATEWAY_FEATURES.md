@@ -6,7 +6,41 @@ The POD Gateway is a powerful, modern web interface for managing your Print-on-D
 
 ## 🚀 Key Features
 
-### 1. **Batch Selection & Multi-Select**
+### 1. **Smart Auto-Titling System** ✨ NEW
+
+Automatically generate intelligent, SEO-friendly titles for your designs.
+
+**How it works:**
+- Extracts keywords from your prompt
+- Includes style and genre tags
+- Uses customizable templates
+- Date-based naming options
+- Fallback to safe defaults
+
+**Default Template:** `{style} {prompt} Design`
+
+**Example Output:**
+- Prompt: "majestic mountain landscape sunset"
+- Style: "watercolor"
+- Result: "Watercolor Majestic Mountain Landscape Design"
+
+**Customization:**
+- Click "⚙ Settings" in toolbar
+- Edit title template with available tokens
+- Choose from preset templates (Default, Descriptive, Date-Based, Simple)
+- Settings saved automatically in browser
+
+**Available Tokens:**
+- `{style}` - Design style (minimalist, vintage, etc.)
+- `{genre}` - Design genre (nature, fantasy, etc.)
+- `{prompt}` - First 3 keywords from prompt
+- `{date}` - Current date (YYYY-MM-DD)
+- `{id}` - Short image ID (6 characters)
+- `{filename}` - Original filename without extension
+
+---
+
+### 2. **Batch Selection & Multi-Select**
 
 Select multiple images at once for bulk operations.
 
@@ -23,42 +57,82 @@ Select multiple images at once for bulk operations.
 
 ---
 
-### 2. **Bulk Operations**
+### 3. **Bulk Operations** 🚀 ENHANCED
 
-Perform actions on multiple images simultaneously.
+Perform actions on multiple images simultaneously with real-time progress tracking.
 
 #### Available Bulk Actions:
 
-**✓ Bulk Approve**
+**✓ Bulk Approve** ✨ NEW: Progress Indicators
 - Approves all selected images
 - Shows confirmation dialog before execution
+- Real-time progress bar during execution
 - Displays success/fail count after completion
+- Can be undone with Undo button
 
-**✗ Bulk Reject**
+**✗ Bulk Reject** ✨ NEW: Progress Indicators
 - Rejects all selected images
 - Useful for quickly clearing unwanted designs
 - Confirmation required
+- Real-time progress tracking
+- Can be undone with Undo button
 
-**→ Bulk Publish (One-Click Publish)**
+**→ Bulk Publish (One-Click Publish)** ✨ NEW: Smart Titles & Preview
 - **Smart filtering:** Only publishes approved images
-- Automatically generates titles: "Design {image-id}"
-- Publishes to Printify sequentially
+- **Smart titles:** Uses title template with context (style, genre, keywords)
+- **Title Preview:** Shows generated titles before publishing (first 5 images)
+- Publishes to Printify sequentially with progress bar
 - Shows individual error messages if any fail
 - Perfect for publishing multiple approved designs at once
+- Can be undone with Undo button
 
-**⬇ Bulk Download**
+**⬇ Bulk Download** ✨ NEW: Progress Indicators
 - Downloads all selected images to your computer
-- Downloads happen sequentially with progress notifications
+- Downloads happen sequentially with real-time progress bar
 - Files keep their original names
+- Small delays prevent browser blocking
 
 **🗑 Bulk Delete**
 - Delete multiple images at once
 - **Note:** Currently shows "not yet implemented" - backend support needed
 - Requires confirmation to prevent accidental deletion
 
+#### Progress Indicators ✨ NEW
+
+All bulk operations now show a live progress indicator:
+- Appears in bottom-right corner
+- Shows current progress: "X / Total"
+- Visual progress bar with percentage
+- Auto-dismisses when complete
+- Non-blocking: Can continue using the interface
+
 ---
 
-### 3. **Search & Filter**
+### 4. **Undo System** ✨ NEW
+
+Safely reverse bulk operations with a multi-level undo system.
+
+**Features:**
+- Undo up to 10 recent bulk actions
+- Shows undo count in button: "↶ Undo (3)"
+- Restores previous status for all affected images
+- Works for: Bulk Approve, Bulk Reject, Bulk Publish
+- Displays success/failure count after undo
+
+**How to use:**
+1. Perform a bulk operation (approve, reject, or publish)
+2. Click "↶ Undo" button in toolbar (if you change your mind)
+3. Confirm the undo action
+4. All images restored to previous state
+
+**Limitations:**
+- Cannot undo individual image actions (only bulk)
+- Stack limited to 10 most recent actions
+- Published images on Printify remain published (local status only)
+
+---
+
+### 5. **Search & Filter** 🚀 ENHANCED
 
 Find images quickly with powerful search and filtering.
 
@@ -68,11 +142,16 @@ Find images quickly with powerful search and filtering.
 - Case-insensitive
 - Works with active filters
 
-**Sort Options:**
-- **Newest first** (default)
-- **Oldest first**
-- **Name (A-Z)**
-- **Name (Z-A)**
+**Sort Options:** ✨ NEW: True Timestamp Sorting
+- **Newest first** (default) - Uses actual creation timestamp
+- **Oldest first** - Uses actual creation timestamp
+- **Name (A-Z)** - Alphabetical by filename
+- **Name (Z-A)** - Reverse alphabetical
+
+**Improved Sorting:**
+- Now uses `created_at` field when available for accurate temporal sorting
+- Fallback to filename comparison for older images without timestamps
+- Faster and more accurate than filename-based date sorting
 
 **Status Filters:**
 - All (shows everything)
@@ -84,7 +163,7 @@ Find images quickly with powerful search and filtering.
 
 ---
 
-### 4. **Image Preview & Download**
+### 6. **Image Preview & Download**
 
 **Image Preview Modal:**
 - Click any image to open full-size preview
@@ -99,7 +178,7 @@ Find images quickly with powerful search and filtering.
 
 ---
 
-### 5. **Auto-Refresh & Notifications**
+### 7. **Auto-Refresh & Notifications**
 
 **Auto-Refresh Toggle:**
 - Located in toolbar settings
@@ -125,7 +204,7 @@ Find images quickly with powerful search and filtering.
 
 ---
 
-### 6. **ComfyUI Prompter**
+### 8. **ComfyUI Prompter**
 
 Generate new images directly from the gateway.
 
@@ -146,12 +225,13 @@ Generate new images directly from the gateway.
 
 ---
 
-### 7. **Smart Publishing Modal**
+### 9. **Smart Publishing Modal** 🚀 ENHANCED
 
-Fine-tune product details before publishing.
+Fine-tune product details before publishing with intelligent title pre-fill.
 
 **Features:**
-- Product title (required)
+- **Smart title pre-fill** ✨ NEW: Auto-generates context-aware title using template
+- Product title (required, editable)
 - Optional description
 - Price override (leave blank for default)
 - Product presets:
@@ -160,15 +240,51 @@ Fine-tune product details before publishing.
   - Custom (manual blueprint/provider entry)
   - Use gateway defaults
 
+**Smart Title Pre-fill:**
+- Uses your custom title template
+- Includes prompt keywords, style, and genre
+- Fully editable before publishing
+- Balances speed and customization
+
 **Workflow:**
 1. Click "→ Publish" on any approved image
-2. Review/edit product details
-3. Click "Publish Now"
-4. Modal closes and image updates to "published"
+2. Review auto-generated title (edit if desired)
+3. Add description, price, product type (optional)
+4. Click "Publish Now"
+5. Modal closes and image updates to "published"
 
 ---
 
-### 8. **Keyboard Shortcuts**
+### 10. **Settings Panel** ✨ NEW
+
+Customize gateway behavior with persistent settings.
+
+**How to access:**
+- Click "⚙ Settings" button in toolbar
+- Modal opens with customization options
+
+**Available Settings:**
+
+**Title Template:**
+- Customize how titles are generated
+- Use tokens for dynamic content
+- Real-time preview of available tokens
+- Preset templates for quick setup
+
+**Template Presets:**
+- **Default:** `{style} {prompt} Design`
+- **Descriptive:** `{genre} {style} {prompt} - {date}`
+- **Date-Based:** `Design {date} {id}`
+- **Simple:** `{prompt} {id}`
+
+**Persistence:**
+- Settings saved to browser localStorage
+- Persists across sessions
+- Per-browser configuration
+
+---
+
+### 11. **Keyboard Shortcuts**
 
 Boost productivity with keyboard shortcuts:
 
@@ -179,7 +295,7 @@ Boost productivity with keyboard shortcuts:
 
 ---
 
-### 9. **Statistics Dashboard**
+### 12. **Statistics Dashboard**
 
 Real-time counters at the top of the page:
 
@@ -190,7 +306,7 @@ Real-time counters at the top of the page:
 
 ---
 
-### 10. **Responsive Design**
+### 13. **Responsive Design**
 
 Works on all devices:
 - Desktop (optimal experience)
@@ -215,18 +331,21 @@ Works on all devices:
 
 ---
 
-### Workflow 2: Bulk Approve and Publish Multiple Designs
+### Workflow 2: Bulk Approve and Publish Multiple Designs ✨ ENHANCED
 
 1. Filter by "Pending" to see only unapproved images
 2. Review images visually
 3. Click checkboxes on images you want to approve
 4. Click "✓ Approve" in bulk actions bar
-5. Confirm bulk approval
+5. Watch real-time progress bar as images are approved
 6. All selected images are now approved
 7. Keep them selected (or reselect)
 8. Click "→ Publish All" in bulk actions bar
-9. Confirm bulk publish
-10. ✅ All approved images published to Printify!
+9. **NEW:** Preview generated titles in confirmation dialog
+10. Confirm bulk publish
+11. **NEW:** Watch progress bar show publishing status
+12. ✅ All approved images published to Printify with smart titles!
+13. **Optional:** Click "↶ Undo" if you need to reverse the action
 
 ---
 
@@ -240,7 +359,23 @@ Works on all devices:
 
 ---
 
-### Workflow 4: Clean Up Rejected Designs
+### Workflow 4: Customize Title Templates ✨ NEW
+
+1. Click "⚙ Settings" button in toolbar
+2. Review current title template
+3. **Option A:** Choose a preset template (Default, Descriptive, Date-Based, Simple)
+4. **Option B:** Create custom template using available tokens
+5. Click "Save Settings"
+6. Generate new images and see smart titles automatically
+7. All future bulk publishes use your custom template
+
+**Example Custom Template:**
+- Template: `{date} {genre} {style} - {prompt}`
+- Result: "2026-01-22 Nature Watercolor - Mountain Landscape Sunset"
+
+---
+
+### Workflow 5: Clean Up Rejected Designs
 
 1. Filter by "Rejected"
 2. Review rejected images
@@ -280,26 +415,44 @@ Each card shows:
 
 ## 🔧 Configuration
 
-### Auto-Refresh Interval
+### Constants (New in v1.1)
 
-Default: 10 seconds
-
-To change, edit `gateway/templates/gallery.html`:
+All timing constants are now defined at the top of the script for easy customization:
 
 ```javascript
-// Line ~1450 and ~1484
-autoRefreshInterval = setInterval(loadImages, 10000); // Change 10000 to desired milliseconds
+const AUTO_REFRESH_INTERVAL = 10000; // 10 seconds
+const POLL_INTERVAL = 2000; // 2 seconds (ComfyUI status polling)
+const RUNPOD_POLL_INTERVAL = 4000; // 4 seconds (RunPod status polling)
+const NOTIFICATION_DURATION = 3000; // 3 seconds
 ```
 
-### Notification Duration
+To change any interval, edit these constants in `gateway/templates/gallery.html` at line ~845.
 
-Default: 3 seconds
+### Title Template
 
-To change, edit `gateway/templates/gallery.html`:
+Default: `{style} {prompt} Design`
 
+**Via UI (Recommended):**
+1. Click "⚙ Settings" in toolbar
+2. Edit title template
+3. Click "Save Settings"
+
+**Via Code:**
+Edit `gateway/templates/gallery.html` at line ~860:
 ```javascript
-// Line ~878
-setTimeout(() => notif.remove(), 3000); // Change 3000 to desired milliseconds
+let titleTemplate = '{style} {prompt} Design'; // Change default template
+```
+
+### Undo Stack Size
+
+Default: 10 actions
+
+To change, edit `gateway/templates/gallery.html` in the `saveUndoState` function:
+```javascript
+// Keep only last 10 undo states
+if (undoStack.length > 10) {  // Change 10 to desired size
+    undoStack.shift();
+}
 ```
 
 ---
@@ -325,6 +478,22 @@ setTimeout(() => notif.remove(), 3000); // Change 3000 to desired milliseconds
 9. **Mobile-Friendly:** Access the gateway from your phone to approve/reject on the go
 
 10. **Auto-Refresh Off:** Turn off auto-refresh when reviewing images carefully to prevent UI jumps
+
+11. **✨ NEW - Customize Title Templates:** Set up your preferred title format once in Settings, use forever
+
+12. **✨ NEW - Preview Titles Before Publishing:** Check the title preview in bulk publish confirmation to ensure quality
+
+13. **✨ NEW - Use Undo for Safety:** Made a mistake? The Undo button has you covered (up to 10 actions)
+
+14. **✨ NEW - Watch Progress:** Progress bars show exactly where you are in bulk operations
+
+15. **✨ NEW - Include Keywords in Prompts:** The first 3 significant words from your prompt become part of titles
+
+16. **✨ NEW - Style Matters:** Always select a style and genre when generating for better auto-titles
+
+17. **✨ NEW - True Time Sorting:** "Newest" and "Oldest" now use actual timestamps, not filenames
+
+18. **✨ NEW - Template Presets:** Don't want to create templates? Use the built-in presets
 
 ---
 
@@ -382,6 +551,20 @@ Planned features:
 - [ ] Collections/albums
 - [ ] Scheduled publishing
 - [ ] Analytics dashboard
+- [ ] AI-powered title suggestions based on image analysis
+- [ ] Title templates with conditional logic
+- [ ] Batch rename with pattern matching
+
+## ✅ Recently Completed (v1.1)
+
+- [x] Smart auto-titling with customizable templates
+- [x] Progress indicators for all bulk operations
+- [x] Undo functionality for bulk actions
+- [x] Title preview before bulk publish
+- [x] True timestamp-based sorting
+- [x] Settings panel with persistent configuration
+- [x] Template presets for quick setup
+- [x] Configurable constants for all intervals
 
 ---
 
@@ -444,26 +627,43 @@ POST /api/reset/{image_id}
 
 ## ❓ FAQs
 
-**Q: Can I undo a bulk operation?**
-A: Use the "Reset" button to change status back to pending. For deleted images (when implemented), there's no undo.
+**Q: Can I undo a bulk operation?** ✨ UPDATED
+A: Yes! Click the "↶ Undo" button in the toolbar after any bulk operation. You can undo up to 10 recent bulk actions (approve, reject, publish). Note: Published products remain on Printify, only local status is reversed.
 
 **Q: How many images can I bulk publish at once?**
-A: No hard limit, but large batches may take time. Recommended: 20-50 images per batch.
+A: No hard limit, but large batches may take time. Recommended: 20-50 images per batch. Progress bar shows real-time status.
 
 **Q: Do bulk operations run in parallel?**
-A: No, they run sequentially to avoid rate limits and ensure reliability.
+A: No, they run sequentially to avoid rate limits and ensure reliability. Progress bars show current position.
 
-**Q: Can I customize the auto-generated titles?**
-A: Not in bulk mode. Use individual publish for custom titles.
+**Q: Can I customize the auto-generated titles?** ✨ UPDATED
+A: Yes! In two ways:
+1. **Bulk Mode:** Set your title template in Settings (⚙), applies to all bulk publishes
+2. **Individual Mode:** Edit the pre-filled title in publish modal before confirming
+
+**Q: How do the title templates work?** ✨ NEW
+A: Templates use tokens like `{style}`, `{prompt}`, `{genre}`, `{date}`, `{id}`, and `{filename}`. These are replaced with actual values when generating titles. Example: `{style} {prompt} Design` becomes "Watercolor Mountain Landscape Design".
+
+**Q: What if my title template results in a bad title?** ✨ NEW
+A: The system has fallbacks: (1) Multiple spaces are cleaned up, (2) Empty tokens are removed, (3) If final title is too short (<5 chars), it falls back to `Design {date} {id}`.
+
+**Q: Where are my settings saved?** ✨ NEW
+A: Settings are saved in your browser's localStorage. They persist across sessions but are browser-specific. Different browsers or private/incognito mode won't share settings.
 
 **Q: What happens if internet disconnects during bulk publish?**
-A: Already-published images remain published. Failed images will show error status. Retry them individually.
+A: Already-published images remain published. Failed images will show error status. Progress bar shows where it stopped. Retry them individually or use undo and try again.
 
 **Q: Can I filter by multiple statuses?**
 A: Not currently. Use search within a status filter for more specific results.
 
-**Q: How do I know if a bulk operation succeeded?**
-A: A notification appears showing success/fail count. Check gallery to verify status changes.
+**Q: How do I know if a bulk operation succeeded?** ✨ UPDATED
+A: Three indicators: (1) Real-time progress bar during operation, (2) Notification appears showing success/fail count, (3) Gallery updates to show new statuses.
+
+**Q: Does the undo button work for everything?** ✨ NEW
+A: Undo works for bulk operations only (bulk approve, reject, publish). Individual image actions cannot be undone. The undo stack holds the last 10 bulk operations.
+
+**Q: How do I get better auto-titles?** ✨ NEW
+A: Three tips: (1) Write descriptive prompts with key words first, (2) Always select a style and genre when generating, (3) Customize your title template in Settings to prioritize what matters to you.
 
 ---
 
@@ -488,6 +688,47 @@ Issues? Questions?
 
 ---
 
-**Version:** 1.0.0
-**Last Updated:** January 2026
+## 📋 Changelog
+
+### Version 1.1.0 - January 22, 2026
+
+**Major Features:**
+- ✨ Smart auto-titling system with customizable templates
+- ✨ Progress indicators for all bulk operations
+- ✨ Undo functionality (up to 10 actions)
+- ✨ Title preview before bulk publish
+- ✨ Settings panel with persistent configuration
+- ✨ True timestamp-based sorting
+
+**Improvements:**
+- Enhanced bulk publish with smart title generation
+- Added template presets for quick setup
+- Improved individual publish modal with smart pre-fill
+- Refactored constants for easier configuration
+- Better error handling and user feedback
+
+**Technical:**
+- All timing intervals now configurable via constants
+- LocalStorage integration for settings persistence
+- Undo stack with 10-action history
+- Progress tracking for downloads with delay to prevent blocking
+
+### Version 1.0.0 - January 19, 2026
+
+**Initial Release:**
+- Batch selection and multi-select
+- Bulk operations (approve, reject, publish, download)
+- Search and filter functionality
+- Image preview modal
+- Auto-refresh toggle
+- ComfyUI prompter integration
+- Publishing modal with product presets
+- Keyboard shortcuts
+- Toast notifications
+- Responsive design
+
+---
+
+**Version:** 1.1.0
+**Last Updated:** January 22, 2026
 **Powered by:** Flask, RunPod, Printify
