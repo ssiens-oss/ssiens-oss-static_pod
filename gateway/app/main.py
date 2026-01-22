@@ -169,6 +169,76 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
     return ", ".join(part for part in parts if part)
 
 
+def generate_auto_title(image_id: str, prompt: str = None) -> str:
+    """
+    Generate automatic title from image ID or prompt
+
+    Args:
+        image_id: Image identifier (e.g., "generated_787679c7_0")
+        prompt: Optional prompt used to generate the image
+
+    Returns:
+        Human-readable product title
+    """
+    import re
+
+    # If we have a prompt, use it to create a better title
+    if prompt:
+        # Clean up prompt (remove common negative prompts, technical terms)
+        cleaned = re.sub(r'\b(high quality|vibrant colors|print-ready|professional design|centered composition)\b', '', prompt, flags=re.IGNORECASE)
+        cleaned = cleaned.strip(', ')
+
+        # Capitalize and limit length
+        title = ' '.join(word.capitalize() for word in cleaned.split())
+        if len(title) > 100:
+            title = title[:97] + "..."
+        return title
+
+    # Fallback: Generate from image ID
+    # Extract any meaningful parts from the ID
+    parts = image_id.replace('_', ' ').split()
+
+    # Remove technical parts (like "generated", numbers)
+    meaningful_parts = [p for p in parts if not p.isdigit() and p.lower() != 'generated']
+
+    if meaningful_parts:
+        title = ' '.join(word.capitalize() for word in meaningful_parts)
+    else:
+        # Last resort: use a generic title with unique ID
+        unique_part = image_id.split('_')[1] if '_' in image_id else image_id[:8]
+        title = f"Abstract Design {unique_part.upper()}"
+
+    return title
+
+
+def generate_auto_description(title: str, image_id: str, style: str = "abstract art") -> str:
+    """
+    Generate automatic product description
+
+    Args:
+        title: Product title
+        image_id: Image identifier
+        style: Art style (default: "abstract art")
+
+    Returns:
+        Product description
+    """
+    templates = [
+        f"Unique {style} design featuring bold colors and striking composition. Perfect for casual wear and making a statement.",
+        f"Eye-catching {style} creation with vibrant details. Stand out with this exclusive design on premium quality apparel.",
+        f"Original {style} artwork transformed into wearable art. Express your style with this one-of-a-kind design.",
+        f"Bold and dynamic {style} piece that combines creativity with comfort. Limited edition design for the modern trendsetter.",
+        f"Stunning {style} design with intricate patterns and vivid colors. Elevate your wardrobe with this artistic creation."
+    ]
+
+    # Use hash of image_id to consistently select the same template for the same image
+    import hashlib
+    hash_val = int(hashlib.md5(image_id.encode()).hexdigest(), 16)
+    template_idx = hash_val % len(templates)
+
+    return templates[template_idx]
+
+
 def build_comfyui_workflow(
     prompt: str,
     seed: int | None = None,
@@ -737,7 +807,13 @@ def publish_image(image_id):
     except Exception as e:
         return jsonify({"success": False, "error": "Invalid JSON"}), 400
 
-    title = request_data.get("title", f"Design {image_id[:8]}")
+    # Auto-generate title if not provided
+    title = request_data.get("title")
+    if not title:
+        prompt = request_data.get("prompt")  # Optional prompt hint
+        title = generate_auto_title(image_id, prompt)
+        logger.info(f"📝 Auto-generated title: {title}")
+
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
@@ -751,7 +827,12 @@ def publish_image(image_id):
 
     # Publish to Printify
     try:
+        # Auto-generate description if not provided
         description = request_data.get("description")
+        if not description:
+            style = request_data.get("style", "abstract art")
+            description = generate_auto_description(title, image_id, style)
+            logger.info(f"📄 Auto-generated description: {description[:50]}...")
         price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
         blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
         provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
@@ -819,6 +900,178 @@ def publish_image(image_id):
         except StateManagerError:
             pass
         return jsonify({"success": False, "error": "Internal server error"}), 500
+
+
+@app.route('/api/batch_publish', methods=['POST'])
+def batch_publish():
+    """
+    Batch publish multiple images to Printify
+
+    Expected JSON body:
+    {
+        "image_ids": ["image_id_1", "image_id_2", ...],  // Optional, if empty will use all approved images
+        "auto_approve": false,  // Auto-approve pending images before publishing
+        "style": "abstract art",  // Style for auto-generated descriptions
+        "price_cents": 3499,  // Optional override
+        "color_filter": "black",  // Optional override
+        "max_variants": 50  // Optional override
+    }
+
+    Returns:
+        JSON with batch results
+    """
+    if not printify_client:
+        return jsonify({
+            "success": False,
+            "error": "Printify not configured"
+        }), 400
+
+    try:
+        request_data = request.get_json() or {}
+    except Exception as e:
+        return jsonify({"success": False, "error": "Invalid JSON"}), 400
+
+    # Get parameters
+    image_ids = request_data.get("image_ids", [])
+    auto_approve = request_data.get("auto_approve", False)
+    style = request_data.get("style", "abstract art")
+    price_cents = request_data.get("price_cents")
+    color_filter = request_data.get("color_filter")
+    max_variants = request_data.get("max_variants")
+
+    # If no image IDs provided, use all approved (or pending if auto_approve)
+    if not image_ids:
+        all_images = state_manager.get_all_images()
+        if auto_approve:
+            # Get pending images and auto-approve them
+            image_ids = [
+                img_id for img_id, img_data in all_images.items()
+                if img_data.get("status") in [ImageStatus.PENDING.value, ImageStatus.APPROVED.value]
+            ]
+        else:
+            # Get only approved images
+            image_ids = [
+                img_id for img_id, img_data in all_images.items()
+                if img_data.get("status") == ImageStatus.APPROVED.value
+            ]
+
+    logger.info(f"🔄 Batch publishing {len(image_ids)} images...")
+
+    results = {
+        "total": len(image_ids),
+        "succeeded": [],
+        "failed": [],
+        "skipped": []
+    }
+
+    # Process each image
+    for idx, image_id in enumerate(image_ids, 1):
+        logger.info(f"📦 [{idx}/{len(image_ids)}] Processing {image_id}...")
+
+        # Validate image ID
+        is_valid, error = validate_image_id(image_id)
+        if not is_valid:
+            results["skipped"].append({"image_id": image_id, "reason": error})
+            continue
+
+        # Auto-approve if requested
+        current_status = state_manager.get_image_status(image_id)
+        if auto_approve and current_status == ImageStatus.PENDING.value:
+            try:
+                state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+                logger.info(f"✓ Auto-approved {image_id}")
+            except StateManagerError as e:
+                results["skipped"].append({"image_id": image_id, "reason": f"Failed to auto-approve: {str(e)}"})
+                continue
+
+        # Check status
+        current_status = state_manager.get_image_status(image_id)
+        if current_status not in [ImageStatus.APPROVED.value, ImageStatus.FAILED.value]:
+            results["skipped"].append({"image_id": image_id, "reason": f"Not approved (status: {current_status})"})
+            continue
+
+        # Get image path
+        image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+        is_valid, error = validate_image_file(image_path)
+        if not is_valid:
+            results["failed"].append({"image_id": image_id, "error": error})
+            continue
+
+        # Auto-generate metadata
+        title = generate_auto_title(image_id)
+        description = generate_auto_description(title, image_id, style)
+
+        logger.info(f"  📝 Title: {title}")
+        logger.info(f"  📄 Description: {description[:50]}...")
+
+        # Set publishing status
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.PUBLISHING.value)
+        except StateManagerError as e:
+            results["failed"].append({"image_id": image_id, "error": f"Status update failed: {str(e)}"})
+            continue
+
+        # Publish
+        try:
+            publish_params = {
+                "image_path": image_path,
+                "title": title,
+                "blueprint_id": config.PRINTIFY_BLUEPRINT_ID,
+                "provider_id": config.PRINTIFY_PROVIDER_ID,
+                "description": description
+            }
+
+            # Add optional overrides
+            if price_cents:
+                publish_params["price_cents"] = price_cents
+            if color_filter:
+                publish_params["color_filter"] = color_filter
+            if max_variants:
+                publish_params["max_variants"] = max_variants
+
+            product_id = printify_client.create_and_publish(**publish_params)
+
+            if product_id:
+                state_manager.set_image_status(image_id, ImageStatus.PUBLISHED.value, {
+                    "product_id": product_id,
+                    "title": title
+                })
+                results["succeeded"].append({
+                    "image_id": image_id,
+                    "product_id": product_id,
+                    "title": title
+                })
+                logger.info(f"  ✅ Published: {product_id}")
+            else:
+                state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                    "error_message": "Printify API failed"
+                })
+                results["failed"].append({"image_id": image_id, "error": "Printify API failed"})
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"  ❌ Error: {error_msg}")
+            try:
+                state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                    "error_message": error_msg
+                })
+            except StateManagerError:
+                pass
+            results["failed"].append({"image_id": image_id, "error": error_msg})
+
+    # Summary
+    logger.info(f"✅ Batch complete: {len(results['succeeded'])} succeeded, {len(results['failed'])} failed, {len(results['skipped'])} skipped")
+
+    return jsonify({
+        "success": True,
+        "results": results,
+        "summary": {
+            "total": results["total"],
+            "succeeded": len(results["succeeded"]),
+            "failed": len(results["failed"]),
+            "skipped": len(results["skipped"])
+        }
+    })
 
 
 @app.route('/api/reset/<image_id>', methods=['POST'])
