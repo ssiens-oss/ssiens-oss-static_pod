@@ -169,70 +169,165 @@ def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
     return ", ".join(part for part in parts if part)
 
 
-def generate_auto_title(image_id: str, prompt: str = None) -> str:
+def generate_auto_title(image_id: str, prompt: str = None, product_type: str = "Hoodie") -> str:
     """
-    Generate automatic title from image ID or prompt
+    Generate SEO-optimized, product-aware title for POD
+
+    Template: [Primary Subject] [Style Descriptor] [Product Type]
+    Length: 50-70 characters optimal for SEO
 
     Args:
         image_id: Image identifier (e.g., "generated_787679c7_0")
         prompt: Optional prompt used to generate the image
+        product_type: Product type (Hoodie, Tee, Poster, etc.)
 
     Returns:
-        Human-readable product title
+        POD-optimized product title (50-70 chars)
     """
     import re
 
-    # If we have a prompt, use it to create a better title
+    # Words to remove (fluff, technical terms, non-descriptive)
+    REMOVE_WORDS = {
+        'high', 'quality', 'vibrant', 'colors', 'print-ready', 'professional',
+        'design', 'centered', 'composition', 'bold', 'striking', 'amazing',
+        'awesome', 'cool', 'great', 'beautiful', 'stunning', 'incredible',
+        'perfect', 'unique', 'original', 'exclusive', 'premium', 'best',
+        'featuring', 'with', 'and', 'the', 'a', 'an'
+    }
+
+    # Style descriptors (convert generic words to specific styles)
+    STYLE_MAP = {
+        'geometric': 'Geometric',
+        'abstract': 'Abstract',
+        'minimal': 'Minimalist',
+        'minimalist': 'Minimalist',
+        'retro': 'Retro',
+        'vintage': 'Vintage',
+        'modern': 'Modern',
+        'cyberpunk': 'Cyberpunk',
+        'neon': 'Neon',
+        'psychedelic': 'Psychedelic',
+        'grunge': 'Grunge',
+        'watercolor': 'Watercolor',
+        'vector': 'Vector',
+        'line': 'Line Art',
+        'pixel': 'Pixel Art',
+        'anime': 'Anime',
+        'cartoon': 'Cartoon'
+    }
+
+    subject = None
+    style = None
+
+    # Parse prompt if provided
     if prompt:
-        # Clean up prompt (remove common negative prompts, technical terms)
-        cleaned = re.sub(r'\b(high quality|vibrant colors|print-ready|professional design|centered composition)\b', '', prompt, flags=re.IGNORECASE)
-        cleaned = cleaned.strip(', ')
+        # Remove technical/fluff words
+        words = prompt.lower().split()
+        filtered_words = [w for w in words if w not in REMOVE_WORDS]
 
-        # Capitalize and limit length
-        title = ' '.join(word.capitalize() for word in cleaned.split())
-        if len(title) > 100:
-            title = title[:97] + "..."
-        return title
+        # Extract style (look for style keywords)
+        style_words = []
+        subject_words = []
 
-    # Fallback: Generate from image ID
-    # Extract any meaningful parts from the ID
-    parts = image_id.replace('_', ' ').split()
+        for word in filtered_words:
+            if word in STYLE_MAP:
+                style_words.append(STYLE_MAP[word])
+            elif len(word) > 2:  # Skip very short words
+                subject_words.append(word.capitalize())
 
-    # Remove technical parts (like "generated", numbers)
-    meaningful_parts = [p for p in parts if not p.isdigit() and p.lower() != 'generated']
+        # Build style descriptor
+        if style_words:
+            style = ' '.join(style_words[:2])  # Max 2 style words
 
-    if meaningful_parts:
-        title = ' '.join(word.capitalize() for word in meaningful_parts)
-    else:
-        # Last resort: use a generic title with unique ID
-        unique_part = image_id.split('_')[1] if '_' in image_id else image_id[:8]
-        title = f"Abstract Design {unique_part.upper()}"
+        # Build subject (first 2-3 meaningful words)
+        if subject_words:
+            subject = ' '.join(subject_words[:3])
+
+    # Fallback: Parse from image ID
+    if not subject:
+        parts = image_id.replace('_', ' ').split()
+        meaningful_parts = [
+            p.capitalize() for p in parts
+            if not p.isdigit() and p.lower() != 'generated' and len(p) > 2
+        ]
+
+        if meaningful_parts:
+            subject = ' '.join(meaningful_parts[:2])
+        else:
+            # Last resort: use unique part of ID
+            unique_part = image_id.split('_')[1] if '_' in image_id else image_id[:8]
+            subject = f"Abstract Art {unique_part.upper()}"
+
+    # Default style if none found
+    if not style:
+        style = "Graphic"
+
+    # Build title: [Subject] [Style] [Product Type]
+    title = f"{subject} {style} {product_type}"
+
+    # Ensure 50-70 character range for SEO
+    if len(title) > 70:
+        # Truncate subject to fit
+        max_subject_len = 70 - len(style) - len(product_type) - 2
+        if len(subject) > max_subject_len:
+            subject = subject[:max_subject_len-3] + "..."
+        title = f"{subject} {style} {product_type}"
+    elif len(title) < 50:
+        # Add descriptor if too short
+        descriptors = ["Design", "Art", "Graphic", "Print", "Artwork"]
+        for desc in descriptors:
+            test_title = f"{subject} {style} {desc} {product_type}"
+            if 50 <= len(test_title) <= 70:
+                title = test_title
+                break
 
     return title
 
 
-def generate_auto_description(title: str, image_id: str, style: str = "abstract art") -> str:
+def generate_auto_description(title: str, image_id: str, style: str = "abstract art", product_type: str = "hoodie") -> str:
     """
-    Generate automatic product description
+    Generate product-aware, conversion-focused description
 
     Args:
         title: Product title
         image_id: Image identifier
         style: Art style (default: "abstract art")
+        product_type: Product type for product-specific copy
 
     Returns:
-        Product description
+        POD-optimized product description
     """
+    import hashlib
+
+    # Product-aware attributes
+    PRODUCT_ATTRS = {
+        "hoodie": "warm, durable, everyday comfort with a premium cotton blend",
+        "tee": "lightweight, breathable, comfortable for all-day wear",
+        "sweatshirt": "cozy, soft fleece interior, perfect for layering",
+        "poster": "museum-quality paper, vibrant archival inks, wall-ready",
+        "canvas": "gallery-wrapped, ready to hang, premium cotton canvas",
+        "tank": "athletic fit, moisture-wicking, ideal for active lifestyles",
+        "long sleeve": "comfortable stretch, year-round versatility"
+    }
+
+    # Get product attributes (default to hoodie)
+    product_key = product_type.lower()
+    product_attrs = PRODUCT_ATTRS.get(product_key, PRODUCT_ATTRS["hoodie"])
+
+    # Template variations (conversion-focused)
     templates = [
-        f"Unique {style} design featuring bold colors and striking composition. Perfect for casual wear and making a statement.",
-        f"Eye-catching {style} creation with vibrant details. Stand out with this exclusive design on premium quality apparel.",
-        f"Original {style} artwork transformed into wearable art. Express your style with this one-of-a-kind design.",
-        f"Bold and dynamic {style} piece that combines creativity with comfort. Limited edition design for the modern trendsetter.",
-        f"Stunning {style} design with intricate patterns and vivid colors. Elevate your wardrobe with this artistic creation."
+        f"Original {style} design printed on premium {product_type.lower()}. {product_attrs.capitalize()}. Perfect for fans of unique graphic apparel and standout style.",
+
+        f"Bold {style} artwork designed for {product_type.lower()}s. Features {product_attrs} and high-quality print that stays crisp wash after wash.",
+
+        f"Express your style with this {style} {product_type.lower()}. Combines eye-catching design with {product_attrs}. Ideal for casual outfits and making a statement.",
+
+        f"Unique {style} creation featuring clean lines and modern aesthetics. Printed on {product_type.lower()} with {product_attrs}. Great for gifts or personal collection.",
+
+        f"Stand out with this {style} {product_type.lower()} design. {product_attrs.capitalize()}. Professional-grade printing ensures lasting quality and vibrant detail."
     ]
 
-    # Use hash of image_id to consistently select the same template for the same image
-    import hashlib
+    # Deterministic selection (same image = same description)
     hash_val = int(hashlib.md5(image_id.encode()).hexdigest(), 16)
     template_idx = hash_val % len(templates)
 
@@ -807,11 +902,16 @@ def publish_image(image_id):
     except Exception as e:
         return jsonify({"success": False, "error": "Invalid JSON"}), 400
 
+    # Get product configuration
+    blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
+    provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
+    product_type = config.config.printify.get_product_type(blueprint_id)
+
     # Auto-generate title if not provided
     title = request_data.get("title")
     if not title:
         prompt = request_data.get("prompt")  # Optional prompt hint
-        title = generate_auto_title(image_id, prompt)
+        title = generate_auto_title(image_id, prompt, product_type)
         logger.info(f"📝 Auto-generated title: {title}")
 
     is_valid, error = validate_title(title)
@@ -831,11 +931,9 @@ def publish_image(image_id):
         description = request_data.get("description")
         if not description:
             style = request_data.get("style", "abstract art")
-            description = generate_auto_description(title, image_id, style)
+            description = generate_auto_description(title, image_id, style, product_type.lower())
             logger.info(f"📄 Auto-generated description: {description[:50]}...")
         price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
-        blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
-        provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
 
         # POD optimization: configurable color filter and variant limit
         color_filter = request_data.get("color_filter", config.config.printify.color_filter)
@@ -938,6 +1036,10 @@ def batch_publish():
     price_cents = request_data.get("price_cents")
     color_filter = request_data.get("color_filter")
     max_variants = request_data.get("max_variants")
+    blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
+
+    # Get product type for auto-titles
+    product_type = config.config.printify.get_product_type(blueprint_id)
 
     # If no image IDs provided, use all approved (or pending if auto_approve)
     if not image_ids:
@@ -997,9 +1099,9 @@ def batch_publish():
             results["failed"].append({"image_id": image_id, "error": error})
             continue
 
-        # Auto-generate metadata
-        title = generate_auto_title(image_id)
-        description = generate_auto_description(title, image_id, style)
+        # Auto-generate metadata with product awareness
+        title = generate_auto_title(image_id, product_type=product_type)
+        description = generate_auto_description(title, image_id, style, product_type.lower())
 
         logger.info(f"  📝 Title: {title}")
         logger.info(f"  📄 Description: {description[:50]}...")
@@ -1016,7 +1118,7 @@ def batch_publish():
             publish_params = {
                 "image_path": image_path,
                 "title": title,
-                "blueprint_id": config.PRINTIFY_BLUEPRINT_ID,
+                "blueprint_id": blueprint_id,
                 "provider_id": config.PRINTIFY_PROVIDER_ID,
                 "description": description
             }
