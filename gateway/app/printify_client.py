@@ -249,25 +249,23 @@ class PrintifyClient:
         try:
             logger.info(f"Uploading image: {filename}")
 
-            # File uploads need special handling - use session directly
-            # Don't set Content-Type (let requests handle multipart/form-data)
-            upload_headers = {"Authorization": f"Bearer {self.api_key}"}
-
+            # Read and base64 encode the image
+            import base64
             with open(image_path, "rb") as f:
-                files = {"file": (filename, f, "image/png")}
+                image_bytes = f.read()
+                image_base64 = base64.b64encode(image_bytes).decode('utf-8')
 
-                response = self.session.post(
-                    f"{PRINTIFY_API}/uploads/images.json",
-                    files=files,
-                    headers=upload_headers,
-                    timeout=30
-                )
+            # Printify expects JSON with file_name and contents (base64)
+            payload = {
+                "file_name": filename if filename.endswith('.png') else f"{filename}.png",
+                "contents": image_base64
+            }
 
-            # Check for errors and log detailed response
-            if not response.ok:
-                error_detail = response.text
-                logger.error(f"Printify upload failed ({response.status_code}): {error_detail}")
-                response.raise_for_status()
+            response = self._make_request(
+                "POST",
+                "/uploads/images.json",
+                json=payload
+            )
 
             image_id = response.json().get("id")
             logger.info(f"✅ Image uploaded successfully: {image_id}")
