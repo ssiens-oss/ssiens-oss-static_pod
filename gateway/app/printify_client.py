@@ -123,10 +123,17 @@ class PrintifyClient:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
 
+                # For file uploads, don't set Content-Type (let requests handle it)
+                # For JSON requests, use self.headers with Content-Type: application/json
+                if 'files' in kwargs:
+                    headers = {"Authorization": f"Bearer {self.api_key}"}
+                else:
+                    headers = self.headers
+
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=headers,
                     timeout=30,
                     **kwargs
                 )
@@ -234,8 +241,7 @@ class PrintifyClient:
                 response = self._make_request(
                     "POST",
                     "/uploads/images.json",
-                    files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    files=files
                 )
 
             image_id = response.json().get("id")

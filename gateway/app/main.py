@@ -18,15 +18,15 @@ import base64
 load_dotenv()
 
 # Import modules
-from app import config
+from app.config import config
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
 from app.runpod_adapter import create_comfyui_client
 
 # Configure logging
 logging.basicConfig(
-    level=getattr(logging, config.config.logging.level),
-    format=config.config.logging.format
+    level=getattr(logging, config.logging.level),
+    format=config.logging.format
 )
 logger = logging.getLogger(__name__)
 
@@ -38,13 +38,13 @@ state_manager = StateManager(config.STATE_FILE)
 
 # Initialize Printify client (optional)
 printify_client = None
-if config.config.printify.is_configured():
+if config.printify.is_configured():
     try:
         retry_config = RetryConfig(
-            max_retries=config.config.retry.max_retries,
-            initial_backoff=config.config.retry.initial_backoff_seconds,
-            max_backoff=config.config.retry.max_backoff_seconds,
-            backoff_multiplier=config.config.retry.backoff_multiplier
+            max_retries=config.retry.max_retries,
+            initial_backoff=config.retry.initial_backoff_seconds,
+            max_backoff=config.retry.max_backoff_seconds,
+            backoff_multiplier=config.retry.backoff_multiplier
         )
         printify_client = PrintifyClient(
             config.PRINTIFY_API_KEY,
@@ -61,8 +61,8 @@ else:
 comfyui_client = None
 try:
     comfyui_client = create_comfyui_client(
-        config.config.comfyui.api_url,
-        config.config.comfyui.runpod_api_key
+        config.comfyui.api_url,
+        config.comfyui.runpod_api_key
     )
     if comfyui_client:
         logger.info("✓ RunPod serverless client initialized")
@@ -750,7 +750,7 @@ def publish_image(image_id):
     # Publish to Printify
     try:
         description = request_data.get("description")
-        price_cents = request_data.get("price_cents", config.config.printify.default_price_cents)
+        price_cents = request_data.get("price_cents", config.printify.default_price_cents)
         blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
         provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
 
@@ -892,7 +892,7 @@ def internal_error(e):
 
 if __name__ == "__main__":
     # Print configuration summary
-    config.config.print_summary()
+    config.print_summary()
 
     logger.info("🚀 POD Gateway starting...")
     logger.info(f"📁 Image directory: {config.IMAGE_DIR}")

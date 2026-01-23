@@ -10,7 +10,7 @@ echo ""
 
 cd ~/ssiens-oss-static_pod
 
-GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
+GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-gateway-printigy-i5D4t}"
 
 # Step 1: Fix any merge conflicts
 echo "1️⃣  Fixing merge conflicts..."
