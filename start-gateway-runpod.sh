@@ -10,13 +10,16 @@ echo ""
 
 cd ~/ssiens-oss-static_pod
 
-GATEWAY_BRANCH="${GATEWAY_BRANCH:-claude/fix-printify-upload-error-O45Ur}"
+# Auto-detect current branch or use environment variable
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+GATEWAY_BRANCH="${GATEWAY_BRANCH:-$CURRENT_BRANCH}"
 
 # Step 1: Fix any merge conflicts
 echo "1️⃣  Fixing merge conflicts..."
+echo "   Using branch: ${GATEWAY_BRANCH}"
 git merge --abort 2>/dev/null || true
 git reset --hard HEAD 2>/dev/null || true
-git fetch origin "${GATEWAY_BRANCH}"
+git fetch origin "${GATEWAY_BRANCH}" 2>/dev/null || echo "   (Using local branch)"
 git checkout "origin/${GATEWAY_BRANCH}" -- gateway/app/main.py 2>/dev/null || true
 git checkout "origin/${GATEWAY_BRANCH}" -- gateway/app/runpod_adapter.py 2>/dev/null || true
 git checkout "origin/${GATEWAY_BRANCH}" -- gateway/app/config.py 2>/dev/null || true
@@ -94,9 +97,11 @@ echo ""
 # Step 5: Start gateway
 echo "5️⃣  Starting POD Gateway..."
 echo ""
+# Extract endpoint ID from configured URL if possible
+ENDPOINT_ID=$(echo "$RUNPOD_URL" | grep -oP 'v2/\K[^/]+' || echo "(configured in .env)")
 echo "============================================================"
 echo "🌐 Gateway will start on http://127.0.0.1:5000"
-echo "🧠 Using RunPod Serverless: qm6ofmy96f3htl"
+echo "🧠 Using RunPod Serverless: ${ENDPOINT_ID}"
 echo "🎨 Model: Flux Dev FP8"
 echo "============================================================"
 echo ""

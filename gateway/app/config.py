@@ -43,9 +43,9 @@ class PrintifyConfig:
     """Printify API configuration"""
     api_key: Optional[str]
     shop_id: Optional[str]
-    blueprint_id: int = 77  # Gildan 18500 Heavy Blend Hoodie (most popular POD product)
-    provider_id: int = 39  # SwiftPOD (US-based, reliable, fast shipping)
-    default_price_cents: int = 3499  # $34.99 (typical hoodie price)
+    blueprint_id: int = 3  # Gildan 5000 Unisex Heavy Cotton Tee (default product)
+    provider_id: int = 99  # SwiftPOD (US-based, reliable, fast shipping)
+    default_price_cents: int = 1999  # $19.99 (typical t-shirt price)
 
     def validate(self) -> None:
         """Validate Printify configuration"""
@@ -110,11 +110,14 @@ class ComfyUIConfig:
     """ComfyUI API configuration"""
     api_url: str
     runpod_api_key: Optional[str] = None
+    model_name: str = "flux1-dev-fp8.safetensors"  # Default to Flux for RunPod
 
     def validate(self) -> None:
         """Validate ComfyUI configuration"""
         if not self.api_url:
             raise ValueError("COMFYUI_API_URL must be set")
+        if not self.api_url.startswith(("http://", "https://")):
+            raise ValueError("COMFYUI_API_URL must be a valid HTTP/HTTPS URL")
 
     def is_runpod_serverless(self) -> bool:
         """Check if this is a RunPod serverless endpoint"""
@@ -140,9 +143,9 @@ class GatewayConfig:
         self.printify = PrintifyConfig(
             api_key=os.getenv("PRINTIFY_API_KEY"),
             shop_id=os.getenv("PRINTIFY_SHOP_ID"),
-            blueprint_id=int(os.getenv("PRINTIFY_BLUEPRINT_ID", "77")),  # Gildan 18500 Heavy Blend Hoodie
-            provider_id=int(os.getenv("PRINTIFY_PROVIDER_ID", "39")),  # SwiftPOD
-            default_price_cents=int(os.getenv("PRINTIFY_DEFAULT_PRICE_CENTS", "3499"))  # $34.99
+            blueprint_id=int(os.getenv("PRINTIFY_BLUEPRINT_ID", "3")),  # Gildan 5000 Unisex Heavy Cotton Tee
+            provider_id=int(os.getenv("PRINTIFY_PROVIDER_ID", "99")),  # SwiftPOD
+            default_price_cents=int(os.getenv("PRINTIFY_DEFAULT_PRICE_CENTS", "1999"))  # $19.99
         )
 
         self.shopify = ShopifyConfig(
@@ -164,7 +167,8 @@ class GatewayConfig:
 
         self.comfyui = ComfyUIConfig(
             api_url=os.getenv("COMFYUI_API_URL", "http://localhost:8188"),
-            runpod_api_key=os.getenv("RUNPOD_API_KEY")
+            runpod_api_key=os.getenv("RUNPOD_API_KEY"),
+            model_name=os.getenv("COMFYUI_MODEL_NAME", "flux1-dev-fp8.safetensors")
         )
 
     def validate_all(self) -> None:

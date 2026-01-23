@@ -13,9 +13,20 @@ import {
   isRetryableError
 } from '../utils/errors';
 
+// Use Node.js WebSocket if available, otherwise use browser WebSocket
+let WebSocketImpl: typeof WebSocket;
+try {
+  // Try to import ws for Node.js
+  WebSocketImpl = require('ws');
+} catch {
+  // Fall back to browser WebSocket
+  WebSocketImpl = WebSocket;
+}
+
 interface ComfyUIConfig {
   apiUrl: string
   outputDir: string
+  modelName?: string
   timeout?: number
   maxRetries?: number
   pollInterval?: number
@@ -69,6 +80,7 @@ export class ComfyUIService {
       maxRetries: 3,
       pollInterval: 2000, // 2 seconds initial
       enableCircuitBreaker: true,
+      modelName: process.env.COMFYUI_MODEL_NAME || 'flux1-dev-fp8.safetensors',
       ...config
     }
 
@@ -215,7 +227,7 @@ export class ComfyUIService {
       },
       "4": {
         "inputs": {
-          "ckpt_name": "sd_xl_base_1.0.safetensors"
+          "ckpt_name": this.config.modelName || "flux1-dev-fp8.safetensors"
         },
         "class_type": "CheckpointLoaderSimple"
       },
@@ -366,19 +378,31 @@ export class ComfyUIService {
    * Connect to ComfyUI WebSocket for real-time updates
    */
   connectWebSocket(onProgress?: (data: any) => void): void {
-    const wsUrl = this.config.apiUrl.replace('http', 'ws') + '/ws'
+    try {
+      const wsUrl = this.config.apiUrl.replace('http', 'ws') + '/ws'
 
-    this.ws = new WebSocket(wsUrl)
+      this.ws = new WebSocketImpl(wsUrl) as WebSocket
 
-    this.ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (onProgress) {
-        onProgress(data)
+      this.ws.onmessage = (event) => {
+        const data = JSON.parse(typeof event.data === 'string' ? event.data : event.data.toString())
+        if (onProgress) {
+          onProgress(data)
+        }
       }
-    }
 
-    this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
+      this.ws.onerror = (error) => {
+        console.error('[ComfyUI] WebSocket error:', error)
+      }
+
+      this.ws.onopen = () => {
+        console.log('[ComfyUI] WebSocket connected')
+      }
+
+      this.ws.onclose = () => {
+        console.log('[ComfyUI] WebSocket disconnected')
+      }
+    } catch (error) {
+      console.warn('[ComfyUI] WebSocket not available, falling back to polling:', getErrorMessage(error))
     }
   }
 

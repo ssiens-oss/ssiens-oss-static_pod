@@ -88,6 +88,11 @@ interface PipelineResult {
     type: 'tshirt' | 'hoodie'
   }>
   errors: string[]
+  platformErrors?: Array<{
+    platform: string
+    error: string
+    imageId?: string
+  }>
   totalTime: number
 }
 
@@ -174,6 +179,7 @@ export class Orchestrator {
       generatedImages: [],
       products: [],
       errors: [],
+      platformErrors: [],
       totalTime: 0
     }
 
@@ -442,7 +448,9 @@ export class Orchestrator {
               type: productType
             }
           } catch (error) {
-            this.log(`⚠️  Printify error: ${getErrorMessage(error)}`, 'WARNING')
+            const errorMsg = getErrorMessage(error)
+            this.log(`⚠️  Printify error for "${promptData.title}": ${errorMsg}`, 'WARNING')
+            this.stats.totalErrors++
             return null
           }
         })()
@@ -470,7 +478,9 @@ export class Orchestrator {
               type: productType
             }
           } catch (error) {
-            this.log(`⚠️  Shopify error: ${getErrorMessage(error)}`, 'WARNING')
+            const errorMsg = getErrorMessage(error)
+            this.log(`⚠️  Shopify error for "${promptData.title}": ${errorMsg}`, 'WARNING')
+            this.stats.totalErrors++
             return null
           }
         })()
@@ -501,7 +511,9 @@ export class Orchestrator {
             }
             return null
           } catch (error) {
-            this.log(`⚠️  TikTok error: ${getErrorMessage(error)}`, 'WARNING')
+            const errorMsg = getErrorMessage(error)
+            this.log(`⚠️  TikTok error for "${promptData.title}": ${errorMsg}`, 'WARNING')
+            this.stats.totalErrors++
             return null
           }
         })()
@@ -535,7 +547,9 @@ export class Orchestrator {
             }
             return null
           } catch (error) {
-            this.log(`⚠️  Etsy error: ${getErrorMessage(error)}`, 'WARNING')
+            const errorMsg = getErrorMessage(error)
+            this.log(`⚠️  Etsy error for "${promptData.title}": ${errorMsg}`, 'WARNING')
+            this.stats.totalErrors++
             return null
           }
         })()
@@ -565,7 +579,9 @@ export class Orchestrator {
             }
             return null
           } catch (error) {
-            this.log(`⚠️  Instagram error: ${getErrorMessage(error)}`, 'WARNING')
+            const errorMsg = getErrorMessage(error)
+            this.log(`⚠️  Instagram error for "${promptData.title}": ${errorMsg}`, 'WARNING')
+            this.stats.totalErrors++
             return null
           }
         })()
@@ -594,7 +610,9 @@ export class Orchestrator {
             }
             return null
           } catch (error) {
-            this.log(`⚠️  Facebook error: ${getErrorMessage(error)}`, 'WARNING')
+            const errorMsg = getErrorMessage(error)
+            this.log(`⚠️  Facebook error for "${promptData.title}": ${errorMsg}`, 'WARNING')
+            this.stats.totalErrors++
             return null
           }
         })()
