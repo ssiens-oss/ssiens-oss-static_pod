@@ -49,9 +49,10 @@ class PrintifyConfig:
 
     def validate(self) -> None:
         """Validate Printify configuration"""
-        if self.api_key and len(self.api_key) < 10:
+        # Skip validation for placeholder values
+        if self.api_key and not self.api_key.startswith('your-') and len(self.api_key) < 10:
             raise ValueError("Invalid Printify API key")
-        if self.shop_id and not self.shop_id.isdigit():
+        if self.shop_id and not self.shop_id.startswith('your-') and not self.shop_id.isdigit():
             raise ValueError("Invalid Printify Shop ID (must be numeric)")
         if self.default_price_cents < 0:
             raise ValueError("Price must be non-negative")
