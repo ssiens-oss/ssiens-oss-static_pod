@@ -19,7 +19,13 @@ env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
 # Import modules
-from app.config import config
+from app.config import (
+    config,
+    STATE_FILE, IMAGE_DIR, ARCHIVE_DIR,
+    FLASK_HOST, FLASK_PORT, FLASK_DEBUG,
+    PRINTIFY_API_KEY, PRINTIFY_SHOP_ID, PRINTIFY_BLUEPRINT_ID, PRINTIFY_PROVIDER_ID,
+    COMFYUI_API_URL
+)
 from app.state import StateManager, ImageStatus, StateManagerError
 from app.printify_client import PrintifyClient, RetryConfig, PrintifyError
 from app.runpod_adapter import create_comfyui_client
@@ -35,7 +41,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, template_folder='../templates')
 
 # Initialize services
-state_manager = StateManager(config.STATE_FILE)
+state_manager = StateManager(STATE_FILE)
 
 # Initialize Printify client (optional)
 printify_client = None
@@ -48,8 +54,8 @@ if config.printify.is_configured():
             backoff_multiplier=config.retry.backoff_multiplier
         )
         printify_client = PrintifyClient(
-            config.PRINTIFY_API_KEY,
-            config.PRINTIFY_SHOP_ID,
+            PRINTIFY_API_KEY,
+            PRINTIFY_SHOP_ID,
             retry_config
         )
         logger.info("✓ Printify client initialized")
@@ -250,7 +256,7 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
     if not filename:
         filename = f"{image_id}.png"
 
-    file_path = Path(config.IMAGE_DIR) / filename
+    file_path = Path(IMAGE_DIR) / filename
 
     try:
         if image_data.startswith(("http://", "https://")):
@@ -352,13 +358,13 @@ def download_comfyui_image(image_meta: Dict[str, Any]) -> str | None:
         logger.warning("Skipping non-png output: %s", safe_name)
         return None
 
-    output_path = Path(config.IMAGE_DIR) / safe_name
+    output_path = Path(IMAGE_DIR) / safe_name
     if output_path.exists():
         return str(output_path)
 
     try:
         response = requests.get(
-            f"{config.COMFYUI_API_URL}/view",
+            f"{COMFYUI_API_URL}/view",
             params={
                 "filename": filename,
                 "subfolder": subfolder,
@@ -411,7 +417,7 @@ def list_images():
         JSON with list of images
     """
     try:
-        image_dir = Path(config.IMAGE_DIR)
+        image_dir = Path(IMAGE_DIR)
 
         if not image_dir.exists():
             logger.warning(f"Image directory does not exist: {image_dir}")
@@ -523,7 +529,7 @@ def generate_image():
                 "client_id": client_id
             }
             response = requests.post(
-                f"{config.COMFYUI_API_URL}/prompt",
+                f"{COMFYUI_API_URL}/prompt",
                 json=payload,
                 timeout=30
             )
@@ -556,7 +562,7 @@ def generation_status():
 
     try:
         response = requests.get(
-            f"{config.COMFYUI_API_URL}/history/{prompt_id}",
+            f"{COMFYUI_API_URL}/history/{prompt_id}",
             timeout=30
         )
     except requests.RequestException as exc:
@@ -631,14 +637,14 @@ def serve_image(image_id):
     if not is_valid:
         return jsonify({"error": error}), 400
 
-    image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+    image_path = os.path.join(IMAGE_DIR, f"{image_id}.png")
 
     # Validate file exists and is valid
     is_valid, error = validate_image_file(image_path)
     if not is_valid:
         return jsonify({"error": error}), 404
 
-    return send_from_directory(config.IMAGE_DIR, f"{image_id}.png")
+    return send_from_directory(IMAGE_DIR, f"{image_id}.png")
 
 
 @app.route('/api/approve/<image_id>', methods=['POST'])
@@ -723,7 +729,7 @@ def publish_image(image_id):
         }), 400
 
     # Get image path
-    image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+    image_path = os.path.join(IMAGE_DIR, f"{image_id}.png")
 
     # Validate image file
     is_valid, error = validate_image_file(image_path)
@@ -752,8 +758,8 @@ def publish_image(image_id):
     try:
         description = request_data.get("description")
         price_cents = request_data.get("price_cents", config.printify.default_price_cents)
-        blueprint_id = request_data.get("blueprint_id", config.PRINTIFY_BLUEPRINT_ID)
-        provider_id = request_data.get("provider_id", config.PRINTIFY_PROVIDER_ID)
+        blueprint_id = request_data.get("blueprint_id", PRINTIFY_BLUEPRINT_ID)
+        provider_id = request_data.get("provider_id", PRINTIFY_PROVIDER_ID)
 
         # Validate price
         if not isinstance(price_cents, int) or price_cents < 0:
@@ -866,8 +872,8 @@ def health():
     health_status = {
         "status": "healthy",
         "printify": printify_client is not None,
-        "image_dir": os.path.exists(config.IMAGE_DIR),
-        "state_file": os.path.exists(config.STATE_FILE)
+        "image_dir": os.path.exists(IMAGE_DIR),
+        "state_file": os.path.exists(STATE_FILE)
     }
 
     # Return 503 if critical components are missing
@@ -896,13 +902,13 @@ if __name__ == "__main__":
     config.print_summary()
 
     logger.info("🚀 POD Gateway starting...")
-    logger.info(f"📁 Image directory: {config.IMAGE_DIR}")
-    logger.info(f"💾 State file: {config.STATE_FILE}")
+    logger.info(f"📁 Image directory: {IMAGE_DIR}")
+    logger.info(f"💾 State file: {STATE_FILE}")
     logger.info(f"🔌 Printify: {'enabled' if printify_client else 'disabled'}")
-    logger.info(f"🌐 Listening on {config.FLASK_HOST}:{config.FLASK_PORT}")
+    logger.info(f"🌐 Listening on {FLASK_HOST}:{FLASK_PORT}")
 
     app.run(
-        host=config.FLASK_HOST,
-        port=config.FLASK_PORT,
-        debug=config.FLASK_DEBUG
+        host=FLASK_HOST,
+        port=FLASK_PORT,
+        debug=FLASK_DEBUG
     )
