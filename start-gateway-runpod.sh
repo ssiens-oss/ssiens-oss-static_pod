@@ -74,6 +74,24 @@ else
     sed -i "s|^RUNPOD_API_KEY=.*|RUNPOD_API_KEY=$RUNPOD_KEY|" .env
     sed -i 's|^PRINTIFY_API_KEY=.*|PRINTIFY_API_KEY=|' .env
     sed -i 's|^PRINTIFY_SHOP_ID=.*|PRINTIFY_SHOP_ID=|' .env
+
+    # Ensure POD Gateway filesystem paths are set for local development
+    if ! grep -q "^POD_IMAGE_DIR=" .env; then
+        echo "POD_IMAGE_DIR=./output" >> .env
+    else
+        sed -i 's|^POD_IMAGE_DIR=.*|POD_IMAGE_DIR=./output|' .env
+    fi
+    if ! grep -q "^POD_STATE_FILE=" .env; then
+        echo "POD_STATE_FILE=./state.json" >> .env
+    else
+        sed -i 's|^POD_STATE_FILE=.*|POD_STATE_FILE=./state.json|' .env
+    fi
+    if ! grep -q "^POD_ARCHIVE_DIR=" .env; then
+        echo "POD_ARCHIVE_DIR=./archive" >> .env
+    else
+        sed -i 's|^POD_ARCHIVE_DIR=.*|POD_ARCHIVE_DIR=./archive|' .env
+    fi
+
     echo "   ✅ .env configured from .env.runpod-config"
 fi
 echo ""
