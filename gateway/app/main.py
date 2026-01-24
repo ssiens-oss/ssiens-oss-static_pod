@@ -14,8 +14,9 @@ import uuid
 import requests
 import base64
 
-# Load environment
-load_dotenv()
+# Load environment from parent directory (where .env is located)
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(env_path)
 
 # Import modules
 from app.config import config
