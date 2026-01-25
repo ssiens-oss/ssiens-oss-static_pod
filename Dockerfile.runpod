@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y \
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
+# Install Claude Code CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
 # Create workspace directories
 WORKDIR /workspace
 RUN mkdir -p ${COMFYUI_PATH} ${POD_APP_PATH} /data/designs /data/chrome-profile
