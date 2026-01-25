@@ -355,7 +355,12 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
                 continue
 
             # Check for direct URL or base64 at current level
-            if "url" in current and isinstance(current["url"], str):
+            # RunPod SDXL template uses "image_url" with base64 data URI
+            if "image_url" in current and isinstance(current["image_url"], str):
+                logger.debug("Found 'image_url' key with string value")
+                if current not in payloads:
+                    payloads.append(current)
+            elif "url" in current and isinstance(current["url"], str):
                 if current not in payloads:
                     payloads.append(current)
             elif "base64" in current and isinstance(current["base64"], str):
@@ -394,8 +399,10 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
         logger.debug(f"Processing payload {idx + 1}/{len(payloads)}: {list(payload.keys())}")
 
         # Try to extract image data from various fields
+        # RunPod SDXL template uses "image_url" with base64 data URI
         image_data = (
-            payload.get("url")
+            payload.get("image_url")
+            or payload.get("url")
             or payload.get("data")
             or payload.get("image")
             or payload.get("base64")
