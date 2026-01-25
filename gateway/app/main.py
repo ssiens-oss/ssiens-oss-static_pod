@@ -243,6 +243,7 @@ def build_comfyui_workflow(
 def download_and_save_image(image_data: str, filename: str | None = None) -> Tuple[str, str] | None:
     """Download and save an image from base64 data or URL."""
     if not image_data:
+        logger.warning("download_and_save_image called with empty image_data")
         return None
 
     image_id = f"generated_{uuid.uuid4().hex[:8]}_0"
@@ -250,25 +251,42 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
         filename = f"{image_id}.png"
 
     file_path = Path(config.IMAGE_DIR) / filename
+    logger.debug(f"Saving image to: {file_path}")
 
     try:
+        # Ensure image directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
         if image_data.startswith(("http://", "https://")):
             logger.info("Downloading image from URL: %s", image_data[:80])
             response = requests.get(image_data, timeout=60)
             response.raise_for_status()
             file_path.write_bytes(response.content)
+            logger.debug(f"Downloaded {len(response.content)} bytes from URL")
         else:
-            logger.info("Decoding base64 image data")
-            data_to_decode = image_data.split(",", 1)[1] if "," in image_data else image_data
-            file_path.write_bytes(base64.b64decode(data_to_decode))
+            logger.info("Decoding base64 image data (length: %d)", len(image_data))
+            # Handle data URI format: data:image/png;base64,<data>
+            if "," in image_data:
+                data_to_decode = image_data.split(",", 1)[1]
+                logger.debug("Extracted base64 data after comma (length: %d)", len(data_to_decode))
+            else:
+                data_to_decode = image_data
+            decoded_bytes = base64.b64decode(data_to_decode)
+            file_path.write_bytes(decoded_bytes)
+            logger.debug(f"Decoded and wrote {len(decoded_bytes)} bytes")
 
         state_manager.add_image(image_id, filename, str(file_path))
+        logger.info(f"✓ Image saved successfully: {image_id}")
         return image_id, str(file_path)
     except (requests.RequestException, ValueError, base64.binascii.Error) as exc:
-        logger.error("Failed to save image data: %s", exc)
+        logger.error("Failed to save image data: %s", exc, exc_info=True)
         return None
     except StateManagerError as exc:
         logger.error("Failed to register image in state: %s", exc)
+        # Image was saved but not registered - still return success
+        return image_id, str(file_path)
+    except Exception as exc:
+        logger.error("Unexpected error saving image: %s", exc, exc_info=True)
         return None
 
 
@@ -277,22 +295,36 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
     payloads: List[Dict[str, Any]] = []
     stack = [output]
 
+    logger.debug(f"Extracting image payloads from output type: {type(output).__name__}")
+    if isinstance(output, dict):
+        logger.debug(f"Output keys: {list(output.keys())}")
+
     while stack:
         current = stack.pop()
         if isinstance(current, dict):
+            # Handle "images" list - RunPod SDXL returns base64 strings in this list
             if "images" in current and isinstance(current["images"], list):
+                logger.debug(f"Found 'images' key with {len(current['images'])} items")
                 for item in current["images"]:
                     if isinstance(item, dict):
                         payloads.append(item)
                     elif isinstance(item, str):
+                        logger.debug(f"Adding image string from 'images' list (length: {len(item)})")
                         payloads.append({"data": item})
+            # Handle "image" key
             if "image" in current and isinstance(current["image"], str):
+                logger.debug("Found 'image' key with string value")
                 payloads.append({"data": current["image"]})
+            # Handle "image_url" key - RunPod SDXL template uses this with base64 data URI
+            if "image_url" in current and isinstance(current["image_url"], str):
+                logger.debug("Found 'image_url' key with string value")
+                payloads.append({"data": current["image_url"]})
             for value in current.values():
                 stack.append(value)
         elif isinstance(current, list):
             stack.extend(current)
 
+    logger.debug(f"Extracted {len(payloads)} image payload(s)")
     return payloads
 
 
@@ -301,18 +333,28 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
     saved_images: List[Dict[str, str]] = []
     payloads = extract_image_payloads(output)
 
-    for payload in payloads:
+    logger.info(f"Processing {len(payloads)} image payload(s) from RunPod output")
+
+    for idx, payload in enumerate(payloads):
+        logger.debug(f"Processing payload {idx + 1}: keys={list(payload.keys())}")
+        # Try multiple possible keys for image data
+        # RunPod SDXL template uses "image_url" with base64 data URI
         image_data = (
             payload.get("url")
             or payload.get("data")
             or payload.get("image")
             or payload.get("base64")
+            or payload.get("image_url")
         )
         if image_data:
+            logger.debug(f"Found image data (length: {len(image_data)}, starts with: {image_data[:50]}...)")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
+                logger.info(f"✓ Saved image: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
+            else:
+                logger.warning(f"Failed to save image from payload {idx + 1}")
             continue
 
         if payload.get("filename"):
@@ -325,6 +367,7 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
                     pass
                 saved_images.append({"id": image_id, "path": local_path})
 
+    logger.info(f"Saved {len(saved_images)} image(s) from RunPod output")
     return saved_images
 
 

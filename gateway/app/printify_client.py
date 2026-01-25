@@ -99,6 +99,7 @@ class PrintifyClient:
         self,
         method: str,
         endpoint: str,
+        custom_headers: Optional[Dict[str, str]] = None,
         **kwargs
     ) -> requests.Response:
         """
@@ -107,6 +108,7 @@ class PrintifyClient:
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint path
+            custom_headers: Optional custom headers to override defaults
             **kwargs: Additional arguments for requests
 
         Returns:
@@ -119,6 +121,9 @@ class PrintifyClient:
         retries = 0
         backoff = self.retry_config.initial_backoff
 
+        # Use custom headers if provided, otherwise use default headers
+        request_headers = custom_headers if custom_headers is not None else self.headers
+
         while retries <= self.retry_config.max_retries:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
@@ -126,7 +131,7 @@ class PrintifyClient:
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=request_headers,
                     timeout=30,
                     **kwargs
                 )
@@ -226,24 +231,33 @@ class PrintifyClient:
             Printify image ID or None on failure
         """
         try:
-            logger.info(f"Uploading image: {filename}")
+            logger.info(f"Uploading image: {filename} from {image_path}")
 
             with open(image_path, "rb") as f:
                 files = {"file": (filename, f, "image/png")}
 
+                # For file uploads, don't set Content-Type header (let requests handle multipart)
+                # Only set Authorization header
                 response = self._make_request(
                     "POST",
                     "/uploads/images.json",
-                    files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    custom_headers={"Authorization": f"Bearer {self.api_key}"},
+                    files=files
                 )
 
-            image_id = response.json().get("id")
-            logger.info(f"Image uploaded successfully: {image_id}")
+            result = response.json()
+            image_id = result.get("id")
+            if image_id:
+                logger.info(f"Image uploaded successfully: {image_id}")
+            else:
+                logger.error(f"Image upload response missing 'id': {result}")
             return image_id
 
+        except FileNotFoundError:
+            logger.error(f"Image file not found: {image_path}")
+            return None
         except Exception as e:
-            logger.error(f"Error uploading image: {e}")
+            logger.error(f"Error uploading image: {e}", exc_info=True)
             return None
 
     def create_product(
