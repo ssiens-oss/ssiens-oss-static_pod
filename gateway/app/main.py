@@ -3,7 +3,6 @@ POD Gateway - Main Flask Application
 Human-in-the-loop approval system for POD designs
 """
 from flask import Flask, render_template, jsonify, request, send_from_directory
-from dotenv import load_dotenv
 import os
 import logging
 from pathlib import Path
@@ -14,11 +13,7 @@ import uuid
 import requests
 import base64
 
-# Load environment from parent directory (where .env is located)
-env_path = Path(__file__).parent.parent.parent / '.env'
-load_dotenv(env_path)
-
-# Import modules
+# Import modules (config.py loads .env automatically)
 from app.config import (
     config,
     STATE_FILE, IMAGE_DIR, ARCHIVE_DIR,

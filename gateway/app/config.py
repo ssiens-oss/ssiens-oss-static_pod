@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 import sys
+from dotenv import load_dotenv
+
+# Load .env from parent directory (../../.env relative to this file)
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(env_path)
 
 
 @dataclass
