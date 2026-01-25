@@ -155,7 +155,18 @@ class RunPodServerlessClient:
             )
             response.raise_for_status()
             result = response.json()
-            logger.debug(f"Job {job_id} status: {result.get('status')}")
+
+            status = result.get('status')
+            logger.info(f"Job {job_id} status: {status}")
+
+            # Log output keys if completed
+            if status == "COMPLETED":
+                output = result.get('output', {})
+                logger.info(f"Job completed! Output keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
+            elif status == "FAILED":
+                error = result.get('error', 'Unknown error')
+                logger.error(f"Job failed with error: {error}")
+
             return result
 
         except requests.RequestException as e:
