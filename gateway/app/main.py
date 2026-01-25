@@ -265,6 +265,7 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
             file_path.write_bytes(base64.b64decode(data_to_decode))
 
         state_manager.add_image(image_id, filename, str(file_path))
+        logger.info(f"✓ Image saved successfully: {filename} -> {file_path}")
         return image_id, str(file_path)
     except (requests.RequestException, ValueError, base64.binascii.Error) as exc:
         logger.error("Failed to save image data: %s", exc)
@@ -300,10 +301,16 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
 
 def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
     """Save any images found in a RunPod output payload."""
+    logger.info(f"Processing RunPod output: {list(output.keys()) if isinstance(output, dict) else type(output)}")
+    logger.debug(f"Full output structure: {output}")
+
     saved_images: List[Dict[str, str]] = []
     payloads = extract_image_payloads(output)
+    logger.info(f"Extracted {len(payloads)} image payload(s) from RunPod output")
 
-    for payload in payloads:
+    for idx, payload in enumerate(payloads):
+        logger.debug(f"Processing payload {idx+1}/{len(payloads)}: {list(payload.keys()) if isinstance(payload, dict) else type(payload)}")
+
         image_data = (
             payload.get("url")
             or payload.get("data")
@@ -311,13 +318,18 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
             or payload.get("base64")
         )
         if image_data:
+            logger.info(f"Found image data in payload {idx+1} (type: {'URL' if image_data.startswith('http') else 'base64'})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
                 saved_images.append({"id": image_id, "path": file_path})
+                logger.info(f"✓ Saved image {idx+1}: {image_id}")
+            else:
+                logger.warning(f"✗ Failed to save image from payload {idx+1}")
             continue
 
         if payload.get("filename"):
+            logger.info(f"Found filename in payload {idx+1}: {payload.get('filename')}")
             local_path = download_comfyui_image(payload)
             if local_path:
                 image_id = Path(local_path).stem
@@ -326,7 +338,10 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
                 except StateManagerError:
                     pass
                 saved_images.append({"id": image_id, "path": local_path})
+        else:
+            logger.warning(f"Payload {idx+1} has no recognizable image data: {payload}")
 
+    logger.info(f"Saved {len(saved_images)} image(s) from RunPod output")
     return saved_images
 
 
