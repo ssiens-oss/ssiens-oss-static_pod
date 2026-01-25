@@ -6,3 +6,7 @@ dist-music/
 .DS_Store
 ComfyUI/
 pod-engine/
+.venv
+venv/
+__pycache__/
+*.pyc

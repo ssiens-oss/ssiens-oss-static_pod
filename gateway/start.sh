@@ -19,11 +19,24 @@ if [ -f "../.env" ]; then
     set +a
 fi
 
+# Setup virtual environment
+VENV_DIR="${SCRIPT_DIR}/.venv"
+if [ ! -d "$VENV_DIR" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+    echo "✅ Virtual environment created"
+fi
+
+# Activate virtual environment
+echo "🔌 Activating virtual environment..."
+source "${VENV_DIR}/bin/activate"
+
 # Check Python dependencies
 echo "🔍 Checking dependencies..."
 python -c "import flask, requests, PIL" 2>/dev/null || {
     echo "⚠️  Missing dependencies. Installing..."
     pip install -q flask requests pillow python-dotenv
+    echo "✅ Dependencies installed"
 }
 
 # Print configuration
