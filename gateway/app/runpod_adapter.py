@@ -30,10 +30,14 @@ class RunPodServerlessClient:
 
     def submit_workflow(self, workflow: Dict[str, Any], client_id: str, timeout: int = 120) -> Dict[str, Any]:
         """
-        Submit a ComfyUI workflow to RunPod serverless endpoint
+        Submit a workflow to RunPod serverless endpoint
+
+        Supports both:
+        - Stable Diffusion endpoints (simple text prompt)
+        - ComfyUI endpoints (full workflow)
 
         Args:
-            workflow: ComfyUI workflow dict
+            workflow: ComfyUI workflow dict or simple params
             client_id: Client identifier
             timeout: Request timeout in seconds
 
@@ -43,16 +47,36 @@ class RunPodServerlessClient:
         Raises:
             requests.RequestException: If request fails
         """
-        # CRITICAL: Wrap workflow in RunPod serverless format
-        # RunPod handler expects: {"input": {"workflow": {...}}}
-        payload = {
-            "input": {
-                "workflow": workflow,
-                "client_id": client_id
-            }
-        }
+        # Detect endpoint type and format payload accordingly
+        # ComfyUI workflows have numbered nodes like "3", "6", "7"
+        # Stable Diffusion endpoints expect simple text prompts
+        is_comfyui = any(key.isdigit() for key in workflow.keys())
 
-        logger.info(f"Calling RunPod serverless: {self.endpoint_url}")
+        if is_comfyui:
+            # ComfyUI endpoint format
+            payload = {
+                "input": {
+                    "workflow": workflow,
+                    "client_id": client_id
+                }
+            }
+            logger.info(f"Calling RunPod ComfyUI endpoint: {self.endpoint_url}")
+        else:
+            # Stable Diffusion endpoint format - extract prompt from workflow
+            prompt = workflow.get("prompt", "")
+            payload = {
+                "input": {
+                    "prompt": prompt,
+                    "negative_prompt": workflow.get("negative_prompt", ""),
+                    "width": workflow.get("width", 1024),
+                    "height": workflow.get("height", 1024),
+                    "num_inference_steps": workflow.get("num_inference_steps", 28),
+                    "guidance_scale": workflow.get("guidance_scale", 3.5)
+                }
+            }
+            logger.info(f"Calling RunPod Stable Diffusion endpoint: {self.endpoint_url}")
+            logger.info(f"Prompt: {prompt[:100]}...")
+
         logger.debug(f"Payload keys: {list(payload.keys())}, input keys: {list(payload['input'].keys())}")
 
         try:

@@ -503,14 +503,30 @@ def generate_image():
     full_prompt = build_prompt_text(prompt, style, genre)
     logger.info(f"Using {'RunPod Serverless' if comfyui_client else 'direct ComfyUI'} for generation: {prompt[:50]}...")
 
-    workflow = build_comfyui_workflow(
-        full_prompt,
-        seed=data.get("seed"),
-        width=data.get("width", 1024),
-        height=data.get("height", 1024),
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
-    )
+    # Check if using RunPod Stable Diffusion (not ComfyUI)
+    is_stable_diffusion = comfyui_client and "a0vhmyan1win34" in COMFYUI_API_URL
+
+    if is_stable_diffusion:
+        # For Stable Diffusion endpoints, use simple prompt format
+        workflow = {
+            "prompt": full_prompt,
+            "negative_prompt": data.get("negative_prompt", ""),
+            "width": data.get("width", 1024),
+            "height": data.get("height", 1024),
+            "num_inference_steps": data.get("steps", 28),
+            "guidance_scale": data.get("cfg_scale", 3.5)
+        }
+        logger.info(f"Using Stable Diffusion format for endpoint")
+    else:
+        # For ComfyUI endpoints, use workflow format
+        workflow = build_comfyui_workflow(
+            full_prompt,
+            seed=data.get("seed"),
+            width=data.get("width", 1024),
+            height=data.get("height", 1024),
+            steps=data.get("steps", 20),
+            cfg_scale=data.get("cfg_scale", 7)
+        )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
 
