@@ -60,6 +60,23 @@ class PrintifyConfig:
         """Check if Printify is fully configured"""
         return bool(self.api_key and self.shop_id)
 
+    # Blueprint ID to product type mapping (for auto-titles)
+    BLUEPRINT_TYPES = {
+        3: "Tee",
+        5: "Tee",
+        77: "Hoodie",
+        145: "Sweatshirt",
+        6: "Poster",
+        384: "Canvas",
+        12: "Tank Top",
+        19: "Long Sleeve"
+    }
+
+    def get_product_type(self, blueprint_id: int = None) -> str:
+        """Get product type name from blueprint ID"""
+        bid = blueprint_id if blueprint_id else self.blueprint_id
+        return self.BLUEPRINT_TYPES.get(bid, "Hoodie")
+
 
 @dataclass
 class ShopifyConfig:
