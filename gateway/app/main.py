@@ -895,43 +895,6 @@ if __name__ == "__main__":
     # Print configuration summary
     config.config.print_summary()
 
-    # Validate critical startup requirements
-    logger.info("🔍 Validating startup requirements...")
-
-    # Check critical directories exist
-    if not os.path.exists(config.IMAGE_DIR):
-        logger.error(f"❌ Image directory does not exist: {config.IMAGE_DIR}")
-        logger.info(f"💡 Creating image directory...")
-        try:
-            os.makedirs(config.IMAGE_DIR, exist_ok=True)
-            logger.info(f"✅ Created image directory: {config.IMAGE_DIR}")
-        except OSError as e:
-            logger.error(f"❌ Failed to create image directory: {e}")
-            sys.exit(1)
-
-    # Check state file directory exists
-    state_dir = os.path.dirname(config.STATE_FILE)
-    if state_dir and not os.path.exists(state_dir):
-        logger.info(f"💡 Creating state directory: {state_dir}")
-        try:
-            os.makedirs(state_dir, exist_ok=True)
-            logger.info(f"✅ Created state directory: {state_dir}")
-        except OSError as e:
-            logger.error(f"❌ Failed to create state directory: {e}")
-            sys.exit(1)
-
-    # Validate Printify configuration if client is enabled
-    if printify_client:
-        if not config.PRINTIFY_SHOP_ID:
-            logger.error("❌ PRINTIFY_SHOP_ID is required when Printify is enabled")
-            sys.exit(1)
-        if not config.PRINTIFY_BLUEPRINT_ID:
-            logger.error("❌ PRINTIFY_BLUEPRINT_ID is required when Printify is enabled")
-            sys.exit(1)
-        logger.info("✅ Printify configuration validated")
-
-    logger.info("✅ All startup validations passed")
-
     logger.info("🚀 POD Gateway starting...")
     logger.info(f"📁 Image directory: {config.IMAGE_DIR}")
     logger.info(f"💾 State file: {config.STATE_FILE}")
