@@ -65,8 +65,17 @@ class RunPodServerlessClient:
             response.raise_for_status()
 
             result = response.json()
-            logger.info(f"RunPod serverless generation completed")
-            logger.debug(f"Response status: {result.get('status', 'unknown')}")
+            status = result.get('status', 'unknown')
+            logger.info(f"RunPod serverless response received (status: {status})")
+            logger.debug(f"Response keys: {list(result.keys())}")
+
+            # Log output structure for debugging
+            if "output" in result:
+                output = result["output"]
+                if isinstance(output, dict):
+                    logger.debug(f"Output keys: {list(output.keys())}")
+                else:
+                    logger.debug(f"Output type: {type(output).__name__}")
 
             # RunPod serverless returns: {"id": "...", "status": "COMPLETED", "output": {...}}
             if result.get("status") == "COMPLETED":

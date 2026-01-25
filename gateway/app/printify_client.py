@@ -99,6 +99,7 @@ class PrintifyClient:
         self,
         method: str,
         endpoint: str,
+        use_json_headers: bool = True,
         **kwargs
     ) -> requests.Response:
         """
@@ -107,6 +108,7 @@ class PrintifyClient:
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint path
+            use_json_headers: If True, use JSON Content-Type headers. If False, only use auth header (for file uploads)
             **kwargs: Additional arguments for requests
 
         Returns:
@@ -119,6 +121,13 @@ class PrintifyClient:
         retries = 0
         backoff = self.retry_config.initial_backoff
 
+        # Use appropriate headers based on request type
+        if use_json_headers:
+            request_headers = self.headers
+        else:
+            # For file uploads, don't set Content-Type (requests will set multipart/form-data automatically)
+            request_headers = {"Authorization": f"Bearer {self.api_key}"}
+
         while retries <= self.retry_config.max_retries:
             try:
                 logger.debug(f"{method} {endpoint} (attempt {retries + 1}/{self.retry_config.max_retries + 1})")
@@ -126,7 +135,7 @@ class PrintifyClient:
                 response = self.session.request(
                     method=method,
                     url=url,
-                    headers=self.headers,
+                    headers=request_headers,
                     timeout=30,
                     **kwargs
                 )
@@ -231,11 +240,12 @@ class PrintifyClient:
             with open(image_path, "rb") as f:
                 files = {"file": (filename, f, "image/png")}
 
+                # Use use_json_headers=False for file uploads to avoid Content-Type conflict
                 response = self._make_request(
                     "POST",
                     "/uploads/images.json",
-                    files=files,
-                    headers={"Authorization": f"Bearer {self.api_key}"}  # Files upload needs different headers
+                    use_json_headers=False,
+                    files=files
                 )
 
             image_id = response.json().get("id")

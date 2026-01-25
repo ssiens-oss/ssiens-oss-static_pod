@@ -241,8 +241,18 @@ def build_comfyui_workflow(
 
 
 def download_and_save_image(image_data: str, filename: str | None = None) -> Tuple[str, str] | None:
-    """Download and save an image from base64 data or URL."""
+    """
+    Download and save an image from base64 data or URL.
+
+    Args:
+        image_data: URL or base64-encoded image data
+        filename: Optional filename (generated if not provided)
+
+    Returns:
+        Tuple of (image_id, file_path) or None on failure
+    """
     if not image_data:
+        logger.warning("download_and_save_image called with empty image_data")
         return None
 
     image_id = f"generated_{uuid.uuid4().hex[:8]}_0"
@@ -253,78 +263,175 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
 
     try:
         if image_data.startswith(("http://", "https://")):
-            logger.info("Downloading image from URL: %s", image_data[:80])
+            logger.info("Downloading image from URL: %s...", image_data[:80])
             response = requests.get(image_data, timeout=60)
             response.raise_for_status()
+            content_length = len(response.content)
+            logger.debug(f"Downloaded {content_length} bytes from URL")
             file_path.write_bytes(response.content)
         else:
-            logger.info("Decoding base64 image data")
-            data_to_decode = image_data.split(",", 1)[1] if "," in image_data else image_data
-            file_path.write_bytes(base64.b64decode(data_to_decode))
+            # Handle base64 data (with or without data URI prefix)
+            logger.info("Decoding base64 image data (length: %d)", len(image_data))
+            if "," in image_data:
+                # Data URI format: data:image/png;base64,<data>
+                data_to_decode = image_data.split(",", 1)[1]
+            else:
+                data_to_decode = image_data
 
+            # Add padding if needed for base64
+            padding = 4 - (len(data_to_decode) % 4)
+            if padding != 4:
+                data_to_decode += "=" * padding
+
+            decoded_data = base64.b64decode(data_to_decode)
+            logger.debug(f"Decoded {len(decoded_data)} bytes from base64")
+            file_path.write_bytes(decoded_data)
+
+        logger.info(f"Saved image to: {file_path}")
         state_manager.add_image(image_id, filename, str(file_path))
         return image_id, str(file_path)
-    except (requests.RequestException, ValueError, base64.binascii.Error) as exc:
-        logger.error("Failed to save image data: %s", exc)
+
+    except requests.RequestException as exc:
+        logger.error("Failed to download image from URL: %s", exc)
+        return None
+    except (ValueError, base64.binascii.Error) as exc:
+        logger.error("Failed to decode base64 image data: %s", exc)
+        return None
+    except OSError as exc:
+        logger.error("Failed to write image file: %s", exc)
         return None
     except StateManagerError as exc:
         logger.error("Failed to register image in state: %s", exc)
-        return None
+        # File was saved, but state registration failed - still return success
+        # so the image can be accessed
+        return image_id, str(file_path)
 
 
 def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
-    """Extract possible image payloads from RunPod output."""
+    """
+    Extract possible image payloads from RunPod output.
+
+    Handles various RunPod/ComfyUI output formats:
+    - {"images": [{"filename": "...", "subfolder": "...", "type": "output"}]}
+    - {"images": [{"url": "https://..."}]}
+    - {"images": [{"base64": "..."}]}
+    - {"message": {"images": [...]}}
+    - Node outputs like {"9": {"images": [...]}}
+    """
     payloads: List[Dict[str, Any]] = []
     stack = [output]
+
+    logger.debug(f"Extracting images from output: {type(output).__name__}")
+    if isinstance(output, dict):
+        logger.debug(f"Output keys: {list(output.keys())}")
 
     while stack:
         current = stack.pop()
         if isinstance(current, dict):
+            # Check for "images" array (most common format)
             if "images" in current and isinstance(current["images"], list):
+                logger.debug(f"Found 'images' key with {len(current['images'])} items")
                 for item in current["images"]:
                     if isinstance(item, dict):
                         payloads.append(item)
                     elif isinstance(item, str):
                         payloads.append({"data": item})
+
+            # Check for single "image" field
             if "image" in current and isinstance(current["image"], str):
+                logger.debug("Found 'image' key with string value")
                 payloads.append({"data": current["image"]})
-            for value in current.values():
-                stack.append(value)
+
+            # Check for "output" field that contains image data (RunPod format)
+            if "output" in current and isinstance(current["output"], dict):
+                logger.debug("Found 'output' key, adding to stack")
+                stack.append(current["output"])
+                continue
+
+            # Check for "message" field (some handlers use this)
+            if "message" in current and isinstance(current["message"], (dict, list)):
+                logger.debug("Found 'message' key, adding to stack")
+                stack.append(current["message"])
+                continue
+
+            # Check for direct URL or base64 at current level
+            if "url" in current and isinstance(current["url"], str):
+                if current not in payloads:
+                    payloads.append(current)
+            elif "base64" in current and isinstance(current["base64"], str):
+                if current not in payloads:
+                    payloads.append(current)
+            elif "data" in current and isinstance(current["data"], str):
+                if current not in payloads:
+                    payloads.append(current)
+
+            # Recurse into all values
+            for key, value in current.items():
+                if key not in ("images", "image", "output", "message"):
+                    stack.append(value)
         elif isinstance(current, list):
             stack.extend(current)
 
+    logger.info(f"Extracted {len(payloads)} image payloads from RunPod output")
     return payloads
 
 
 def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
-    """Save any images found in a RunPod output payload."""
+    """
+    Save any images found in a RunPod output payload.
+
+    Handles:
+    - URL-based images (downloads from URL)
+    - Base64-encoded images (decodes and saves)
+    - ComfyUI filename references (downloads from ComfyUI API)
+    """
     saved_images: List[Dict[str, str]] = []
     payloads = extract_image_payloads(output)
 
-    for payload in payloads:
+    logger.info(f"Processing {len(payloads)} image payloads from RunPod output")
+
+    for idx, payload in enumerate(payloads):
+        logger.debug(f"Processing payload {idx + 1}/{len(payloads)}: {list(payload.keys())}")
+
+        # Try to extract image data from various fields
         image_data = (
             payload.get("url")
             or payload.get("data")
             or payload.get("image")
             or payload.get("base64")
         )
+
         if image_data:
+            logger.debug(f"Found image data (type: {'URL' if image_data.startswith(('http://', 'https://')) else 'base64/data'})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
                 saved_images.append({"id": image_id, "path": file_path})
+                logger.info(f"Saved image: {image_id}")
+            else:
+                logger.warning(f"Failed to save image from data (payload {idx + 1})")
             continue
 
+        # Handle ComfyUI filename format (for direct ComfyUI connections)
         if payload.get("filename"):
+            logger.debug(f"Found ComfyUI filename: {payload.get('filename')}")
             local_path = download_comfyui_image(payload)
             if local_path:
                 image_id = Path(local_path).stem
                 try:
                     state_manager.add_image(image_id, Path(local_path).name, local_path)
-                except StateManagerError:
-                    pass
-                saved_images.append({"id": image_id, "path": local_path})
+                    saved_images.append({"id": image_id, "path": local_path})
+                    logger.info(f"Saved ComfyUI image: {image_id}")
+                except StateManagerError as e:
+                    logger.warning(f"Failed to register image {image_id} in state: {e}")
+                    # Still add to saved_images since file was saved
+                    saved_images.append({"id": image_id, "path": local_path})
+            else:
+                logger.warning(f"Failed to download ComfyUI image: {payload.get('filename')}")
+        else:
+            logger.debug(f"Payload {idx + 1} has no recognized image data: {list(payload.keys())}")
 
+    logger.info(f"Successfully saved {len(saved_images)} images from RunPod output")
     return saved_images
 
 
@@ -501,16 +608,25 @@ def generate_image():
         # Use RunPod serverless client if available, otherwise direct ComfyUI
         if comfyui_client:
             # RunPod serverless
+            logger.info(f"Submitting workflow to RunPod serverless (client_id: {client_id})")
             result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
+
+            status = result.get("status")
+            logger.info(f"RunPod response status: {status}")
+
             saved_images: List[Dict[str, str]] = []
-            if result.get("status") == "COMPLETED":
+            if status == "COMPLETED":
                 output = result.get("output", {})
+                logger.debug(f"RunPod output keys: {list(output.keys()) if isinstance(output, dict) else type(output).__name__}")
                 saved_images = save_runpod_output_images(output)
+                logger.info(f"Saved {len(saved_images)} images from RunPod output")
+            elif status in ["IN_QUEUE", "IN_PROGRESS"]:
+                logger.info(f"RunPod job queued/in-progress, job_id: {result.get('job_id')}")
 
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
                 "job_id": result.get("job_id"),
-                "status": result.get("status"),
+                "status": status,
                 "prompt": full_prompt,
                 "images": saved_images,
                 "source": "runpod"
@@ -590,18 +706,25 @@ def runpod_status():
         return jsonify({"error": "RunPod client not configured"}), 400
 
     try:
+        logger.info(f"Checking RunPod job status: {job_id}")
         result = comfyui_client.get_job_status(job_id)
         status = result.get("status")
+        logger.info(f"RunPod job {job_id} status: {status}")
+
         saved_images: List[Dict[str, str]] = []
 
         if status == "COMPLETED":
             output = result.get("output", {})
+            logger.debug(f"RunPod output keys: {list(output.keys()) if isinstance(output, dict) else type(output).__name__}")
             saved_images = save_runpod_output_images(output)
+            logger.info(f"Saved {len(saved_images)} images from completed RunPod job")
 
         if status == "FAILED":
+            error_msg = result.get("error", "RunPod job failed")
+            logger.error(f"RunPod job {job_id} failed: {error_msg}")
             return jsonify({
                 "status": status,
-                "error": result.get("error", "RunPod job failed")
+                "error": error_msg
             }), 500
 
         return jsonify({
@@ -610,7 +733,7 @@ def runpod_status():
             "images": saved_images
         })
     except Exception as exc:
-        logger.error("RunPod status check failed: %s", exc)
+        logger.error("RunPod status check failed: %s", exc, exc_info=True)
         return jsonify({"error": "Failed to check RunPod job"}), 502
 
 
