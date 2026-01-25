@@ -4,7 +4,31 @@
  * Usage: node test-runpod.mjs
  */
 
-import 'dotenv/config';
+import { readFileSync } from 'fs';
+
+// Simple .env parser
+function loadEnv() {
+  try {
+    const envContent = readFileSync('.env', 'utf-8');
+    const lines = envContent.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      const [key, ...valueParts] = trimmed.split('=');
+      const value = valueParts.join('=').trim();
+
+      if (key && value) {
+        process.env[key] = value;
+      }
+    }
+  } catch (error) {
+    console.error('Warning: Could not load .env file:', error.message);
+  }
+}
+
+loadEnv();
 
 // Simple RunPod API test
 async function testRunPodConnection() {
