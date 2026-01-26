@@ -854,6 +854,59 @@ def get_stats():
         return jsonify({"error": "Internal server error"}), 500
 
 
+@app.route('/api/debug/config')
+def debug_config():
+    """
+    Debug endpoint to diagnose configuration issues.
+    Shows key lengths and prefixes (not full keys) to help identify
+    placeholder vs real API keys.
+
+    Returns:
+        JSON with configuration diagnostics
+    """
+    def mask_key(key: str, show_prefix: int = 10, show_suffix: int = 4) -> dict:
+        """Return info about a key without exposing the full value."""
+        if not key:
+            return {"length": 0, "prefix": "", "suffix": "", "is_placeholder": True}
+        is_placeholder = key.startswith("your-") or key in ["", "placeholder", "test"]
+        return {
+            "length": len(key),
+            "prefix": key[:show_prefix] if len(key) > show_prefix else key[:3] + "...",
+            "suffix": key[-show_suffix:] if len(key) > show_suffix else "",
+            "is_placeholder": is_placeholder
+        }
+
+    # Check which .env files exist
+    project_root = Path(__file__).parent.parent.parent
+    env_files = {
+        "project_root/.env": (project_root / ".env").exists(),
+        "gateway/.env": (project_root / "gateway" / ".env").exists(),
+        "gateway/app/.env": (project_root / "gateway" / "app" / ".env").exists(),
+    }
+
+    return jsonify({
+        "env_files_found": env_files,
+        "printify": {
+            "api_key": mask_key(config.PRINTIFY_API_KEY or ""),
+            "shop_id": config.PRINTIFY_SHOP_ID,
+            "blueprint_id": config.PRINTIFY_BLUEPRINT_ID,
+            "provider_id": config.PRINTIFY_PROVIDER_ID,
+            "client_initialized": printify_client is not None
+        },
+        "runpod": {
+            "api_key": mask_key(config.RUNPOD_API_KEY or ""),
+            "endpoint_id": config.RUNPOD_ENDPOINT_ID,
+            "client_initialized": comfyui_client is not None
+        },
+        "paths": {
+            "image_dir": config.IMAGE_DIR,
+            "image_dir_exists": os.path.exists(config.IMAGE_DIR),
+            "state_file": config.STATE_FILE,
+            "state_file_exists": os.path.exists(config.STATE_FILE)
+        }
+    })
+
+
 @app.route('/health')
 def health():
     """
