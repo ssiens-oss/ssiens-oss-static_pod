@@ -14,8 +14,13 @@ import uuid
 import requests
 import base64
 
-# Load environment
-load_dotenv()
+# Load environment from project root first (contains API keys)
+project_root = Path(__file__).parent.parent.parent
+root_env = project_root / ".env"
+if root_env.exists():
+    load_dotenv(root_env)
+# Also load from current dir but don't override existing values
+load_dotenv(override=False)
 
 # Import modules
 from app import config
