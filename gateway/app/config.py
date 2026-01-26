@@ -217,3 +217,5 @@ PRINTIFY_PROVIDER_ID = config.printify.provider_id
 SHOPIFY_STORE_URL = config.shopify.store_url
 SHOPIFY_ACCESS_TOKEN = config.shopify.access_token
 COMFYUI_API_URL = config.comfyui.api_url
+RUNPOD_API_KEY = config.comfyui.runpod_api_key
+RUNPOD_ENDPOINT_ID = os.getenv("RUNPOD_ENDPOINT_ID")
