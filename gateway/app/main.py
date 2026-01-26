@@ -509,13 +509,16 @@ def list_images():
 @app.route('/api/generate', methods=['POST'])
 def generate_image():
     """
-    Submit a prompt to ComfyUI via the configured API URL.
+    Submit a prompt for image generation.
 
     Expected JSON body:
     {
         "prompt": "Base prompt text",
         "style": "Optional style",
-        "genre": "Optional genre"
+        "genre": "Optional genre",
+        "seed": Optional seed number,
+        "width": Optional width (default 1024),
+        "height": Optional height (default 1024)
     }
     """
     data = request.get_json(silent=True) or {}
@@ -527,27 +530,23 @@ def generate_image():
         return jsonify({"error": "Prompt is required"}), 400
 
     full_prompt = build_prompt_text(prompt, style, genre)
-    logger.info(f"Using {'RunPod Serverless' if comfyui_client else 'direct ComfyUI'} for generation: {prompt[:50]}...")
-
-    workflow = build_comfyui_workflow(
-        full_prompt,
-        seed=data.get("seed"),
-        width=data.get("width", 1024),
-        height=data.get("height", 1024),
-        steps=data.get("steps", 20),
-        cfg_scale=data.get("cfg_scale", 7)
-    )
-
-    client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
+    logger.info(f"Using {'RunPod SDXL' if comfyui_client else 'direct ComfyUI'} for generation: {prompt[:50]}...")
 
     try:
         # Use RunPod serverless client if available, otherwise direct ComfyUI
         if comfyui_client:
-            # RunPod serverless
-            result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
+            # RunPod SDXL - use generate_image with simple prompt format
+            result = comfyui_client.generate_image(
+                full_prompt,
+                timeout=120,
+                seed=data.get("seed"),
+                width=data.get("width", 1024),
+                height=data.get("height", 1024)
+            )
             saved_images: List[Dict[str, str]] = []
             if result.get("status") == "COMPLETED":
                 output = result.get("output", {})
+                logger.info(f"Processing RunPod output with keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
                 saved_images = save_runpod_output_images(output)
 
             return jsonify({
@@ -559,7 +558,16 @@ def generate_image():
                 "source": "runpod"
             })
         else:
-            # Direct ComfyUI connection
+            # Direct ComfyUI connection - needs workflow format
+            workflow = build_comfyui_workflow(
+                full_prompt,
+                seed=data.get("seed"),
+                width=data.get("width", 1024),
+                height=data.get("height", 1024),
+                steps=data.get("steps", 20),
+                cfg_scale=data.get("cfg_scale", 7)
+            )
+            client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
             payload = {
                 "prompt": workflow,
                 "client_id": client_id

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class RunPodServerlessClient:
-    """Client for RunPod serverless ComfyUI endpoints"""
+    """Client for RunPod serverless SDXL/image generation endpoints"""
 
     def __init__(self, endpoint_url: str, api_key: str):
         """
@@ -28,32 +28,40 @@ class RunPodServerlessClient:
         }
         logger.info(f"RunPod serverless client initialized for: {endpoint_url}")
 
-    def submit_workflow(self, workflow: Dict[str, Any], client_id: str, timeout: int = 120) -> Dict[str, Any]:
+    def generate_image(self, prompt: str, timeout: int = 120, **kwargs) -> Dict[str, Any]:
         """
-        Submit a ComfyUI workflow to RunPod serverless endpoint
+        Generate an image using RunPod SDXL template.
 
         Args:
-            workflow: ComfyUI workflow dict
-            client_id: Client identifier
+            prompt: Text prompt for image generation
             timeout: Request timeout in seconds
+            **kwargs: Additional parameters (seed, width, height, etc.)
 
         Returns:
-            Response dict with prompt_id or error
+            Response dict with status and output
 
         Raises:
             requests.RequestException: If request fails
         """
-        # CRITICAL: Wrap workflow in RunPod serverless format
-        # RunPod handler expects: {"input": {"workflow": {...}}}
-        payload = {
-            "input": {
-                "workflow": workflow,
-                "client_id": client_id
-            }
-        }
+        # RunPod SDXL template expects: {"input": {"prompt": "...", ...}}
+        input_params = {"prompt": prompt}
 
-        logger.info(f"Calling RunPod serverless: {self.endpoint_url}")
-        logger.debug(f"Payload keys: {list(payload.keys())}, input keys: {list(payload['input'].keys())}")
+        # Add optional parameters if provided
+        if kwargs.get("seed") is not None:
+            input_params["seed"] = kwargs["seed"]
+        if kwargs.get("width"):
+            input_params["width"] = kwargs["width"]
+        if kwargs.get("height"):
+            input_params["height"] = kwargs["height"]
+        if kwargs.get("num_inference_steps"):
+            input_params["num_inference_steps"] = kwargs["num_inference_steps"]
+        if kwargs.get("guidance_scale"):
+            input_params["guidance_scale"] = kwargs["guidance_scale"]
+
+        payload = {"input": input_params}
+
+        logger.info(f"Calling RunPod SDXL: {self.endpoint_url}")
+        logger.debug(f"Input params: {list(input_params.keys())}")
 
         try:
             response = requests.post(
@@ -65,45 +73,112 @@ class RunPodServerlessClient:
             response.raise_for_status()
 
             result = response.json()
-            logger.info(f"RunPod serverless generation completed")
-            logger.debug(f"Response status: {result.get('status', 'unknown')}")
+            status = result.get("status", "unknown")
+            logger.info(f"RunPod response status: {status}")
 
-            # RunPod serverless returns: {"id": "...", "status": "COMPLETED", "output": {...}}
-            if result.get("status") == "COMPLETED":
+            if status == "COMPLETED":
                 output = result.get("output", {})
-                # Extract prompt_id from output if available
-                prompt_id = output.get("prompt_id") or result.get("id")
-                logger.info(f"✓ RunPod job completed successfully: {prompt_id}")
+                prompt_id = f"sync-{result.get('id', 'unknown')}"
+                logger.info(f"✓ RunPod job completed: {prompt_id}")
+                logger.debug(f"Output keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
                 return {
                     "prompt_id": prompt_id,
                     "status": "COMPLETED",
                     "output": output
                 }
-            elif result.get("status") in ["IN_QUEUE", "IN_PROGRESS"]:
-                # For async responses, return the job ID
+            elif status in ["IN_QUEUE", "IN_PROGRESS"]:
                 job_id = result.get("id")
                 logger.info(f"RunPod job queued: {job_id}")
                 return {
                     "prompt_id": job_id,
-                    "status": result.get("status"),
+                    "status": status,
                     "job_id": job_id
                 }
-            elif result.get("status") == "FAILED":
-                # Job failed
-                error_msg = result.get("error", "Unknown error from RunPod serverless")
+            elif status == "FAILED":
+                error_msg = result.get("error", "Unknown error from RunPod")
                 logger.error(f"RunPod job failed: {error_msg}")
                 raise Exception(error_msg)
             else:
-                # Unknown status
-                error_msg = result.get("error", f"Unknown status: {result.get('status')}")
-                logger.error(f"RunPod serverless error: {error_msg}")
+                error_msg = result.get("error", f"Unknown status: {status}")
+                logger.error(f"RunPod error: {error_msg}")
                 raise Exception(error_msg)
 
         except requests.HTTPError as e:
             logger.error(f"RunPod HTTP error: {e.response.status_code} - {e.response.text}")
             raise
         except requests.RequestException as e:
-            logger.error(f"RunPod serverless request failed: {e}")
+            logger.error(f"RunPod request failed: {e}")
+            raise
+
+    def submit_workflow(self, workflow: Dict[str, Any], client_id: str, timeout: int = 120) -> Dict[str, Any]:
+        """
+        Submit a ComfyUI workflow to RunPod serverless endpoint.
+
+        NOTE: This is for ComfyUI-based endpoints. For SDXL templates, use generate_image().
+
+        Args:
+            workflow: ComfyUI workflow dict
+            client_id: Client identifier
+            timeout: Request timeout in seconds
+
+        Returns:
+            Response dict with prompt_id or error
+        """
+        # For ComfyUI endpoints: {"input": {"workflow": {...}}}
+        payload = {
+            "input": {
+                "workflow": workflow,
+                "client_id": client_id
+            }
+        }
+
+        logger.info(f"Calling RunPod ComfyUI: {self.endpoint_url}")
+        logger.debug(f"Payload keys: {list(payload['input'].keys())}")
+
+        try:
+            response = requests.post(
+                self.endpoint_url,
+                json=payload,
+                headers=self.headers,
+                timeout=timeout
+            )
+            response.raise_for_status()
+
+            result = response.json()
+            status = result.get("status", "unknown")
+            logger.debug(f"Response status: {status}")
+
+            if status == "COMPLETED":
+                output = result.get("output", {})
+                prompt_id = output.get("prompt_id") or result.get("id")
+                logger.info(f"✓ RunPod job completed: {prompt_id}")
+                return {
+                    "prompt_id": prompt_id,
+                    "status": "COMPLETED",
+                    "output": output
+                }
+            elif status in ["IN_QUEUE", "IN_PROGRESS"]:
+                job_id = result.get("id")
+                logger.info(f"RunPod job queued: {job_id}")
+                return {
+                    "prompt_id": job_id,
+                    "status": status,
+                    "job_id": job_id
+                }
+            elif status == "FAILED":
+                error_msg = result.get("error", "Unknown error from RunPod")
+                logger.error(f"RunPod job failed: {error_msg}")
+                raise Exception(error_msg)
+            else:
+                error_msg = result.get("error", f"Unknown status: {status}")
+                logger.error(f"RunPod error: {error_msg}")
+                raise Exception(error_msg)
+
+        except requests.HTTPError as e:
+            logger.error(f"RunPod HTTP error: {e.response.status_code} - {e.response.text}")
+            raise
+        except requests.RequestException as e:
+            logger.error(f"RunPod request failed: {e}")
             raise
 
     def get_job_status(self, job_id: str, timeout: int = 30) -> Dict[str, Any]:
@@ -117,7 +192,6 @@ class RunPodServerlessClient:
         Returns:
             Job status dict
         """
-        # Extract endpoint base URL (remove /runsync or /run)
         base_url = self.endpoint_url.replace("/runsync", "").replace("/run", "")
         status_url = f"{base_url}/status/{job_id}"
 
@@ -161,4 +235,4 @@ def create_comfyui_client(api_url: str, runpod_api_key: Optional[str] = None):
         return RunPodServerlessClient(api_url, runpod_api_key)
     else:
         logger.info("✓ Using direct ComfyUI connection")
-        return None  # Use direct requests for standard ComfyUI
+        return None
