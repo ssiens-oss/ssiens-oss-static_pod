@@ -14,8 +14,13 @@ import uuid
 import requests
 import base64
 
-# Load environment
-load_dotenv()
+# Load environment from project root first (contains API keys)
+project_root = Path(__file__).parent.parent.parent
+root_env = project_root / ".env"
+if root_env.exists():
+    load_dotenv(root_env)
+# Also load from current dir but don't override existing values
+load_dotenv(override=False)
 
 # Import modules
 from app import config
@@ -299,9 +304,12 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
 def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
     """Save any images found in a RunPod output payload."""
     saved_images: List[Dict[str, str]] = []
+    logger.info(f"Processing RunPod output keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
     payloads = extract_image_payloads(output)
+    logger.info(f"Found {len(payloads)} image payloads to process")
 
-    for payload in payloads:
+    for i, payload in enumerate(payloads):
+        logger.debug(f"Payload {i}: {list(payload.keys())}")
         image_data = (
             payload.get("url")
             or payload.get("data")
@@ -309,9 +317,11 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
             or payload.get("base64")
         )
         if image_data:
+            logger.info(f"Found image data (type: {'url' if image_data.startswith('http') else 'base64'}, len: {len(image_data)})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
+                logger.info(f"✓ Saved image: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
             continue
 
@@ -325,6 +335,7 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
                     pass
                 saved_images.append({"id": image_id, "path": local_path})
 
+    logger.info(f"Total images saved: {len(saved_images)}")
     return saved_images
 
 
@@ -852,6 +863,59 @@ def get_stats():
     except Exception as e:
         logger.error(f"Error getting statistics: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/debug/config')
+def debug_config():
+    """
+    Debug endpoint to diagnose configuration issues.
+    Shows key lengths and prefixes (not full keys) to help identify
+    placeholder vs real API keys.
+
+    Returns:
+        JSON with configuration diagnostics
+    """
+    def mask_key(key: str, show_prefix: int = 10, show_suffix: int = 4) -> dict:
+        """Return info about a key without exposing the full value."""
+        if not key:
+            return {"length": 0, "prefix": "", "suffix": "", "is_placeholder": True}
+        is_placeholder = key.startswith("your-") or key in ["", "placeholder", "test"]
+        return {
+            "length": len(key),
+            "prefix": key[:show_prefix] if len(key) > show_prefix else key[:3] + "...",
+            "suffix": key[-show_suffix:] if len(key) > show_suffix else "",
+            "is_placeholder": is_placeholder
+        }
+
+    # Check which .env files exist
+    project_root = Path(__file__).parent.parent.parent
+    env_files = {
+        "project_root/.env": (project_root / ".env").exists(),
+        "gateway/.env": (project_root / "gateway" / ".env").exists(),
+        "gateway/app/.env": (project_root / "gateway" / "app" / ".env").exists(),
+    }
+
+    return jsonify({
+        "env_files_found": env_files,
+        "printify": {
+            "api_key": mask_key(config.PRINTIFY_API_KEY or ""),
+            "shop_id": config.PRINTIFY_SHOP_ID,
+            "blueprint_id": config.PRINTIFY_BLUEPRINT_ID,
+            "provider_id": config.PRINTIFY_PROVIDER_ID,
+            "client_initialized": printify_client is not None
+        },
+        "runpod": {
+            "api_key": mask_key(config.RUNPOD_API_KEY or ""),
+            "endpoint_id": config.RUNPOD_ENDPOINT_ID,
+            "client_initialized": comfyui_client is not None
+        },
+        "paths": {
+            "image_dir": config.IMAGE_DIR,
+            "image_dir_exists": os.path.exists(config.IMAGE_DIR),
+            "state_file": config.STATE_FILE,
+            "state_file_exists": os.path.exists(config.STATE_FILE)
+        }
+    })
 
 
 @app.route('/health')
