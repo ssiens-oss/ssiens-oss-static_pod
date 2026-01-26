@@ -304,9 +304,12 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
 def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
     """Save any images found in a RunPod output payload."""
     saved_images: List[Dict[str, str]] = []
+    logger.info(f"Processing RunPod output keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
     payloads = extract_image_payloads(output)
+    logger.info(f"Found {len(payloads)} image payloads to process")
 
-    for payload in payloads:
+    for i, payload in enumerate(payloads):
+        logger.debug(f"Payload {i}: {list(payload.keys())}")
         image_data = (
             payload.get("url")
             or payload.get("data")
@@ -314,9 +317,11 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
             or payload.get("base64")
         )
         if image_data:
+            logger.info(f"Found image data (type: {'url' if image_data.startswith('http') else 'base64'}, len: {len(image_data)})")
             saved = download_and_save_image(image_data)
             if saved:
                 image_id, file_path = saved
+                logger.info(f"✓ Saved image: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
             continue
 
@@ -330,6 +335,7 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
                     pass
                 saved_images.append({"id": image_id, "path": local_path})
 
+    logger.info(f"Total images saved: {len(saved_images)}")
     return saved_images
 
 
