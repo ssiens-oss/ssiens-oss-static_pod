@@ -7,6 +7,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import time
 import logging
+import base64
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -221,7 +222,7 @@ class PrintifyClient:
 
     def upload_image(self, image_path: str, filename: str) -> Optional[str]:
         """
-        Upload image to Printify
+        Upload image to Printify using base64 encoding
 
         Args:
             image_path: Local path to image file
@@ -233,10 +234,17 @@ class PrintifyClient:
         try:
             logger.info(f"Uploading image: {filename} from {image_path}")
 
+            # Read and base64 encode the image
             with open(image_path, "rb") as f:
-                files = {"file": (filename, f, "image/png")}
-                response = self._make_request("POST", "/uploads/images.json", files=files)
+                image_data = base64.b64encode(f.read()).decode("utf-8")
 
+            # Printify expects JSON with file_name and contents (base64)
+            payload = {
+                "file_name": filename if filename.endswith('.png') else f"{filename}.png",
+                "contents": image_data
+            }
+
+            response = self._make_request("POST", "/uploads/images.json", json=payload)
             image_id = response.json().get("id")
             logger.info(f"Image uploaded successfully: {image_id}")
             return image_id
