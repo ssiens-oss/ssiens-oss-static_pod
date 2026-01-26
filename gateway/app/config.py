@@ -162,9 +162,21 @@ class GatewayConfig:
             format=os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         )
 
+        # ComfyUI/RunPod configuration
+        # If RUNPOD_ENDPOINT_ID is set, construct the serverless URL
+        runpod_endpoint_id = os.getenv("RUNPOD_ENDPOINT_ID")
+        runpod_api_key = os.getenv("RUNPOD_API_KEY")
+
+        if runpod_endpoint_id and runpod_api_key:
+            # Use RunPod serverless
+            api_url = f"https://api.runpod.ai/v2/{runpod_endpoint_id}/runsync"
+        else:
+            # Fall back to local ComfyUI or explicit URL
+            api_url = os.getenv("COMFYUI_API_URL", "http://localhost:8188")
+
         self.comfyui = ComfyUIConfig(
-            api_url=os.getenv("COMFYUI_API_URL", "http://localhost:8188"),
-            runpod_api_key=os.getenv("RUNPOD_API_KEY")
+            api_url=api_url,
+            runpod_api_key=runpod_api_key
         )
 
     def validate_all(self) -> None:
