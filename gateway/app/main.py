@@ -293,36 +293,49 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
 def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
     """Extract possible image payloads from RunPod output."""
     payloads: List[Dict[str, Any]] = []
-    stack = [output]
+    seen_data: set = set()  # Track seen data to avoid duplicates
 
     logger.debug(f"Extracting image payloads from output type: {type(output).__name__}")
     if isinstance(output, dict):
         logger.debug(f"Output keys: {list(output.keys())}")
 
-    while stack:
-        current = stack.pop()
-        if isinstance(current, dict):
-            # Handle "images" list - RunPod SDXL returns base64 strings in this list
-            if "images" in current and isinstance(current["images"], list):
-                logger.debug(f"Found 'images' key with {len(current['images'])} items")
-                for item in current["images"]:
-                    if isinstance(item, dict):
-                        payloads.append(item)
-                    elif isinstance(item, str):
-                        logger.debug(f"Adding image string from 'images' list (length: {len(item)})")
+    # For RunPod SDXL, prefer "images" list over "image_url" to avoid duplicates
+    if isinstance(output, dict):
+        # First priority: "images" list
+        if "images" in output and isinstance(output["images"], list):
+            logger.debug(f"Found 'images' key with {len(output['images'])} items")
+            for item in output["images"]:
+                if isinstance(item, dict):
+                    payloads.append(item)
+                elif isinstance(item, str):
+                    # Use first 100 chars as key to detect duplicates
+                    data_key = item[:100] if len(item) > 100 else item
+                    if data_key not in seen_data:
+                        seen_data.add(data_key)
+                        logger.debug(f"Adding image from 'images' list (length: {len(item)})")
                         payloads.append({"data": item})
-            # Handle "image" key
-            if "image" in current and isinstance(current["image"], str):
-                logger.debug("Found 'image' key with string value")
-                payloads.append({"data": current["image"]})
-            # Handle "image_url" key - RunPod SDXL template uses this with base64 data URI
-            if "image_url" in current and isinstance(current["image_url"], str):
+            # If we found images in the list, skip image_url (it's usually a duplicate)
+            if payloads:
+                logger.debug(f"Extracted {len(payloads)} image payload(s) from 'images' list")
+                return payloads
+
+        # Fallback: "image_url" key
+        if "image_url" in output and isinstance(output["image_url"], str):
+            data = output["image_url"]
+            data_key = data[:100] if len(data) > 100 else data
+            if data_key not in seen_data:
+                seen_data.add(data_key)
                 logger.debug("Found 'image_url' key with string value")
-                payloads.append({"data": current["image_url"]})
-            for value in current.values():
-                stack.append(value)
-        elif isinstance(current, list):
-            stack.extend(current)
+                payloads.append({"data": data})
+
+        # Fallback: "image" key
+        if "image" in output and isinstance(output["image"], str):
+            data = output["image"]
+            data_key = data[:100] if len(data) > 100 else data
+            if data_key not in seen_data:
+                seen_data.add(data_key)
+                logger.debug("Found 'image' key with string value")
+                payloads.append({"data": data})
 
     logger.debug(f"Extracted {len(payloads)} image payload(s)")
     return payloads
