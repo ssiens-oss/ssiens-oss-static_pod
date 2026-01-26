@@ -14,8 +14,15 @@ import uuid
 import requests
 import base64
 
-# Load environment
-load_dotenv()
+# Load environment from project root .env first, then allow local overrides
+# This ensures the main .env with real API keys is loaded before any gateway/.env
+project_root = Path(__file__).parent.parent.parent  # gateway/app -> gateway -> project root
+root_env = project_root / ".env"
+if root_env.exists():
+    load_dotenv(root_env)
+# Load local .env but don't override existing values (override=False)
+# This prevents gateway/.env from replacing real API keys with placeholders
+load_dotenv(override=False)
 
 # Import modules
 from app import config
