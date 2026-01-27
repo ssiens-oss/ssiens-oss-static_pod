@@ -264,7 +264,7 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
         filename = f"{image_id}.png"
 
     file_path = Path(config.IMAGE_DIR) / filename
-    logger.debug(f"Saving image to: {file_path}")
+    logger.info(f"Saving image to: {file_path} (dir exists: {file_path.parent.exists()})")
 
     try:
         # Ensure image directory exists
@@ -308,15 +308,15 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
     payloads: List[Dict[str, Any]] = []
     seen_data: set = set()  # Track seen data to avoid duplicates
 
-    logger.debug(f"Extracting image payloads from output type: {type(output).__name__}")
+    logger.info(f"Extracting image payloads from output type: {type(output).__name__}")
     if isinstance(output, dict):
-        logger.debug(f"Output keys: {list(output.keys())}")
+        logger.info(f"Output keys: {list(output.keys())}")
 
     # For RunPod SDXL, prefer "images" list over "image_url" to avoid duplicates
     if isinstance(output, dict):
         # First priority: "images" list
         if "images" in output and isinstance(output["images"], list):
-            logger.debug(f"Found 'images' key with {len(output['images'])} items")
+            logger.info(f"Found 'images' key with {len(output['images'])} items")
             for item in output["images"]:
                 if isinstance(item, dict):
                     payloads.append(item)
@@ -325,11 +325,11 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
                     data_key = item[:100] if len(item) > 100 else item
                     if data_key not in seen_data:
                         seen_data.add(data_key)
-                        logger.debug(f"Adding image from 'images' list (length: {len(item)})")
+                        logger.info(f"Adding image from 'images' list (length: {len(item)}, prefix: {item[:30]}...)")
                         payloads.append({"data": item})
             # If we found images in the list, skip image_url (it's usually a duplicate)
             if payloads:
-                logger.debug(f"Extracted {len(payloads)} image payload(s) from 'images' list")
+                logger.info(f"Extracted {len(payloads)} image payload(s) from 'images' list")
                 return payloads
 
         # Fallback: "image_url" key
@@ -338,7 +338,7 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
             data_key = data[:100] if len(data) > 100 else data
             if data_key not in seen_data:
                 seen_data.add(data_key)
-                logger.debug("Found 'image_url' key with string value")
+                logger.info(f"Found 'image_url' key (length: {len(data)}, prefix: {data[:30]}...)")
                 payloads.append({"data": data})
 
         # Fallback: "image" key
@@ -347,10 +347,10 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
             data_key = data[:100] if len(data) > 100 else data
             if data_key not in seen_data:
                 seen_data.add(data_key)
-                logger.debug("Found 'image' key with string value")
+                logger.info(f"Found 'image' key (length: {len(data)})")
                 payloads.append({"data": data})
 
-    logger.debug(f"Extracted {len(payloads)} image payload(s)")
+    logger.info(f"Total extracted: {len(payloads)} image payload(s)")
     return payloads
 
 
