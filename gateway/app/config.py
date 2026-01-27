@@ -125,10 +125,14 @@ class GatewayConfig:
     """Main configuration class that aggregates all config sections"""
 
     def __init__(self):
+        # Use project-relative defaults instead of /workspace
+        gateway_dir = Path(__file__).parent.parent  # gateway/app -> gateway
+        project_dir = gateway_dir.parent  # gateway -> project root
+
         self.filesystem = FilesystemConfig(
-            image_dir=Path(os.getenv("POD_IMAGE_DIR", "/workspace/comfyui/output")),
-            state_file=Path(os.getenv("POD_STATE_FILE", "/workspace/gateway/state.json")),
-            archive_dir=Path(os.getenv("POD_ARCHIVE_DIR", "/workspace/gateway/archive"))
+            image_dir=Path(os.getenv("POD_IMAGE_DIR", str(project_dir / "output" / "images"))),
+            state_file=Path(os.getenv("POD_STATE_FILE", str(gateway_dir / "state.json"))),
+            archive_dir=Path(os.getenv("POD_ARCHIVE_DIR", str(gateway_dir / "data" / "archive")))
         )
 
         self.flask = FlaskConfig(
