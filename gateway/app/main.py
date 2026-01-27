@@ -46,6 +46,12 @@ state_manager = StateManager(config.STATE_FILE)
 # Initialize Printify client (optional)
 printify_client = None
 if config.config.printify.is_configured():
+    api_key = config.PRINTIFY_API_KEY
+    # Debug: Log key length to help diagnose auth issues (JWT tokens are ~1200 chars)
+    key_len = len(api_key) if api_key else 0
+    logger.info(f"Printify API key length: {key_len} chars (JWT tokens should be ~1200+)")
+    if key_len < 100:
+        logger.warning(f"⚠ Printify API key looks like a placeholder (only {key_len} chars)")
     try:
         retry_config = RetryConfig(
             max_retries=config.config.retry.max_retries,
@@ -54,7 +60,7 @@ if config.config.printify.is_configured():
             backoff_multiplier=config.config.retry.backoff_multiplier
         )
         printify_client = PrintifyClient(
-            config.PRINTIFY_API_KEY,
+            api_key,
             config.PRINTIFY_SHOP_ID,
             retry_config
         )
