@@ -252,25 +252,23 @@ def build_comfyui_workflow(
     }
 
     if upscale:
-        # Add 4x upscaler for POD-quality output (1024->4096)
+        # 4x upscale using built-in ImageScale (no extra models needed)
+        # 1024x1024 -> 4096x4096 for POD quality
         workflow["10"] = {
             "inputs": {
-                "model_name": "4x-UltraSharp.pth"
-            },
-            "class_type": "UpscaleModelLoader"
-        }
-        workflow["11"] = {
-            "inputs": {
-                "upscale_model": ["10", 0],
+                "upscale_method": "lanczos",
+                "width": width * 4,
+                "height": height * 4,
+                "crop": "disabled",
                 "image": ["8", 0]
             },
-            "class_type": "ImageUpscaleWithModel"
+            "class_type": "ImageScale"
         }
         # Save upscaled image
         workflow["9"] = {
             "inputs": {
                 "filename_prefix": "ComfyUI",
-                "images": ["11", 0]
+                "images": ["10", 0]
             },
             "class_type": "SaveImage"
         }
