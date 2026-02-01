@@ -89,9 +89,10 @@ class RunPodServerlessClient:
                     "job_id": job_id
                 }
             elif result.get("status") == "FAILED":
-                # Job failed
+                # Job failed - log full response for debugging
                 error_msg = result.get("error", "Unknown error from RunPod serverless")
                 logger.error(f"RunPod job failed: {error_msg}")
+                logger.error(f"Full RunPod response: {result}")
                 raise Exception(error_msg)
             else:
                 # Unknown status
