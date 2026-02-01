@@ -178,13 +178,27 @@ def build_comfyui_workflow(
     width: int = 1024,
     height: int = 1024,
     steps: int = 28,
-    cfg_scale: float = 3.5
+    cfg_scale: float = 3.5,
+    upscale: bool = True
 ) -> Dict[str, Any]:
-    """Build a Flux workflow for ComfyUI optimized for POD quality."""
+    """Build a Flux workflow for ComfyUI optimized for POD quality.
+
+    Args:
+        prompt: The text prompt for image generation
+        seed: Random seed (auto-generated if None)
+        width: Base image width (default 1024)
+        height: Base image height (default 1024)
+        steps: Number of sampling steps (default 28)
+        cfg_scale: Classifier-free guidance scale (default 3.5 for Flux)
+        upscale: Whether to 4x upscale for POD quality (default True)
+
+    Returns:
+        ComfyUI workflow dict. Output will be 4096x4096 if upscale=True.
+    """
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
 
-    return {
+    workflow = {
         "3": {
             "inputs": {
                 "seed": seed,
@@ -234,15 +248,43 @@ def build_comfyui_workflow(
                 "vae": ["4", 2]
             },
             "class_type": "VAEDecode"
-        },
-        "9": {
+        }
+    }
+
+    if upscale:
+        # Add 4x upscaler for POD-quality output (1024->4096)
+        workflow["10"] = {
+            "inputs": {
+                "model_name": "4x-UltraSharp.pth"
+            },
+            "class_type": "UpscaleModelLoader"
+        }
+        workflow["11"] = {
+            "inputs": {
+                "upscale_model": ["10", 0],
+                "image": ["8", 0]
+            },
+            "class_type": "ImageUpscaleWithModel"
+        }
+        # Save upscaled image
+        workflow["9"] = {
+            "inputs": {
+                "filename_prefix": "ComfyUI",
+                "images": ["11", 0]
+            },
+            "class_type": "SaveImage"
+        }
+    else:
+        # Save original resolution
+        workflow["9"] = {
             "inputs": {
                 "filename_prefix": "ComfyUI",
                 "images": ["8", 0]
             },
             "class_type": "SaveImage"
         }
-    }
+
+    return workflow
 
 
 def download_and_save_image(image_data: str, filename: str | None = None) -> Tuple[str, str] | None:
@@ -503,7 +545,8 @@ def generate_image():
         width=data.get("width", 1024),
         height=data.get("height", 1024),
         steps=data.get("steps", 28),
-        cfg_scale=data.get("cfg_scale", 3.5)
+        cfg_scale=data.get("cfg_scale", 3.5),
+        upscale=data.get("upscale", True)  # 4x upscale for POD quality by default
     )
 
     client_id = data.get("client_id") or f"pod-gateway-{uuid.uuid4().hex[:8]}"
@@ -512,7 +555,7 @@ def generate_image():
         # Use RunPod serverless client if available, otherwise direct ComfyUI
         if comfyui_client:
             # RunPod serverless
-            result = comfyui_client.submit_workflow(workflow, client_id, timeout=120)
+            result = comfyui_client.submit_workflow(workflow, client_id, timeout=300)  # 5min for upscaling
             saved_images: List[Dict[str, str]] = []
             if result.get("status") == "COMPLETED":
                 output = result.get("output", {})
