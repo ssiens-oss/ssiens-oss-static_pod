@@ -910,6 +910,287 @@ def reset_image(image_id):
         return jsonify({"success": False, "error": "Failed to update status"}), 500
 
 
+# ============================================================================
+# BATCH OPERATIONS
+# ============================================================================
+
+@app.route('/api/batch/approve', methods=['POST'])
+def batch_approve():
+    """Approve multiple images at once."""
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+
+        if not image_ids:
+            return jsonify({"success": False, "error": "No image IDs provided"}), 400
+
+        results = {"success": [], "failed": []}
+        for image_id in image_ids:
+            try:
+                is_valid, error = validate_image_id(image_id)
+                if not is_valid:
+                    results["failed"].append({"id": image_id, "error": error})
+                    continue
+                state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+                results["success"].append(image_id)
+            except Exception as e:
+                results["failed"].append({"id": image_id, "error": str(e)})
+
+        logger.info(f"Batch approve: {len(results['success'])} succeeded, {len(results['failed'])} failed")
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Batch approve error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/batch/reject', methods=['POST'])
+def batch_reject():
+    """Reject multiple images at once."""
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+
+        if not image_ids:
+            return jsonify({"success": False, "error": "No image IDs provided"}), 400
+
+        results = {"success": [], "failed": []}
+        for image_id in image_ids:
+            try:
+                is_valid, error = validate_image_id(image_id)
+                if not is_valid:
+                    results["failed"].append({"id": image_id, "error": error})
+                    continue
+                state_manager.set_image_status(image_id, ImageStatus.REJECTED.value)
+                results["success"].append(image_id)
+            except Exception as e:
+                results["failed"].append({"id": image_id, "error": str(e)})
+
+        logger.info(f"Batch reject: {len(results['success'])} succeeded, {len(results['failed'])} failed")
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Batch reject error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/batch/delete', methods=['POST'])
+def batch_delete():
+    """Delete multiple images at once."""
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+
+        if not image_ids:
+            return jsonify({"success": False, "error": "No image IDs provided"}), 400
+
+        results = {"success": [], "failed": []}
+        for image_id in image_ids:
+            try:
+                is_valid, error = validate_image_id(image_id)
+                if not is_valid:
+                    results["failed"].append({"id": image_id, "error": error})
+                    continue
+
+                # Delete image file
+                image_path = Path(config.IMAGE_DIR) / f"{image_id}.png"
+                if image_path.exists():
+                    image_path.unlink()
+
+                # Remove from state
+                state_manager.delete_image(image_id)
+                results["success"].append(image_id)
+            except Exception as e:
+                results["failed"].append({"id": image_id, "error": str(e)})
+
+        logger.info(f"Batch delete: {len(results['success'])} succeeded, {len(results['failed'])} failed")
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Batch delete error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/batch/publish', methods=['POST'])
+def batch_publish():
+    """Publish multiple approved images at once."""
+    if not printify_client:
+        return jsonify({"success": False, "error": "Printify not configured"}), 400
+
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+
+        if not image_ids:
+            return jsonify({"success": False, "error": "No image IDs provided"}), 400
+
+        results = {"success": [], "failed": []}
+        all_images = state_manager.get_all_images()
+
+        for image_id in image_ids:
+            try:
+                is_valid, error = validate_image_id(image_id)
+                if not is_valid:
+                    results["failed"].append({"id": image_id, "error": error})
+                    continue
+
+                # Check if approved
+                status = state_manager.get_image_status(image_id)
+                if status not in [ImageStatus.APPROVED.value, ImageStatus.FAILED.value]:
+                    results["failed"].append({"id": image_id, "error": f"Not approved (status: {status})"})
+                    continue
+
+                # Get image path
+                image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+                if not os.path.exists(image_path):
+                    results["failed"].append({"id": image_id, "error": "Image file not found"})
+                    continue
+
+                # Get title from prompt
+                image_state = all_images.get(image_id, {})
+                title = image_state.get("prompt", "")[:50].strip().title() or f"Design {image_id[:8]}"
+
+                # Publish
+                state_manager.set_image_status(image_id, ImageStatus.PUBLISHING.value)
+                product_id = printify_client.create_and_publish(
+                    image_path=image_path,
+                    title=title,
+                    blueprint_id=config.PRINTIFY_BLUEPRINT_ID,
+                    provider_id=config.PRINTIFY_PROVIDER_ID,
+                    price_cents=config.config.printify.default_price_cents
+                )
+
+                if product_id:
+                    state_manager.set_image_status(image_id, ImageStatus.PUBLISHED.value, {
+                        "product_id": product_id,
+                        "title": title
+                    })
+                    results["success"].append({"id": image_id, "product_id": product_id, "title": title})
+                else:
+                    state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                        "error_message": "Printify publish failed"
+                    })
+                    results["failed"].append({"id": image_id, "error": "Printify publish failed"})
+
+            except Exception as e:
+                logger.error(f"Batch publish error for {image_id}: {e}")
+                try:
+                    state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                        "error_message": str(e)
+                    })
+                except Exception:
+                    pass
+                results["failed"].append({"id": image_id, "error": str(e)})
+
+        logger.info(f"Batch publish: {len(results['success'])} succeeded, {len(results['failed'])} failed")
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Batch publish error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/batch/reset', methods=['POST'])
+def batch_reset():
+    """Reset multiple images to pending status."""
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+
+        if not image_ids:
+            return jsonify({"success": False, "error": "No image IDs provided"}), 400
+
+        results = {"success": [], "failed": []}
+        for image_id in image_ids:
+            try:
+                is_valid, error = validate_image_id(image_id)
+                if not is_valid:
+                    results["failed"].append({"id": image_id, "error": error})
+                    continue
+                state_manager.set_image_status(image_id, ImageStatus.PENDING.value)
+                results["success"].append(image_id)
+            except Exception as e:
+                results["failed"].append({"id": image_id, "error": str(e)})
+
+        logger.info(f"Batch reset: {len(results['success'])} succeeded, {len(results['failed'])} failed")
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Batch reset error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/batch/generate', methods=['POST'])
+def batch_generate():
+    """Generate multiple images from a list of prompts."""
+    try:
+        data = request.get_json() or {}
+        prompts = data.get("prompts", [])
+        style = data.get("style", "")
+        genre = data.get("genre", "")
+        upscale = data.get("upscale", True)
+
+        if not prompts:
+            return jsonify({"success": False, "error": "No prompts provided"}), 400
+
+        if len(prompts) > 10:
+            return jsonify({"success": False, "error": "Maximum 10 prompts per batch"}), 400
+
+        results = {"success": [], "failed": [], "queued": []}
+
+        for prompt in prompts:
+            try:
+                if not prompt or not prompt.strip():
+                    results["failed"].append({"prompt": prompt, "error": "Empty prompt"})
+                    continue
+
+                full_prompt = build_prompt_text(prompt.strip(), style, genre)
+
+                workflow = build_comfyui_workflow(
+                    full_prompt,
+                    seed=None,
+                    width=1024,
+                    height=1024,
+                    steps=30,
+                    cfg_scale=1.0,
+                    upscale=upscale
+                )
+
+                client_id = f"pod-gateway-batch-{uuid.uuid4().hex[:8]}"
+
+                if comfyui_client:
+                    # RunPod serverless - async job
+                    result = comfyui_client.submit_workflow(workflow, client_id, timeout=300)
+
+                    if result.get("status") == "COMPLETED":
+                        output = result.get("output", {})
+                        saved_images = save_runpod_output_images(output, prompt=full_prompt)
+                        results["success"].append({
+                            "prompt": prompt,
+                            "images": saved_images
+                        })
+                    elif result.get("status") in ["IN_QUEUE", "IN_PROGRESS"]:
+                        results["queued"].append({
+                            "prompt": prompt,
+                            "job_id": result.get("job_id")
+                        })
+                    else:
+                        results["failed"].append({
+                            "prompt": prompt,
+                            "error": result.get("error", "Generation failed")
+                        })
+                else:
+                    results["failed"].append({
+                        "prompt": prompt,
+                        "error": "No generation client configured"
+                    })
+
+            except Exception as e:
+                logger.error(f"Batch generate error for prompt '{prompt[:30]}...': {e}")
+                results["failed"].append({"prompt": prompt, "error": str(e)})
+
+        logger.info(f"Batch generate: {len(results['success'])} succeeded, {len(results['queued'])} queued, {len(results['failed'])} failed")
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Batch generate error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/stats')
 def get_stats():
     """
