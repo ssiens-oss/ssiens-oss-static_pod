@@ -177,8 +177,8 @@ def build_comfyui_workflow(
     seed: int | None = None,
     width: int = 1024,
     height: int = 1024,
-    steps: int = 28,
-    cfg_scale: float = 3.5,
+    steps: int = 30,
+    cfg_scale: float = 1.0,
     upscale: bool = True
 ) -> Dict[str, Any]:
     """Build a Flux workflow for ComfyUI optimized for POD quality.
@@ -188,8 +188,8 @@ def build_comfyui_workflow(
         seed: Random seed (auto-generated if None)
         width: Base image width (default 1024)
         height: Base image height (default 1024)
-        steps: Number of sampling steps (default 28)
-        cfg_scale: Classifier-free guidance scale (default 3.5 for Flux)
+        steps: Number of sampling steps (default 30 for Flux quality)
+        cfg_scale: Classifier-free guidance scale (default 1.0 for Flux)
         upscale: Whether to 4x upscale for POD quality (default True)
 
     Returns:
@@ -198,14 +198,15 @@ def build_comfyui_workflow(
     if seed is None:
         seed = int.from_bytes(os.urandom(4), byteorder="little")
 
+    # Flux-optimized workflow
     workflow = {
         "3": {
             "inputs": {
                 "seed": seed,
                 "steps": steps,
                 "cfg": cfg_scale,
-                "sampler_name": "dpmpp_2m",
-                "scheduler": "karras",
+                "sampler_name": "euler",
+                "scheduler": "normal",
                 "denoise": 1,
                 "model": ["4", 0],
                 "positive": ["6", 0],
@@ -237,7 +238,7 @@ def build_comfyui_workflow(
         },
         "7": {
             "inputs": {
-                "text": "blurry, low resolution, pixelated, jpeg artifacts, text, watermark, low quality, worst quality, out of focus, poorly rendered",
+                "text": "",
                 "clip": ["4", 1]
             },
             "class_type": "CLIPTextEncode"
@@ -542,8 +543,8 @@ def generate_image():
         seed=data.get("seed"),
         width=data.get("width", 1024),
         height=data.get("height", 1024),
-        steps=data.get("steps", 28),
-        cfg_scale=data.get("cfg_scale", 3.5),
+        steps=data.get("steps", 30),
+        cfg_scale=data.get("cfg_scale", 1.0),  # Flux uses CFG=1
         upscale=data.get("upscale", True)  # 4x upscale for POD quality by default
     )
 
