@@ -791,11 +791,23 @@ def publish_image(image_id):
     # Use prompt as default title if available, otherwise fallback to image ID
     all_images = state_manager.get_all_images()
     image_state = all_images.get(image_id, {})
-    default_title = image_state.get("prompt", "") or f"Design {image_id[:8]}"
-    # Capitalize first letter and limit length for title
-    if default_title and default_title != f"Design {image_id[:8]}":
-        default_title = default_title[:50].strip().title()
-    title = request_data.get("title", default_title)
+    prompt_title = image_state.get("prompt", "")
+
+    # Get title from request, but prefer prompt if request title looks like a default
+    request_title = request_data.get("title", "").strip()
+    is_default_title = (
+        not request_title or
+        request_title.lower().startswith("design ") or
+        request_title.lower() == "untitled"
+    )
+
+    if prompt_title and is_default_title:
+        # Use the prompt as title (truncated and title-cased)
+        title = prompt_title[:50].strip().title()
+    elif request_title:
+        title = request_title
+    else:
+        title = f"Design {image_id[:8]}"
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
