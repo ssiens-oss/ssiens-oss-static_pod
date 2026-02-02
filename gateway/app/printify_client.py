@@ -230,12 +230,22 @@ class PrintifyClient:
         Returns:
             Printify image ID or None on failure
         """
+        import base64
+
         try:
             logger.info(f"Uploading image: {filename} from {image_path}")
 
+            # Read and base64 encode the image
             with open(image_path, "rb") as f:
-                files = {"file": (filename, f, "image/png")}
-                response = self._make_request("POST", "/uploads/images.json", files=files)
+                image_data = base64.b64encode(f.read()).decode('utf-8')
+
+            # Printify expects JSON with file_name and contents (base64)
+            payload = {
+                "file_name": filename,
+                "contents": image_data
+            }
+
+            response = self._make_request("POST", "/uploads/images.json", json=payload)
 
             image_id = response.json().get("id")
             logger.info(f"Image uploaded successfully: {image_id}")
