@@ -155,20 +155,66 @@ def validate_image_file(image_path: str) -> Tuple[bool, str]:
         return False, f"Invalid image file: {str(e)}"
 
 
-def build_prompt_text(prompt: str, style: str = "", genre: str = "") -> str:
+# POD-optimized style presets for t-shirt/merch designs
+POD_STYLE_PRESETS = {
+    "vintage": "vintage retro distressed aesthetic, worn texture, faded colors, nostalgic feel",
+    "minimalist": "minimalist clean design, simple shapes, limited color palette, modern aesthetic",
+    "bold": "bold graphic design, high contrast, striking colors, eye-catching composition",
+    "retro": "retro 80s 90s style, neon colors, geometric shapes, synthwave aesthetic",
+    "grunge": "grunge textured design, rough edges, distressed look, urban street style",
+    "watercolor": "watercolor artistic style, soft blended colors, painterly effect, artistic",
+    "line-art": "clean line art illustration, minimal lines, elegant strokes, vector style",
+    "pop-art": "pop art style, bold outlines, halftone dots, vibrant comic book aesthetic",
+    "gothic": "gothic dark aesthetic, ornate details, dramatic shadows, mysterious mood",
+    "kawaii": "kawaii cute style, pastel colors, adorable characters, Japanese aesthetic",
+    "streetwear": "streetwear urban design, hip hop culture, bold typography, street art",
+    "nature": "nature inspired design, organic shapes, earthy tones, botanical elements",
+    "geometric": "geometric abstract design, clean shapes, mathematical patterns, modern",
+    "typography": "typography focused design, creative lettering, artistic text arrangement",
+    "illustrative": "detailed illustration style, artistic rendering, professional artwork"
+}
+
+# POD quality enhancement suffixes
+POD_QUALITY_SUFFIX = "high quality design suitable for print on demand, clean edges, transparent background friendly, centered composition, professional artwork"
+
+
+def build_prompt_text(
+    prompt: str,
+    style: str = "",
+    genre: str = "",
+    preset: str = "",
+    enhance_for_pod: bool = True,
+    custom_suffix: str = ""
+) -> str:
     """
-    Build the full prompt text with optional style and genre.
+    Build the full prompt text with optional style, genre, and POD enhancements.
 
     Args:
         prompt: Base prompt text
-        style: Optional style descriptor
+        style: Optional style descriptor (free text)
         genre: Optional genre descriptor
+        preset: Optional preset name from POD_STYLE_PRESETS
+        enhance_for_pod: Whether to add POD quality enhancement suffix
+        custom_suffix: Optional custom suffix to append
     """
     parts = [prompt.strip()]
-    if style:
+
+    # Add preset style if specified
+    if preset and preset.lower() in POD_STYLE_PRESETS:
+        parts.append(POD_STYLE_PRESETS[preset.lower()])
+    elif style:
         parts.append(f"{style} style")
+
     if genre:
         parts.append(f"{genre} genre")
+
+    if custom_suffix:
+        parts.append(custom_suffix.strip())
+
+    # Add POD quality enhancement
+    if enhance_for_pod:
+        parts.append(POD_QUALITY_SUFFIX)
+
     return ", ".join(part for part in parts if part)
 
 
@@ -523,19 +569,30 @@ def generate_image():
     Expected JSON body:
     {
         "prompt": "Base prompt text",
-        "style": "Optional style",
-        "genre": "Optional genre"
+        "style": "Optional style (free text)",
+        "genre": "Optional genre",
+        "preset": "Optional preset name (vintage, minimalist, bold, etc.)",
+        "enhance_for_pod": true/false (default true),
+        "custom_suffix": "Optional custom suffix to append"
     }
     """
     data = request.get_json(silent=True) or {}
     prompt = (data.get("prompt") or "").strip()
     style = (data.get("style") or "").strip()
     genre = (data.get("genre") or "").strip()
+    preset = (data.get("preset") or "").strip()
+    enhance_for_pod = data.get("enhance_for_pod", True)
+    custom_suffix = (data.get("custom_suffix") or "").strip()
 
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
 
-    full_prompt = build_prompt_text(prompt, style, genre)
+    full_prompt = build_prompt_text(
+        prompt, style, genre,
+        preset=preset,
+        enhance_for_pod=enhance_for_pod,
+        custom_suffix=custom_suffix
+    )
     logger.info(f"Using {'RunPod Serverless' if comfyui_client else 'direct ComfyUI'} for generation: {prompt[:50]}...")
 
     workflow = build_comfyui_workflow(
@@ -1117,78 +1174,162 @@ def batch_reset():
 
 @app.route('/api/batch/generate', methods=['POST'])
 def batch_generate():
-    """Generate multiple images from a list of prompts."""
+    """
+    Generate multiple images from a list of prompts with flexible options.
+
+    Expected JSON body:
+    {
+        "prompts": ["prompt1", "prompt2", ...] or [{"prompt": "...", "preset": "...", ...}, ...],
+        "style": "global style (overridden by per-prompt)",
+        "genre": "global genre",
+        "preset": "global preset name",
+        "enhance_for_pod": true/false (default true),
+        "upscale": true/false (default true),
+        "width": 1024,
+        "height": 1024,
+        "steps": 30,
+        "variations": 1  // Generate N variations of each prompt with different seeds
+    }
+    """
     try:
         data = request.get_json() or {}
         prompts = data.get("prompts", [])
-        style = data.get("style", "")
-        genre = data.get("genre", "")
-        upscale = data.get("upscale", True)
+
+        # Global options (can be overridden per-prompt)
+        global_style = (data.get("style") or "").strip()
+        global_genre = (data.get("genre") or "").strip()
+        global_preset = (data.get("preset") or "").strip()
+        global_enhance = data.get("enhance_for_pod", True)
+        global_upscale = data.get("upscale", True)
+        global_width = data.get("width", 1024)
+        global_height = data.get("height", 1024)
+        global_steps = data.get("steps", 30)
+        variations = min(data.get("variations", 1), 5)  # Max 5 variations per prompt
 
         if not prompts:
             return jsonify({"success": False, "error": "No prompts provided"}), 400
 
-        if len(prompts) > 10:
-            return jsonify({"success": False, "error": "Maximum 10 prompts per batch"}), 400
+        # Calculate total generations (prompts * variations)
+        total_jobs = len(prompts) * variations
+        if total_jobs > 20:
+            return jsonify({
+                "success": False,
+                "error": f"Maximum 20 total generations per batch (got {total_jobs}: {len(prompts)} prompts x {variations} variations)"
+            }), 400
 
         results = {"success": [], "failed": [], "queued": []}
 
-        for prompt in prompts:
-            try:
-                if not prompt or not prompt.strip():
-                    results["failed"].append({"prompt": prompt, "error": "Empty prompt"})
-                    continue
+        for prompt_item in prompts:
+            # Support both string prompts and object prompts with options
+            if isinstance(prompt_item, dict):
+                prompt_text = (prompt_item.get("prompt") or "").strip()
+                style = (prompt_item.get("style") or global_style).strip()
+                genre = (prompt_item.get("genre") or global_genre).strip()
+                preset = (prompt_item.get("preset") or global_preset).strip()
+                enhance = prompt_item.get("enhance_for_pod", global_enhance)
+                upscale = prompt_item.get("upscale", global_upscale)
+                width = prompt_item.get("width", global_width)
+                height = prompt_item.get("height", global_height)
+                steps = prompt_item.get("steps", global_steps)
+                custom_suffix = (prompt_item.get("custom_suffix") or "").strip()
+                seed = prompt_item.get("seed")  # Optional fixed seed
+            else:
+                prompt_text = str(prompt_item).strip()
+                style = global_style
+                genre = global_genre
+                preset = global_preset
+                enhance = global_enhance
+                upscale = global_upscale
+                width = global_width
+                height = global_height
+                steps = global_steps
+                custom_suffix = ""
+                seed = None
 
-                full_prompt = build_prompt_text(prompt.strip(), style, genre)
+            if not prompt_text:
+                results["failed"].append({"prompt": prompt_text, "error": "Empty prompt"})
+                continue
 
-                workflow = build_comfyui_workflow(
-                    full_prompt,
-                    seed=None,
-                    width=1024,
-                    height=1024,
-                    steps=30,
-                    cfg_scale=1.0,
-                    upscale=upscale
-                )
+            # Generate variations
+            for var_idx in range(variations):
+                try:
+                    full_prompt = build_prompt_text(
+                        prompt_text, style, genre,
+                        preset=preset,
+                        enhance_for_pod=enhance,
+                        custom_suffix=custom_suffix
+                    )
 
-                client_id = f"pod-gateway-batch-{uuid.uuid4().hex[:8]}"
+                    # Use provided seed or generate new one for each variation
+                    variation_seed = seed if seed is not None else None
 
-                if comfyui_client:
-                    # RunPod serverless - async job
-                    result = comfyui_client.submit_workflow(workflow, client_id, timeout=300)
+                    workflow = build_comfyui_workflow(
+                        full_prompt,
+                        seed=variation_seed,
+                        width=width,
+                        height=height,
+                        steps=steps,
+                        cfg_scale=1.0,
+                        upscale=upscale
+                    )
 
-                    if result.get("status") == "COMPLETED":
-                        output = result.get("output", {})
-                        saved_images = save_runpod_output_images(output, prompt=full_prompt)
-                        results["success"].append({
-                            "prompt": prompt,
-                            "images": saved_images
-                        })
-                    elif result.get("status") in ["IN_QUEUE", "IN_PROGRESS"]:
-                        results["queued"].append({
-                            "prompt": prompt,
-                            "job_id": result.get("job_id")
-                        })
+                    client_id = f"pod-gateway-batch-{uuid.uuid4().hex[:8]}"
+
+                    if comfyui_client:
+                        result = comfyui_client.submit_workflow(workflow, client_id, timeout=300)
+
+                        if result.get("status") == "COMPLETED":
+                            output = result.get("output", {})
+                            saved_images = save_runpod_output_images(output, prompt=full_prompt)
+                            results["success"].append({
+                                "prompt": prompt_text,
+                                "variation": var_idx + 1 if variations > 1 else None,
+                                "preset": preset or None,
+                                "images": saved_images
+                            })
+                        elif result.get("status") in ["IN_QUEUE", "IN_PROGRESS"]:
+                            results["queued"].append({
+                                "prompt": prompt_text,
+                                "variation": var_idx + 1 if variations > 1 else None,
+                                "job_id": result.get("job_id")
+                            })
+                        else:
+                            results["failed"].append({
+                                "prompt": prompt_text,
+                                "variation": var_idx + 1 if variations > 1 else None,
+                                "error": result.get("error", "Generation failed")
+                            })
                     else:
                         results["failed"].append({
-                            "prompt": prompt,
-                            "error": result.get("error", "Generation failed")
+                            "prompt": prompt_text,
+                            "error": "No generation client configured"
                         })
-                else:
-                    results["failed"].append({
-                        "prompt": prompt,
-                        "error": "No generation client configured"
-                    })
 
-            except Exception as e:
-                logger.error(f"Batch generate error for prompt '{prompt[:30]}...': {e}")
-                results["failed"].append({"prompt": prompt, "error": str(e)})
+                except Exception as e:
+                    logger.error(f"Batch generate error for prompt '{prompt_text[:30]}...': {e}")
+                    results["failed"].append({
+                        "prompt": prompt_text,
+                        "variation": var_idx + 1 if variations > 1 else None,
+                        "error": str(e)
+                    })
 
         logger.info(f"Batch generate: {len(results['success'])} succeeded, {len(results['queued'])} queued, {len(results['failed'])} failed")
         return jsonify(results)
     except Exception as e:
         logger.error(f"Batch generate error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/presets')
+def list_presets():
+    """List available POD style presets."""
+    return jsonify({
+        "presets": [
+            {"name": name, "description": desc}
+            for name, desc in POD_STYLE_PRESETS.items()
+        ],
+        "count": len(POD_STYLE_PRESETS)
+    })
 
 
 @app.route('/api/stats')
