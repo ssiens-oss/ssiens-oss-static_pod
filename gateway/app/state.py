@@ -282,7 +282,8 @@ class StateManager:
         image_id: str,
         filename: str,
         path: str,
-        status: str = ImageStatus.PENDING.value
+        status: str = ImageStatus.PENDING.value,
+        prompt: str = ""
     ) -> None:
         """
         Register a new image
@@ -292,6 +293,7 @@ class StateManager:
             filename: Original filename
             path: Path to image file
             status: Initial status (default: pending)
+            prompt: Generation prompt (used for auto-titling)
 
         Raises:
             ValueError: If status is invalid
@@ -307,6 +309,7 @@ class StateManager:
                 "filename": filename,
                 "path": path,
                 "status": status,
+                "prompt": prompt,
                 "created_at": now,
                 "updated_at": now
             }

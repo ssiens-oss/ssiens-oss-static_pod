@@ -286,7 +286,7 @@ def build_comfyui_workflow(
     return workflow
 
 
-def download_and_save_image(image_data: str, filename: str | None = None) -> Tuple[str, str] | None:
+def download_and_save_image(image_data: str, filename: str | None = None, prompt: str = "") -> Tuple[str, str] | None:
     """Download and save an image from base64 data or URL."""
     if not image_data:
         return None
@@ -308,7 +308,7 @@ def download_and_save_image(image_data: str, filename: str | None = None) -> Tup
             data_to_decode = image_data.split(",", 1)[1] if "," in image_data else image_data
             file_path.write_bytes(base64.b64decode(data_to_decode))
 
-        state_manager.add_image(image_id, filename, str(file_path))
+        state_manager.add_image(image_id, filename, str(file_path), prompt=prompt)
         return image_id, str(file_path)
     except (requests.RequestException, ValueError, base64.binascii.Error) as exc:
         logger.error("Failed to save image data: %s", exc)
@@ -342,7 +342,7 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
     return payloads
 
 
-def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
+def save_runpod_output_images(output: Dict[str, Any], prompt: str = "") -> List[Dict[str, str]]:
     """Save any images found in a RunPod output payload."""
     saved_images: List[Dict[str, str]] = []
     logger.info(f"Processing RunPod output keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
@@ -359,7 +359,7 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
         )
         if image_data:
             logger.info(f"Found image data (type: {'url' if image_data.startswith('http') else 'base64'}, len: {len(image_data)})")
-            saved = download_and_save_image(image_data)
+            saved = download_and_save_image(image_data, prompt=prompt)
             if saved:
                 image_id, file_path = saved
                 logger.info(f"✓ Saved image: {image_id} -> {file_path}")
@@ -371,7 +371,7 @@ def save_runpod_output_images(output: Dict[str, Any]) -> List[Dict[str, str]]:
             if local_path:
                 image_id = Path(local_path).stem
                 try:
-                    state_manager.add_image(image_id, Path(local_path).name, local_path)
+                    state_manager.add_image(image_id, Path(local_path).name, local_path, prompt=prompt)
                 except StateManagerError:
                     pass
                 saved_images.append({"id": image_id, "path": local_path})
@@ -558,7 +558,7 @@ def generate_image():
             saved_images: List[Dict[str, str]] = []
             if result.get("status") == "COMPLETED":
                 output = result.get("output", {})
-                saved_images = save_runpod_output_images(output)
+                saved_images = save_runpod_output_images(output, prompt=full_prompt)
 
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
@@ -788,7 +788,14 @@ def publish_image(image_id):
     except Exception as e:
         return jsonify({"success": False, "error": "Invalid JSON"}), 400
 
-    title = request_data.get("title", f"Design {image_id[:8]}")
+    # Use prompt as default title if available, otherwise fallback to image ID
+    all_images = state_manager.get_all_images()
+    image_state = all_images.get(image_id, {})
+    default_title = image_state.get("prompt", "") or f"Design {image_id[:8]}"
+    # Capitalize first letter and limit length for title
+    if default_title and default_title != f"Design {image_id[:8]}":
+        default_title = default_title[:50].strip().title()
+    title = request_data.get("title", default_title)
     is_valid, error = validate_title(title)
     if not is_valid:
         return jsonify({"success": False, "error": error}), 400
