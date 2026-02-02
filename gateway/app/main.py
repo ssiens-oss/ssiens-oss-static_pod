@@ -13,6 +13,14 @@ import re
 import uuid
 import requests
 import base64
+import io
+
+# Try to import rembg for background removal
+try:
+    from rembg import remove as remove_bg
+    REMBG_AVAILABLE = True
+except ImportError:
+    REMBG_AVAILABLE = False
 
 # Load environment from project root first (contains API keys)
 project_root = Path(__file__).parent.parent.parent
@@ -1329,6 +1337,207 @@ def list_presets():
             for name, desc in POD_STYLE_PRESETS.items()
         ],
         "count": len(POD_STYLE_PRESETS)
+    })
+
+
+# ============================================================================
+# BACKGROUND REMOVAL
+# ============================================================================
+
+def remove_background(image_path: str, output_path: str = None) -> str:
+    """
+    Remove background from an image using rembg.
+
+    Args:
+        image_path: Path to input image
+        output_path: Path for output (defaults to input with _nobg suffix)
+
+    Returns:
+        Path to the output image with transparent background
+    """
+    if not REMBG_AVAILABLE:
+        raise RuntimeError("rembg not installed. Run: pip install rembg[gpu]")
+
+    input_path = Path(image_path)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+
+    # Generate output path if not provided
+    if output_path is None:
+        output_path = input_path.parent / f"{input_path.stem}_nobg.png"
+
+    # Read image, remove background, save
+    with Image.open(image_path) as img:
+        # Convert to RGBA if needed
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
+
+        # Remove background
+        output_img = remove_bg(img)
+
+        # Save as PNG (supports transparency)
+        output_img.save(output_path, 'PNG')
+
+    return str(output_path)
+
+
+@app.route('/api/remove-bg/<image_id>', methods=['POST'])
+def remove_image_background(image_id):
+    """
+    Remove background from an image.
+
+    Args:
+        image_id: Image identifier
+
+    Returns:
+        JSON with new image info or error
+    """
+    if not REMBG_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "error": "Background removal not available. Install rembg: pip install rembg[gpu]"
+        }), 400
+
+    # Validate image ID
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    # Get image path
+    image_path = Path(config.IMAGE_DIR) / f"{image_id}.png"
+    if not image_path.exists():
+        return jsonify({"success": False, "error": "Image not found"}), 404
+
+    try:
+        # Check if already has _nobg version
+        nobg_id = f"{image_id}_nobg"
+        nobg_path = Path(config.IMAGE_DIR) / f"{nobg_id}.png"
+
+        if nobg_path.exists():
+            # Return existing nobg version
+            return jsonify({
+                "success": True,
+                "message": "Background already removed",
+                "original_id": image_id,
+                "nobg_id": nobg_id,
+                "nobg_path": f"/api/image/{nobg_id}"
+            })
+
+        # Remove background
+        logger.info(f"Removing background from {image_id}...")
+        output_path = remove_background(str(image_path), str(nobg_path))
+
+        # Register the new image in state
+        try:
+            # Get original image state for prompt
+            all_images = state_manager.get_all_images()
+            original_state = all_images.get(image_id, {})
+            original_prompt = original_state.get("prompt", "")
+
+            state_manager.add_image(
+                nobg_id,
+                f"{nobg_id}.png",
+                output_path,
+                prompt=f"{original_prompt} (background removed)" if original_prompt else ""
+            )
+        except StateManagerError as e:
+            logger.warning(f"Could not register nobg image in state: {e}")
+
+        logger.info(f"Background removed: {image_id} -> {nobg_id}")
+        return jsonify({
+            "success": True,
+            "message": "Background removed successfully",
+            "original_id": image_id,
+            "nobg_id": nobg_id,
+            "nobg_path": f"/api/image/{nobg_id}"
+        })
+
+    except Exception as e:
+        logger.error(f"Background removal failed for {image_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/batch/remove-bg', methods=['POST'])
+def batch_remove_background():
+    """Remove background from multiple images at once."""
+    if not REMBG_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "error": "Background removal not available. Install rembg: pip install rembg[gpu]"
+        }), 400
+
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+
+        if not image_ids:
+            return jsonify({"success": False, "error": "No image IDs provided"}), 400
+
+        results = {"success": [], "failed": [], "skipped": []}
+        all_images = state_manager.get_all_images()
+
+        for image_id in image_ids:
+            try:
+                # Validate
+                is_valid, error = validate_image_id(image_id)
+                if not is_valid:
+                    results["failed"].append({"id": image_id, "error": error})
+                    continue
+
+                # Skip if already a _nobg image
+                if image_id.endswith("_nobg"):
+                    results["skipped"].append({"id": image_id, "reason": "Already a nobg image"})
+                    continue
+
+                image_path = Path(config.IMAGE_DIR) / f"{image_id}.png"
+                if not image_path.exists():
+                    results["failed"].append({"id": image_id, "error": "Image not found"})
+                    continue
+
+                # Check if nobg already exists
+                nobg_id = f"{image_id}_nobg"
+                nobg_path = Path(config.IMAGE_DIR) / f"{nobg_id}.png"
+
+                if nobg_path.exists():
+                    results["skipped"].append({"id": image_id, "nobg_id": nobg_id, "reason": "Already processed"})
+                    continue
+
+                # Remove background
+                output_path = remove_background(str(image_path), str(nobg_path))
+
+                # Register new image
+                try:
+                    original_state = all_images.get(image_id, {})
+                    original_prompt = original_state.get("prompt", "")
+                    state_manager.add_image(
+                        nobg_id,
+                        f"{nobg_id}.png",
+                        output_path,
+                        prompt=f"{original_prompt} (background removed)" if original_prompt else ""
+                    )
+                except StateManagerError:
+                    pass
+
+                results["success"].append({"id": image_id, "nobg_id": nobg_id})
+
+            except Exception as e:
+                logger.error(f"Batch remove-bg error for {image_id}: {e}")
+                results["failed"].append({"id": image_id, "error": str(e)})
+
+        logger.info(f"Batch remove-bg: {len(results['success'])} succeeded, {len(results['skipped'])} skipped, {len(results['failed'])} failed")
+        return jsonify(results)
+
+    except Exception as e:
+        logger.error(f"Batch remove-bg error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/rembg-status')
+def rembg_status():
+    """Check if background removal is available."""
+    return jsonify({
+        "available": REMBG_AVAILABLE,
+        "message": "rembg is installed and ready" if REMBG_AVAILABLE else "rembg not installed. Run: pip install rembg[gpu]"
     })
 
 

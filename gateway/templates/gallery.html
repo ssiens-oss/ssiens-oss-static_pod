@@ -1115,6 +1115,7 @@ Abstract geometric patterns in neon colors"></textarea>
                 <button class="btn btn-success btn-sm" onclick="bulkApprove()">Approve</button>
                 <button class="btn btn-danger btn-sm" onclick="bulkReject()">Reject</button>
                 <button class="btn btn-info btn-sm" onclick="bulkPublish()">Publish</button>
+                <button class="btn btn-warning btn-sm" onclick="bulkRemoveBg()" id="bulk-rembg-btn" style="display:none;">Remove BG</button>
                 <button class="btn btn-ghost btn-sm" onclick="bulkReset()">Reset</button>
                 <button class="btn btn-ghost btn-sm" onclick="bulkDownload()">Download</button>
                 <button class="btn btn-danger btn-sm" onclick="bulkDelete()">Delete</button>
@@ -1214,6 +1215,7 @@ Abstract geometric patterns in neon colors"></textarea>
         let autoRefreshInterval = null;
         let currentJobId = null;
         let jobPollInterval = null;
+        let rembgAvailable = false;
 
         // DOM elements
         const gallery = document.getElementById('gallery');
@@ -1225,11 +1227,26 @@ Abstract geometric patterns in neon colors"></textarea>
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            await checkRembgStatus();
             await loadPresets();
             await loadImages();
             setupEventListeners();
             startAutoRefresh();
         });
+
+        // Check if background removal is available
+        async function checkRembgStatus() {
+            try {
+                const res = await fetch('/api/rembg-status');
+                const data = await res.json();
+                rembgAvailable = data.available;
+                if (rembgAvailable) {
+                    document.getElementById('bulk-rembg-btn').style.display = '';
+                }
+            } catch (e) {
+                console.error('Failed to check rembg status:', e);
+            }
+        }
 
         // Load presets from API
         async function loadPresets() {
@@ -1353,7 +1370,12 @@ Abstract geometric patterns in neon colors"></textarea>
         }
 
         function getQuickActions(img) {
-            return `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadImage('${img.id}')">DL</button>`;
+            let actions = `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadImage('${img.id}')">DL</button>`;
+            // Add remove bg button if rembg is available and not already a nobg image
+            if (rembgAvailable && !img.id.endsWith('_nobg')) {
+                actions += `<button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); removeBg('${img.id}')" title="Remove Background">BG</button>`;
+            }
+            return actions;
         }
 
         function getCardActions(img) {
@@ -1559,6 +1581,64 @@ Abstract geometric patterns in neon colors"></textarea>
         function bulkDownload() {
             showNotification(`Downloading ${selectedImages.size} images...`, 'info');
             selectedImages.forEach(id => downloadImage(id));
+        }
+
+        // Background removal
+        async function removeBg(id) {
+            if (!rembgAvailable) {
+                showNotification('Background removal not available', 'error');
+                return;
+            }
+
+            showNotification('Removing background...', 'info');
+            try {
+                const res = await fetch(`/api/remove-bg/${id}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showNotification(data.message || 'Background removed!', 'success');
+                    await loadImages();
+                } else {
+                    showNotification(data.error || 'Failed to remove background', 'error');
+                }
+            } catch (e) {
+                showNotification('Background removal failed', 'error');
+            }
+        }
+
+        async function bulkRemoveBg() {
+            if (selectedImages.size === 0) return;
+            if (!rembgAvailable) {
+                showNotification('Background removal not available', 'error');
+                return;
+            }
+
+            // Filter out images that are already nobg
+            const validIds = [...selectedImages].filter(id => !id.endsWith('_nobg'));
+            if (validIds.length === 0) {
+                showNotification('No valid images selected (already processed)', 'warning');
+                return;
+            }
+
+            if (!confirm(`Remove background from ${validIds.length} images?`)) return;
+
+            showNotification('Removing backgrounds...', 'info');
+            try {
+                const res = await fetch('/api/batch/remove-bg', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: validIds })
+                });
+                const data = await res.json();
+                const success = data.success?.length || 0;
+                const skipped = data.skipped?.length || 0;
+                const failed = data.failed?.length || 0;
+                showNotification(`Removed: ${success}, Skipped: ${skipped}, Failed: ${failed}`, 'success');
+                deselectAll();
+                await loadImages();
+            } catch (e) {
+                showNotification('Bulk background removal failed', 'error');
+            }
         }
 
         // Download
