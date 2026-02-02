@@ -5,6 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POD Gateway - Design Approval</title>
     <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --bg-hover: #22222f;
+            --border-color: #2a2a3a;
+            --border-hover: #3a3a4a;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            --gradient: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,65 +37,420 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #0a0a0a;
-            color: #fff;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
         }
 
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-hover);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #222;
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
         h1 {
-            font-size: 2em;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-size: 1.75em;
+            font-weight: 700;
+            background: var(--gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-subtitle {
+            font-size: 0.85em;
+            color: var(--text-secondary);
         }
 
         .stats {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
         .stat {
-            padding: 10px 20px;
-            background: #1a1a1a;
-            border-radius: 8px;
-            border: 1px solid #333;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            min-width: 90px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .stat:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
         }
 
         .stat-label {
-            font-size: 0.8em;
-            color: #888;
+            font-size: 0.7em;
+            color: var(--text-muted);
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .stat-value {
             font-size: 1.5em;
-            font-weight: bold;
-            margin-top: 5px;
+            font-weight: 700;
+            margin-top: 4px;
         }
 
-        .toolbar {
-            background: #141414;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
+        .stat-value.pending { color: var(--text-secondary); }
+        .stat-value.approved { color: var(--success); }
+        .stat-value.published { color: var(--info); }
+        .stat-value.rejected { color: var(--error); }
+
+        /* Tabs */
+        .tabs {
             display: flex;
-            gap: 15px;
+            gap: 4px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: var(--radius-md);
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--gradient);
+            color: white;
+        }
+
+        /* Panel */
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .panel-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .panel-title-icon {
+            font-size: 1.2em;
+        }
+
+        .panel-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s;
+        }
+
+        .panel.collapsed .panel-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .panel.collapsed .panel-content {
+            display: none;
+        }
+
+        .panel-content {
+            padding: 20px;
+        }
+
+        /* Form elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .form-grid-wide {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-select {
+            cursor: pointer;
+        }
+
+        .form-hint {
+            font-size: 0.75em;
+            color: var(--text-muted);
+        }
+
+        /* Checkbox and Toggle */
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .form-checkbox input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-primary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--border-color);
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background: var(--accent-primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--bg-hover);
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8em;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 16px;
             align-items: center;
             flex-wrap: wrap;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
         }
 
         .toolbar-section {
@@ -79,355 +459,223 @@
             align-items: center;
         }
 
-        .search-box {
-            background: #0f0f0f;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #fff;
-            padding: 10px 15px;
-            font-size: 0.9em;
-            min-width: 250px;
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border-color);
         }
 
-        .select-box {
-            background: #0f0f0f;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #fff;
-            padding: 10px 15px;
-            font-size: 0.9em;
+        .search-input {
+            min-width: 280px;
+            padding-left: 36px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 10px center;
+            background-size: 18px;
         }
 
-        .prompter {
-            background: #141414;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .prompter-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .prompter-header h2 {
-            font-size: 1.1em;
-            color: #fff;
-        }
-
-        .prompter-header p {
-            font-size: 0.85em;
-            color: #9ca3af;
-        }
-
-        .prompter-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 12px;
-        }
-
-        .prompter textarea,
-        .prompter select {
-            width: 100%;
-            background: #0f0f0f;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #fff;
-            padding: 10px 12px;
-            font-size: 0.9em;
-        }
-
-        .prompter textarea {
-            min-height: 110px;
-            resize: vertical;
-        }
-
-        .prompter label {
-            font-size: 0.75em;
-            color: #9ca3af;
-            display: block;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .prompter-actions {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .prompter-actions button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 18px;
-            color: #fff;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .prompter-actions button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .prompter-status {
-            font-size: 0.85em;
-            color: #9ca3af;
-        }
-
-        .prompter-status.error {
-            color: #f87171;
-        }
-
-        .prompter-status.success {
-            color: #34d399;
-        }
-
+        /* Filters */
         .filters {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
             flex-wrap: wrap;
+            margin-bottom: 16px;
         }
 
         .filter-btn {
-            padding: 10px 20px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 0.85em;
+            font-weight: 500;
         }
 
         .filter-btn:hover {
-            background: #2a2a2a;
-            border-color: #667eea;
+            background: var(--bg-hover);
+            border-color: var(--border-hover);
+            color: var(--text-primary);
         }
 
         .filter-btn.active {
-            background: #667eea;
-            border-color: #667eea;
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
         }
 
-        .bulk-actions {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
+        /* Bulk actions */
+        .bulk-bar {
             display: none;
-            gap: 10px;
             align-items: center;
+            gap: 16px;
+            padding: 12px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--radius-md);
+            margin-bottom: 20px;
+        }
+
+        .bulk-bar.active {
+            display: flex;
             flex-wrap: wrap;
         }
 
-        .bulk-actions.active {
-            display: flex;
-        }
-
-        .bulk-actions-info {
+        .bulk-info {
             font-size: 0.9em;
-            color: #888;
+            color: var(--text-secondary);
             margin-right: auto;
         }
 
+        .bulk-info strong {
+            color: var(--accent-primary);
+        }
+
+        /* Gallery */
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
         }
 
         .card {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            transition: transform 0.2s, border-color 0.2s;
+            transition: all 0.3s;
             position: relative;
         }
 
         .card:hover {
-            transform: translateY(-5px);
-            border-color: #667eea;
+            transform: translateY(-4px);
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-lg);
         }
 
         .card.selected {
-            border-color: #667eea;
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
         }
 
         .card-checkbox {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 24px;
-            height: 24px;
+            top: 12px;
+            left: 12px;
+            width: 22px;
+            height: 22px;
             cursor: pointer;
             z-index: 10;
-            accent-color: #667eea;
+            accent-color: var(--accent-primary);
+        }
+
+        .card-image-container {
+            position: relative;
+            height: 280px;
+            overflow: hidden;
+            background: var(--bg-primary);
         }
 
         .card-image {
             width: 100%;
-            height: 300px;
+            height: 100%;
             object-fit: cover;
-            background: #0a0a0a;
             cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .card:hover .card-image {
+            transform: scale(1.05);
+        }
+
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            display: flex;
+            align-items: flex-end;
+            padding: 16px;
+        }
+
+        .card:hover .card-overlay {
+            opacity: 1;
+        }
+
+        .card-quick-actions {
+            display: flex;
+            gap: 8px;
         }
 
         .card-body {
-            padding: 15px;
+            padding: 16px;
         }
 
         .card-title {
-            font-size: 0.9em;
-            color: #888;
-            margin-bottom: 10px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .card-meta {
-            font-size: 0.78em;
-            color: #9ca3af;
-            margin-bottom: 10px;
-            word-break: break-word;
+            font-size: 0.75em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
         }
 
         .card-status {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.8em;
-            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 600;
             text-transform: uppercase;
-            margin-bottom: 15px;
+            margin: 8px 0 12px;
         }
 
-        .status-pending {
-            background: #333;
-            color: #fff;
-        }
-
-        .status-approved {
-            background: #10b981;
-            color: #fff;
-        }
-
-        .status-rejected {
-            background: #ef4444;
-            color: #fff;
-        }
-
-        .status-published {
-            background: #3b82f6;
-            color: #fff;
-        }
-
-        .status-publishing {
-            background: #f59e0b;
-            color: #fff;
-        }
-
-        .status-failed {
-            background: #991b1b;
-            color: #fff;
-        }
+        .status-pending { background: var(--bg-tertiary); color: var(--text-secondary); }
+        .status-approved { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .status-rejected { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        .status-published { background: rgba(59, 130, 246, 0.2); color: var(--info); }
+        .status-publishing { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .status-failed { background: rgba(239, 68, 68, 0.2); color: var(--error); }
 
         .card-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
-        .btn {
+        .card-actions .btn {
             flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.85em;
+            min-width: 0;
         }
 
-        .btn-approve {
-            background: #10b981;
-            color: #fff;
+        /* Preset badge */
+        .preset-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            font-size: 0.7em;
+            color: var(--text-muted);
+            margin-left: 8px;
         }
 
-        .btn-approve:hover {
-            background: #059669;
-        }
-
-        .btn-reject {
-            background: #ef4444;
-            color: #fff;
-        }
-
-        .btn-reject:hover {
-            background: #dc2626;
-        }
-
-        .btn-publish {
-            background: #3b82f6;
-            color: #fff;
-        }
-
-        .btn-publish:hover {
-            background: #2563eb;
-        }
-
-        .btn-delete {
-            background: #991b1b;
-            color: #fff;
-        }
-
-        .btn-delete:hover {
-            background: #7f1d1d;
-        }
-
-        .btn-download {
-            background: #6b7280;
-            color: #fff;
-        }
-
-        .btn-download:hover {
-            background: #4b5563;
-        }
-
-        .btn-reset {
-            background: #6b7280;
-            color: #fff;
-        }
-
-        .btn-reset:hover {
-            background: #4b5563;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #888;
-        }
-
+        /* Modal */
         .modal {
             position: fixed;
             inset: 0;
-            background: rgba(10, 10, 10, 0.85);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
             display: none;
             align-items: center;
             justify-content: center;
@@ -443,188 +691,119 @@
             width: min(640px, 95vw);
             max-height: 90vh;
             overflow-y: auto;
-            background: #141414;
-            border: 1px solid #2a2a2a;
-            border-radius: 14px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 12px;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .modal-header h2 {
-            font-size: 1.2em;
-            margin-bottom: 6px;
+            font-size: 1.25em;
+            margin-bottom: 4px;
         }
 
         .modal-header p {
-            font-size: 0.9em;
-            color: #9ca3af;
+            font-size: 0.85em;
+            color: var(--text-secondary);
         }
 
-        .icon-btn {
-            background: transparent;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
-            padding: 6px 10px;
-            cursor: pointer;
-            transition: all 0.2s;
+        .modal-body {
+            padding: 20px;
         }
 
-        .icon-btn:hover {
-            background: #2a2a2a;
-        }
-
-        .modal-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-        }
-
-        .modal input,
-        .modal textarea,
-        .modal select {
-            width: 100%;
-            background: #0f0f0f;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #fff;
-            padding: 10px 12px;
-            font-size: 0.9em;
-        }
-
-        .modal textarea {
-            min-height: 90px;
-            resize: vertical;
-        }
-
-        .modal label {
-            font-size: 0.75em;
-            color: #9ca3af;
-            display: block;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .modal-actions {
+        .modal-footer {
             display: flex;
             justify-content: flex-end;
-            gap: 10px;
-        }
-
-        .modal-actions .btn {
-            flex: 0 0 auto;
-            min-width: 120px;
+            gap: 12px;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
         }
 
         .preview-image {
             width: 100%;
-            max-height: 400px;
+            max-height: 500px;
             object-fit: contain;
-            border-radius: 8px;
-            background: #0a0a0a;
+            border-radius: var(--radius-md);
+            background: var(--bg-primary);
         }
 
+        /* Notifications */
         .notification {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 15px 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            top: 24px;
+            right: 24px;
+            padding: 14px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
             z-index: 2000;
             animation: slideIn 0.3s ease-out;
-            max-width: 400px;
+            max-width: 380px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .notification.success {
-            border-color: #10b981;
-        }
-
-        .notification.error {
-            border-color: #ef4444;
-        }
-
-        .notification.info {
-            border-color: #3b82f6;
-        }
+        .notification.success { border-left: 4px solid var(--success); }
+        .notification.error { border-left: 4px solid var(--error); }
+        .notification.info { border-left: 4px solid var(--info); }
+        .notification.warning { border-left: 4px solid var(--warning); }
 
         @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
-        .toggle-switch {
-            position: relative;
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
             display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #333;
-            transition: 0.3s;
-            border-radius: 24px;
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: 0.3s;
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary);
             border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        input:checked + .toggle-slider {
-            background-color: #667eea;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        input:checked + .toggle-slider:before {
-            transform: translateX(26px);
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
         }
 
-        .settings-panel {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            font-size: 0.9em;
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
         }
 
+        /* Responsive */
         @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+
             .header {
                 flex-direction: column;
                 align-items: flex-start;
@@ -635,358 +814,448 @@
                 align-items: stretch;
             }
 
-            .prompter-grid {
-                grid-template-columns: 1fr;
+            .toolbar-section {
+                width: 100%;
+            }
+
+            .search-input {
+                min-width: 100%;
             }
 
             .gallery {
                 grid-template-columns: 1fr;
             }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Advanced options */
+        .advanced-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            cursor: pointer;
+            padding: 8px 0;
+        }
+
+        .advanced-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        .advanced-options {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .advanced-options.show {
+            display: block;
+        }
+
+        /* Batch prompts textarea */
+        .batch-prompts {
+            min-height: 150px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85em;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🎨 POD Gateway</h1>
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-label">Total</div>
-                <div class="stat-value" id="stat-total">0</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Pending</div>
-                <div class="stat-value" id="stat-pending">0</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Approved</div>
-                <div class="stat-value" id="stat-approved">0</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Published</div>
-                <div class="stat-value" id="stat-published">0</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="toolbar">
-        <div class="toolbar-section">
-            <input type="text" id="search-box" class="search-box" placeholder="🔍 Search images...">
-        </div>
-        <div class="toolbar-section">
-            <select id="sort-select" class="select-box">
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="name-asc">Name (A-Z)</option>
-                <option value="name-desc">Name (Z-A)</option>
-            </select>
-        </div>
-        <div class="toolbar-section settings-panel">
-            <label for="auto-refresh-toggle">Auto-refresh:</label>
-            <label class="toggle-switch">
-                <input type="checkbox" id="auto-refresh-toggle" checked>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="toolbar-section">
-            <button class="filter-btn" onclick="selectAll()">✓ Select All</button>
-            <button class="filter-btn" onclick="deselectAll()">✗ Deselect All</button>
-        </div>
-    </div>
-
-    <div class="prompter">
-        <div class="prompter-header">
-            <div>
-                <h2>🎨 ComfyUI Prompter</h2>
-                <p>Queue RunPod generations with style + genre guidance.</p>
-            </div>
-            <div class="prompter-status" id="prompter-status">Idle • Awaiting prompt</div>
-        </div>
-        <form id="prompter-form">
-            <div class="prompter-grid">
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">P</div>
                 <div>
-                    <label for="prompt-input">Prompt</label>
-                    <textarea id="prompt-input" placeholder="Describe the design you'd like to generate..."></textarea>
+                    <h1>POD Gateway</h1>
+                    <div class="header-subtitle">Human-in-the-loop design approval system</div>
                 </div>
-                <div>
-                    <label for="prompt-style">Style</label>
-                    <select id="prompt-style">
-                        <option value="">Any style</option>
-                        <option value="minimalist">Minimalist</option>
-                        <option value="vintage">Vintage</option>
-                        <option value="retro">Retro</option>
-                        <option value="watercolor">Watercolor</option>
-                        <option value="vector art">Vector art</option>
-                        <option value="line art">Line art</option>
-                        <option value="pop art">Pop art</option>
-                        <option value="cyberpunk">Cyberpunk</option>
-                        <option value="grunge">Grunge</option>
-                        <option value="surreal">Surreal</option>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-value" id="stat-total">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value pending" id="stat-pending">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Approved</div>
+                    <div class="stat-value approved" id="stat-approved">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Published</div>
+                    <div class="stat-value published" id="stat-published">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="gallery">Gallery</button>
+            <button class="tab" data-tab="generate">Generate</button>
+            <button class="tab" data-tab="batch">Batch Generate</button>
+        </div>
+
+        <!-- Generate Panel -->
+        <div class="panel" id="generate-panel" style="display: none;">
+            <div class="panel-header" onclick="togglePanel(this)">
+                <div class="panel-title">
+                    <span class="panel-title-icon">+</span>
+                    <span>Single Image Generation</span>
+                </div>
+                <span class="panel-toggle">v</span>
+            </div>
+            <div class="panel-content">
+                <form id="generate-form">
+                    <div class="form-grid">
+                        <div class="form-group form-grid-wide">
+                            <label class="form-label">Prompt</label>
+                            <textarea id="gen-prompt" class="form-textarea" placeholder="Describe the design you want to generate..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Style Preset</label>
+                            <select id="gen-preset" class="form-select">
+                                <option value="">No preset (custom style)</option>
+                            </select>
+                            <span class="form-hint">POD-optimized style presets</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Custom Style</label>
+                            <input type="text" id="gen-style" class="form-input" placeholder="e.g., minimalist, vintage">
+                            <span class="form-hint">Used when no preset selected</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Genre</label>
+                            <select id="gen-genre" class="form-select">
+                                <option value="">Any genre</option>
+                                <option value="nature">Nature</option>
+                                <option value="fantasy">Fantasy</option>
+                                <option value="sci-fi">Sci-Fi</option>
+                                <option value="typography">Typography</option>
+                                <option value="streetwear">Streetwear</option>
+                                <option value="sports">Sports</option>
+                                <option value="music">Music</option>
+                                <option value="gaming">Gaming</option>
+                                <option value="holiday">Holiday</option>
+                                <option value="motivational">Motivational</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="advanced-toggle" onclick="toggleAdvanced('gen-advanced')">
+                        <span>+</span> Advanced Options
+                    </div>
+                    <div class="advanced-options" id="gen-advanced">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Width</label>
+                                <input type="number" id="gen-width" class="form-input" value="1024" min="512" max="2048" step="64">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Height</label>
+                                <input type="number" id="gen-height" class="form-input" value="1024" min="512" max="2048" step="64">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Steps</label>
+                                <input type="number" id="gen-steps" class="form-input" value="30" min="10" max="50">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Seed (optional)</label>
+                                <input type="number" id="gen-seed" class="form-input" placeholder="Random">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="gen-upscale" checked>
+                                    <span>4x Upscale for POD quality</span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="gen-enhance" checked>
+                                    <span>Enhance for POD (quality suffix)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; align-items: center; gap: 16px;">
+                        <button type="submit" class="btn btn-primary" id="gen-submit">Generate Image</button>
+                        <span id="gen-status" class="form-hint">Ready to generate</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Batch Generate Panel -->
+        <div class="panel" id="batch-panel" style="display: none;">
+            <div class="panel-header" onclick="togglePanel(this)">
+                <div class="panel-title">
+                    <span class="panel-title-icon">++</span>
+                    <span>Batch Image Generation</span>
+                </div>
+                <span class="panel-toggle">v</span>
+            </div>
+            <div class="panel-content">
+                <form id="batch-form">
+                    <div class="form-grid">
+                        <div class="form-group form-grid-wide">
+                            <label class="form-label">Prompts (one per line)</label>
+                            <textarea id="batch-prompts" class="form-textarea batch-prompts" placeholder="Enter one prompt per line...
+Example:
+A majestic lion with a crown
+A peaceful mountain landscape at sunset
+Abstract geometric patterns in neon colors"></textarea>
+                            <span class="form-hint">Maximum 20 total generations (prompts x variations)</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Style Preset (all)</label>
+                            <select id="batch-preset" class="form-select">
+                                <option value="">No preset</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Genre (all)</label>
+                            <select id="batch-genre" class="form-select">
+                                <option value="">Any genre</option>
+                                <option value="nature">Nature</option>
+                                <option value="fantasy">Fantasy</option>
+                                <option value="sci-fi">Sci-Fi</option>
+                                <option value="typography">Typography</option>
+                                <option value="streetwear">Streetwear</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Variations per prompt</label>
+                            <select id="batch-variations" class="form-select">
+                                <option value="1">1 variation</option>
+                                <option value="2">2 variations</option>
+                                <option value="3">3 variations</option>
+                                <option value="4">4 variations</option>
+                                <option value="5">5 variations</option>
+                            </select>
+                            <span class="form-hint">Different seeds for each</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="batch-upscale" checked>
+                                <span>4x Upscale all images</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="batch-enhance" checked>
+                                <span>Enhance for POD</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; align-items: center; gap: 16px;">
+                        <button type="submit" class="btn btn-primary" id="batch-submit">Generate Batch</button>
+                        <span id="batch-status" class="form-hint">Ready</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Gallery Panel -->
+        <div id="gallery-panel">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="toolbar-section">
+                    <input type="text" id="search-box" class="form-input search-input" placeholder="Search images...">
+                </div>
+                <div class="toolbar-section">
+                    <select id="sort-select" class="form-select">
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                        <option value="name-asc">Name (A-Z)</option>
+                        <option value="name-desc">Name (Z-A)</option>
                     </select>
                 </div>
-                <div>
-                    <label for="prompt-genre">Genre</label>
-                    <select id="prompt-genre">
-                        <option value="">Any genre</option>
-                        <option value="nature">Nature</option>
-                        <option value="fantasy">Fantasy</option>
-                        <option value="sci-fi">Sci-Fi</option>
-                        <option value="typography">Typography</option>
-                        <option value="streetwear">Streetwear</option>
-                        <option value="sports">Sports</option>
-                        <option value="music">Music</option>
-                        <option value="gaming">Gaming</option>
-                        <option value="holiday">Holiday</option>
-                        <option value="motivational">Motivational</option>
-                    </select>
+                <div class="toolbar-divider"></div>
+                <div class="toolbar-section">
+                    <label class="form-checkbox">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-refresh" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </label>
+                    <span style="font-size: 0.85em; color: var(--text-secondary);">Auto-refresh</span>
+                </div>
+                <div class="toolbar-divider"></div>
+                <div class="toolbar-section">
+                    <button class="btn btn-ghost btn-sm" onclick="selectAll()">Select All</button>
+                    <button class="btn btn-ghost btn-sm" onclick="deselectAll()">Deselect</button>
                 </div>
             </div>
-            <div class="prompter-actions">
-                <button type="submit" id="prompter-submit">Generate with ComfyUI</button>
-                <span class="prompter-status" id="prompter-detail">Waiting for submission.</span>
+
+            <!-- Filters -->
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="pending">Pending</button>
+                <button class="filter-btn" data-filter="approved">Approved</button>
+                <button class="filter-btn" data-filter="published">Published</button>
+                <button class="filter-btn" data-filter="rejected">Rejected</button>
+                <button class="filter-btn" data-filter="failed">Failed</button>
             </div>
-        </form>
-    </div>
 
-    <div class="filters">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="pending">Pending</button>
-        <button class="filter-btn" data-filter="approved">Approved</button>
-        <button class="filter-btn" data-filter="published">Published</button>
-        <button class="filter-btn" data-filter="rejected">Rejected</button>
-        <button class="filter-btn" data-filter="failed">Failed</button>
-    </div>
+            <!-- Bulk Actions Bar -->
+            <div class="bulk-bar" id="bulk-bar">
+                <div class="bulk-info">
+                    <strong id="selected-count">0</strong> images selected
+                </div>
+                <button class="btn btn-success btn-sm" onclick="bulkApprove()">Approve</button>
+                <button class="btn btn-danger btn-sm" onclick="bulkReject()">Reject</button>
+                <button class="btn btn-info btn-sm" onclick="bulkPublish()">Publish</button>
+                <button class="btn btn-ghost btn-sm" onclick="bulkReset()">Reset</button>
+                <button class="btn btn-ghost btn-sm" onclick="bulkDownload()">Download</button>
+                <button class="btn btn-danger btn-sm" onclick="bulkDelete()">Delete</button>
+            </div>
 
-    <div class="bulk-actions" id="bulk-actions">
-        <div class="bulk-actions-info">
-            <strong id="selected-count">0</strong> items selected
+            <!-- Gallery Grid -->
+            <div class="gallery" id="gallery">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 16px;">Loading images...</p>
+                </div>
+            </div>
         </div>
-        <button class="btn btn-approve" onclick="bulkApprove()">✓ Approve</button>
-        <button class="btn btn-reject" onclick="bulkReject()">✗ Reject</button>
-        <button class="btn btn-publish" onclick="bulkPublish()">→ Publish All</button>
-        <button class="btn btn-download" onclick="bulkDownload()">⬇ Download</button>
-        <button class="btn btn-delete" onclick="bulkDelete()">🗑 Delete</button>
-    </div>
-
-    <div class="gallery" id="gallery">
-        <div class="loading">Loading images...</div>
     </div>
 
     <!-- Publish Modal -->
-    <div class="modal" id="publish-modal" aria-hidden="true">
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="publish-title">
+    <div class="modal" id="publish-modal">
+        <div class="modal-card">
             <div class="modal-header">
                 <div>
-                    <h2 id="publish-title">Publish to Printify</h2>
-                    <p>Fine-tune product details before sending to your Printify store.</p>
+                    <h2>Publish to Printify</h2>
+                    <p>Configure product details before publishing</p>
                 </div>
-                <button class="icon-btn" id="publish-close" type="button">✕</button>
+                <button class="btn btn-icon btn-ghost" onclick="closePublishModal()">X</button>
             </div>
             <form id="publish-form">
-                <div>
-                    <label for="publish-title-input">Product title</label>
-                    <input id="publish-title-input" type="text" placeholder="Design Title" required>
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-group form-grid-wide">
+                            <label class="form-label">Product Title</label>
+                            <input type="text" id="publish-title" class="form-input" required>
+                        </div>
+                        <div class="form-group form-grid-wide">
+                            <label class="form-label">Description</label>
+                            <textarea id="publish-desc" class="form-textarea" placeholder="Optional product description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Product Preset</label>
+                            <select id="publish-preset" class="form-select">
+                                <option value="default">Gateway defaults</option>
+                                <option value="tshirt">T-Shirt (Blueprint 3)</option>
+                                <option value="hoodie">Hoodie (Blueprint 165)</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Price (USD)</label>
+                            <input type="number" id="publish-price" class="form-input" step="0.01" min="0" placeholder="Default">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Blueprint ID</label>
+                            <input type="number" id="publish-blueprint" class="form-input" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Provider ID</label>
+                            <input type="number" id="publish-provider" class="form-input" min="1">
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label for="publish-description">Description</label>
-                    <textarea id="publish-description" placeholder="Optional product description for Printify/Shopify"></textarea>
-                </div>
-                <div class="modal-grid">
-                    <div>
-                        <label for="publish-preset">Product preset</label>
-                        <select id="publish-preset">
-                            <option value="default">Use gateway defaults</option>
-                            <option value="tshirt">T-Shirt (Blueprint 3, Provider 99)</option>
-                            <option value="hoodie">Hoodie (Blueprint 165, Provider 99)</option>
-                            <option value="custom">Custom blueprint/provider</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="publish-price">Price (USD)</label>
-                        <input id="publish-price" type="number" step="0.01" min="0" placeholder="Leave blank for default">
-                    </div>
-                    <div>
-                        <label for="publish-blueprint">Blueprint ID</label>
-                        <input id="publish-blueprint" type="number" min="1" placeholder="e.g. 3">
-                    </div>
-                    <div>
-                        <label for="publish-provider">Provider ID</label>
-                        <input id="publish-provider" type="number" min="1" placeholder="e.g. 99">
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-reset" type="button" id="publish-cancel">Cancel</button>
-                    <button class="btn btn-publish" type="submit" id="publish-submit">Publish Now</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="closePublishModal()">Cancel</button>
+                    <button type="submit" class="btn btn-info" id="publish-submit">Publish Now</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Preview Modal -->
-    <div class="modal" id="preview-modal" aria-hidden="true">
+    <div class="modal" id="preview-modal">
         <div class="modal-card">
             <div class="modal-header">
                 <div>
                     <h2 id="preview-title">Image Preview</h2>
                     <p id="preview-filename"></p>
                 </div>
-                <button class="icon-btn" id="preview-close" type="button">✕</button>
+                <button class="btn btn-icon btn-ghost" onclick="closePreview()">X</button>
             </div>
-            <img id="preview-image" class="preview-image" src="" alt="Preview">
-            <div class="modal-actions">
-                <button class="btn btn-download" onclick="downloadCurrent()">⬇ Download</button>
-                <button class="btn btn-reset" onclick="closePreview()">Close</button>
+            <div class="modal-body">
+                <img id="preview-image" class="preview-image" src="" alt="Preview">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="downloadCurrent()">Download</button>
+                <button class="btn btn-ghost" onclick="closePreview()">Close</button>
             </div>
         </div>
     </div>
 
     <script>
-        let currentFilter = 'all';
+        // State
         let images = [];
+        let presets = [];
         let selectedImages = new Set();
-        let currentPromptId = null;
-        let currentRunpodJobId = null;
-        let statusInterval = null;
-        let runpodInterval = null;
-        let autoRefreshInterval = null;
-        let pendingPublishId = null;
+        let currentFilter = 'all';
         let searchQuery = '';
         let sortOrder = 'newest';
+        let pendingPublishId = null;
+        let autoRefreshInterval = null;
+        let currentJobId = null;
+        let jobPollInterval = null;
 
-        const prompterStatus = document.getElementById('prompter-status');
-        const prompterDetail = document.getElementById('prompter-detail');
-        const prompterSubmit = document.getElementById('prompter-submit');
-        const prompterForm = document.getElementById('prompter-form');
-        const promptInput = document.getElementById('prompt-input');
-        const promptStyle = document.getElementById('prompt-style');
-        const promptGenre = document.getElementById('prompt-genre');
-        const publishModal = document.getElementById('publish-modal');
-        const publishForm = document.getElementById('publish-form');
-        const publishTitleInput = document.getElementById('publish-title-input');
-        const publishDescription = document.getElementById('publish-description');
-        const publishPreset = document.getElementById('publish-preset');
-        const publishPrice = document.getElementById('publish-price');
-        const publishBlueprint = document.getElementById('publish-blueprint');
-        const publishProvider = document.getElementById('publish-provider');
-        const publishSubmit = document.getElementById('publish-submit');
-        const previewModal = document.getElementById('preview-modal');
-        const previewImage = document.getElementById('preview-image');
-        const previewTitle = document.getElementById('preview-title');
-        const previewFilename = document.getElementById('preview-filename');
+        // DOM elements
+        const gallery = document.getElementById('gallery');
         const searchBox = document.getElementById('search-box');
         const sortSelect = document.getElementById('sort-select');
-        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
-        const bulkActions = document.getElementById('bulk-actions');
+        const autoRefresh = document.getElementById('auto-refresh');
+        const bulkBar = document.getElementById('bulk-bar');
         const selectedCount = document.getElementById('selected-count');
 
-        // Notification system
-        function showNotification(message, type = 'info') {
-            const notif = document.createElement('div');
-            notif.className = `notification ${type}`;
-            notif.textContent = message;
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 3000);
-        }
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPresets();
+            await loadImages();
+            setupEventListeners();
+            startAutoRefresh();
+        });
 
-        // Prompter functions
-        function setPrompterStatus(message, state = '') {
-            prompterStatus.textContent = message;
-            prompterStatus.classList.remove('error', 'success');
-            if (state) {
-                prompterStatus.classList.add(state);
-            }
-        }
-
-        function setPrompterDetail(message) {
-            prompterDetail.textContent = message;
-        }
-
-        async function pollGenerationStatus() {
-            if (!currentPromptId) {
-                return;
-            }
-
+        // Load presets from API
+        async function loadPresets() {
             try {
-                const res = await fetch(`/api/generation_status?prompt_id=${currentPromptId}`);
-                if (!res.ok) {
-                    setPrompterStatus('Status check failed', 'error');
-                    return;
-                }
-
+                const res = await fetch('/api/presets');
                 const data = await res.json();
-                const history = data.history || {};
-                const entry = history[currentPromptId];
-                if (!entry) {
-                    return;
-                }
-
-                const statusInfo = entry.status || {};
-                if (statusInfo.completed) {
-                    setPrompterStatus('Generation complete', 'success');
-                    setPrompterDetail(`Prompt ${currentPromptId} finished. Downloaded ${data.downloaded?.length || 0} image(s).`);
-                    showNotification('Image generation completed!', 'success');
-                    clearInterval(statusInterval);
-                    statusInterval = null;
-                    currentPromptId = null;
-                    await loadImages();
-                    return;
-                }
-
-                if (statusInfo.status_str === 'error') {
-                    setPrompterStatus('Generation failed', 'error');
-                    setPrompterDetail(`Prompt ${currentPromptId} failed.`);
-                    showNotification('Image generation failed', 'error');
-                    clearInterval(statusInterval);
-                    statusInterval = null;
-                    currentPromptId = null;
-                    return;
-                }
-
-                setPrompterStatus('Generation in progress');
-                setPrompterDetail(`Prompt ${currentPromptId} running...`);
-            } catch (err) {
-                console.error('Status polling failed:', err);
+                presets = data.presets || [];
+                populatePresetDropdowns();
+            } catch (e) {
+                console.error('Failed to load presets:', e);
             }
         }
 
-        async function pollRunpodStatus() {
-            if (!currentRunpodJobId) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`/api/runpod_status?job_id=${currentRunpodJobId}`);
-                if (!res.ok) {
-                    setPrompterStatus('RunPod status failed', 'error');
-                    return;
-                }
-
-                const data = await res.json();
-                if (data.status === 'COMPLETED') {
-                    setPrompterStatus('Generation complete', 'success');
-                    setPrompterDetail(`RunPod job ${currentRunpodJobId} finished. Saved ${data.images?.length || 0} image(s).`);
-                    showNotification('Image generation completed!', 'success');
-                    clearInterval(runpodInterval);
-                    runpodInterval = null;
-                    currentRunpodJobId = null;
-                    await loadImages();
-                    return;
-                }
-
-                if (data.status === 'FAILED') {
-                    setPrompterStatus('Generation failed', 'error');
-                    setPrompterDetail(`RunPod job ${currentRunpodJobId} failed.`);
-                    showNotification('Image generation failed', 'error');
-                    clearInterval(runpodInterval);
-                    runpodInterval = null;
-                    currentRunpodJobId = null;
-                    return;
-                }
-
-                setPrompterStatus('Generation in progress');
-                setPrompterDetail(`RunPod job ${currentRunpodJobId} running...`);
-            } catch (err) {
-                console.error('RunPod status polling failed:', err);
-            }
+        function populatePresetDropdowns() {
+            const dropdowns = ['gen-preset', 'batch-preset'];
+            dropdowns.forEach(id => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                presets.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                    opt.title = p.description;
+                    select.appendChild(opt);
+                });
+            });
         }
 
         // Load images
@@ -1019,170 +1288,156 @@
 
         // Render gallery
         function renderGallery() {
-            const gallery = document.getElementById('gallery');
             let filtered = [...images];
 
-            // Apply search filter
             if (searchQuery) {
+                const q = searchQuery.toLowerCase();
                 filtered = filtered.filter(img =>
-                    img.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    img.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    img.filename.toLowerCase().includes(q) ||
+                    img.id.toLowerCase().includes(q) ||
+                    (img.title && img.title.toLowerCase().includes(q))
                 );
             }
 
-            // Apply status filter
             if (currentFilter !== 'all') {
                 filtered = filtered.filter(img => img.status === currentFilter);
             }
 
-            // Apply sort
             filtered.sort((a, b) => {
                 switch (sortOrder) {
-                    case 'oldest':
-                        return a.filename.localeCompare(b.filename);
-                    case 'name-asc':
-                        return a.filename.localeCompare(b.filename);
-                    case 'name-desc':
-                        return b.filename.localeCompare(a.filename);
-                    case 'newest':
-                    default:
-                        return b.filename.localeCompare(a.filename);
+                    case 'oldest': return a.filename.localeCompare(b.filename);
+                    case 'name-asc': return a.filename.localeCompare(b.filename);
+                    case 'name-desc': return b.filename.localeCompare(a.filename);
+                    default: return b.filename.localeCompare(a.filename);
                 }
             });
 
             if (filtered.length === 0) {
-                gallery.innerHTML = '<div class="loading">No images found</div>';
+                gallery.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <div class="empty-state-icon">:)</div>
+                        <p>No images found</p>
+                    </div>
+                `;
                 return;
             }
 
             gallery.innerHTML = filtered.map(img => `
-                <div class="card ${selectedImages.has(img.id) ? 'selected' : ''}" data-status="${img.status}" data-id="${img.id}">
+                <div class="card ${selectedImages.has(img.id) ? 'selected' : ''}" data-id="${img.id}">
                     <input type="checkbox" class="card-checkbox"
-                           data-id="${img.id}"
                            ${selectedImages.has(img.id) ? 'checked' : ''}
                            onchange="toggleSelection('${img.id}')">
-                    <img src="${img.path}" class="card-image" alt="${img.filename}" onclick="openPreview('${img.id}', '${img.path}', '${img.filename}')">
+                    <div class="card-image-container">
+                        <img src="${img.path}" class="card-image" alt="${img.filename}"
+                             onclick="openPreview('${img.id}', '${img.path}', '${img.filename}')">
+                        <div class="card-overlay">
+                            <div class="card-quick-actions">
+                                ${getQuickActions(img)}
+                            </div>
+                        </div>
+                    </div>
                     <div class="card-body">
                         <div class="card-title">${img.filename}</div>
                         ${img.title ? `<div class="card-meta">Title: ${img.title}</div>` : ''}
-                        ${img.product_id ? `<div class="card-meta">Printify ID: ${img.product_id}</div>` : ''}
-                        ${img.error_message ? `<div class="card-meta">Error: ${img.error_message}</div>` : ''}
+                        ${img.product_id ? `<div class="card-meta">Printify: ${img.product_id}</div>` : ''}
+                        ${img.error_message ? `<div class="card-meta" style="color: var(--error);">Error: ${img.error_message}</div>` : ''}
                         <div class="card-status status-${img.status}">${img.status}</div>
                         <div class="card-actions">
-                            ${getActions(img)}
+                            ${getCardActions(img)}
                         </div>
                     </div>
                 </div>
             `).join('');
 
-            attachEventListeners();
-            updateBulkActionsBar();
+            updateBulkBar();
         }
 
-        // Get action buttons based on status
-        function getActions(img) {
-            const download = `<button class="btn btn-download" onclick="downloadImage('${img.id}')">⬇</button>`;
+        function getQuickActions(img) {
+            return `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadImage('${img.id}')">DL</button>`;
+        }
 
+        function getCardActions(img) {
             switch (img.status) {
                 case 'pending':
                     return `
-                        <button class="btn btn-approve" data-action="approve" data-id="${img.id}">✓ Approve</button>
-                        <button class="btn btn-reject" data-action="reject" data-id="${img.id}">✗ Reject</button>
-                        ${download}
+                        <button class="btn btn-success btn-sm" onclick="approveImage('${img.id}')">Approve</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectImage('${img.id}')">Reject</button>
                     `;
                 case 'approved':
                     return `
-                        <button class="btn btn-publish" data-action="publish" data-id="${img.id}">→ Publish</button>
-                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺</button>
-                        ${download}
+                        <button class="btn btn-info btn-sm" onclick="openPublishModal('${img.id}')">Publish</button>
+                        <button class="btn btn-ghost btn-sm" onclick="resetImage('${img.id}')">Reset</button>
                     `;
                 case 'published':
-                    return `
-                        <div style="color: #10b981; text-align: center; flex: 1;">✓ Live on Printify</div>
-                        ${download}
-                    `;
+                    return `<span style="color: var(--success); font-size: 0.85em;">Live on Printify</span>`;
                 case 'rejected':
-                    return `
-                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺ Reset</button>
-                        ${download}
-                    `;
+                    return `<button class="btn btn-ghost btn-sm" onclick="resetImage('${img.id}')">Reset</button>`;
                 case 'failed':
                     return `
-                        <button class="btn btn-publish" data-action="publish" data-id="${img.id}">↻ Retry</button>
-                        <button class="btn btn-reset" data-action="reset" data-id="${img.id}">↺</button>
-                        ${download}
+                        <button class="btn btn-info btn-sm" onclick="openPublishModal('${img.id}')">Retry</button>
+                        <button class="btn btn-ghost btn-sm" onclick="resetImage('${img.id}')">Reset</button>
                     `;
                 default:
-                    return download;
+                    return '';
             }
         }
 
-        // Attach event listeners
-        function attachEventListeners() {
-            document.querySelectorAll('[data-action]').forEach(btn => {
-                btn.addEventListener('click', handleAction);
-            });
+        // Image actions
+        async function approveImage(id) {
+            await imageAction(id, 'approve');
         }
 
-        // Handle button actions
-        async function handleAction(e) {
-            const action = e.target.dataset.action;
-            const id = e.target.dataset.id;
+        async function rejectImage(id) {
+            await imageAction(id, 'reject');
+        }
 
-            if (action === 'publish') {
-                openPublishModal(id);
-                return;
-            }
+        async function resetImage(id) {
+            await imageAction(id, 'reset');
+        }
 
-            e.target.disabled = true;
-
+        async function imageAction(id, action) {
             try {
-                const res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
-
+                const res = await fetch(`/api/${action}/${id}`, { method: 'POST' });
                 if (res.ok) {
-                    showNotification(`Image ${action}d successfully`, 'success');
+                    showNotification(`Image ${action}d`, 'success');
                     await loadImages();
                 } else {
-                    const error = await res.json();
-                    showNotification(`Error: ${error.error || 'Unknown error'}`, 'error');
-                    e.target.disabled = false;
+                    const err = await res.json();
+                    showNotification(err.error || 'Action failed', 'error');
                 }
-            } catch (err) {
-                showNotification(`Failed: ${err.message}`, 'error');
-                e.target.disabled = false;
+            } catch (e) {
+                showNotification('Action failed', 'error');
             }
         }
 
-        // Selection functions
+        // Selection
         function toggleSelection(id) {
             if (selectedImages.has(id)) {
                 selectedImages.delete(id);
             } else {
                 selectedImages.add(id);
             }
-            updateBulkActionsBar();
             renderGallery();
         }
 
         function selectAll() {
             const filtered = getFilteredImages();
             filtered.forEach(img => selectedImages.add(img.id));
-            updateBulkActionsBar();
             renderGallery();
         }
 
         function deselectAll() {
             selectedImages.clear();
-            updateBulkActionsBar();
             renderGallery();
         }
 
         function getFilteredImages() {
             let filtered = [...images];
             if (searchQuery) {
+                const q = searchQuery.toLowerCase();
                 filtered = filtered.filter(img =>
-                    img.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    img.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    img.filename.toLowerCase().includes(q) ||
+                    img.id.toLowerCase().includes(q)
                 );
             }
             if (currentFilter !== 'all') {
@@ -1191,104 +1446,125 @@
             return filtered;
         }
 
-        function updateBulkActionsBar() {
+        function updateBulkBar() {
             selectedCount.textContent = selectedImages.size;
-            if (selectedImages.size > 0) {
-                bulkActions.classList.add('active');
-            } else {
-                bulkActions.classList.remove('active');
-            }
+            bulkBar.classList.toggle('active', selectedImages.size > 0);
         }
 
-        // Bulk operations
+        // Bulk operations using batch endpoints
         async function bulkApprove() {
+            if (selectedImages.size === 0) return;
             if (!confirm(`Approve ${selectedImages.size} images?`)) return;
-            await bulkAction('approve');
+
+            try {
+                const res = await fetch('/api/batch/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: [...selectedImages] })
+                });
+                const data = await res.json();
+                showNotification(`Approved: ${data.success?.length || 0}, Failed: ${data.failed?.length || 0}`, 'success');
+                deselectAll();
+                await loadImages();
+            } catch (e) {
+                showNotification('Bulk approve failed', 'error');
+            }
         }
 
         async function bulkReject() {
+            if (selectedImages.size === 0) return;
             if (!confirm(`Reject ${selectedImages.size} images?`)) return;
-            await bulkAction('reject');
-        }
 
-        async function bulkDelete() {
-            if (!confirm(`Delete ${selectedImages.size} images? This cannot be undone!`)) return;
-            showNotification('Bulk delete not yet implemented', 'info');
+            try {
+                const res = await fetch('/api/batch/reject', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: [...selectedImages] })
+                });
+                const data = await res.json();
+                showNotification(`Rejected: ${data.success?.length || 0}, Failed: ${data.failed?.length || 0}`, 'success');
+                deselectAll();
+                await loadImages();
+            } catch (e) {
+                showNotification('Bulk reject failed', 'error');
+            }
         }
 
         async function bulkPublish() {
-            const approvedImages = [...selectedImages].filter(id => {
+            const approvedIds = [...selectedImages].filter(id => {
                 const img = images.find(i => i.id === id);
-                return img && img.status === 'approved';
+                return img && (img.status === 'approved' || img.status === 'failed');
             });
 
-            if (approvedImages.length === 0) {
-                showNotification('No approved images selected for publishing', 'error');
+            if (approvedIds.length === 0) {
+                showNotification('No approved images selected', 'warning');
                 return;
             }
 
-            if (!confirm(`Publish ${approvedImages.length} approved images to Printify?`)) return;
+            if (!confirm(`Publish ${approvedIds.length} images to Printify?`)) return;
 
-            for (const id of approvedImages) {
-                try {
-                    const img = images.find(i => i.id === id);
-                    const res = await fetch(`/api/publish/${id}`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            title: `Design ${id.substring(0, 8)}`
-                        })
-                    });
-
-                    if (!res.ok) {
-                        const error = await res.json();
-                        showNotification(`Failed to publish ${id}: ${error.error}`, 'error');
-                    }
-                } catch (err) {
-                    showNotification(`Error publishing ${id}: ${err.message}`, 'error');
-                }
+            try {
+                const res = await fetch('/api/batch/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: approvedIds })
+                });
+                const data = await res.json();
+                showNotification(`Published: ${data.success?.length || 0}, Failed: ${data.failed?.length || 0}`, 'success');
+                deselectAll();
+                await loadImages();
+            } catch (e) {
+                showNotification('Bulk publish failed', 'error');
             }
-
-            showNotification(`Bulk publish completed`, 'success');
-            deselectAll();
-            await loadImages();
         }
 
-        async function bulkDownload() {
+        async function bulkReset() {
+            if (selectedImages.size === 0) return;
+            if (!confirm(`Reset ${selectedImages.size} images to pending?`)) return;
+
+            try {
+                const res = await fetch('/api/batch/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: [...selectedImages] })
+                });
+                const data = await res.json();
+                showNotification(`Reset: ${data.success?.length || 0}, Failed: ${data.failed?.length || 0}`, 'success');
+                deselectAll();
+                await loadImages();
+            } catch (e) {
+                showNotification('Bulk reset failed', 'error');
+            }
+        }
+
+        async function bulkDelete() {
+            if (selectedImages.size === 0) return;
+            if (!confirm(`DELETE ${selectedImages.size} images? This cannot be undone!`)) return;
+
+            try {
+                const res = await fetch('/api/batch/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: [...selectedImages] })
+                });
+                const data = await res.json();
+                showNotification(`Deleted: ${data.success?.length || 0}, Failed: ${data.failed?.length || 0}`, 'success');
+                deselectAll();
+                await loadImages();
+            } catch (e) {
+                showNotification('Bulk delete failed', 'error');
+            }
+        }
+
+        function bulkDownload() {
             showNotification(`Downloading ${selectedImages.size} images...`, 'info');
-            for (const id of selectedImages) {
-                await downloadImage(id);
-            }
-            showNotification('Download completed', 'success');
+            selectedImages.forEach(id => downloadImage(id));
         }
 
-        async function bulkAction(action) {
-            let success = 0;
-            let failed = 0;
-
-            for (const id of selectedImages) {
-                try {
-                    const res = await fetch(`/api/${action}/${id}`, {method: 'POST'});
-                    if (res.ok) {
-                        success++;
-                    } else {
-                        failed++;
-                    }
-                } catch (err) {
-                    failed++;
-                }
-            }
-
-            showNotification(`Bulk ${action}: ${success} succeeded, ${failed} failed`, success > 0 ? 'success' : 'error');
-            deselectAll();
-            await loadImages();
-        }
-
-        // Download functions
-        async function downloadImage(id) {
+        // Download
+        function downloadImage(id) {
             const img = images.find(i => i.id === id);
             if (!img) return;
-
             const link = document.createElement('a');
             link.href = img.path;
             link.download = img.filename;
@@ -1298,118 +1574,199 @@
         }
 
         function downloadCurrent() {
-            const id = previewImage.dataset.currentId;
+            const id = document.getElementById('preview-image').dataset.currentId;
             if (id) downloadImage(id);
         }
 
         // Preview modal
         function openPreview(id, path, filename) {
-            previewImage.src = path;
-            previewImage.dataset.currentId = id;
-            previewFilename.textContent = filename;
-            previewModal.classList.add('active');
-            previewModal.setAttribute('aria-hidden', 'false');
+            document.getElementById('preview-image').src = path;
+            document.getElementById('preview-image').dataset.currentId = id;
+            document.getElementById('preview-filename').textContent = filename;
+            document.getElementById('preview-modal').classList.add('active');
         }
 
         function closePreview() {
-            previewModal.classList.remove('active');
-            previewModal.setAttribute('aria-hidden', 'true');
+            document.getElementById('preview-modal').classList.remove('active');
         }
-
-        document.getElementById('preview-close').addEventListener('click', closePreview);
-        previewModal.addEventListener('click', (e) => {
-            if (e.target === previewModal) closePreview();
-        });
 
         // Publish modal
         function openPublishModal(id) {
             pendingPublishId = id;
-            publishTitleInput.value = `Design ${id.substring(0, 8)}`;
-            publishDescription.value = '';
-            publishPrice.value = '';
-            publishPreset.value = 'default';
-            publishBlueprint.value = '';
-            publishProvider.value = '';
-            updatePresetFields();
-            publishModal.classList.add('active');
-            publishModal.setAttribute('aria-hidden', 'false');
+            const img = images.find(i => i.id === id);
+            document.getElementById('publish-title').value = img?.title || `Design ${id.substring(0, 8)}`;
+            document.getElementById('publish-desc').value = '';
+            document.getElementById('publish-price').value = '';
+            document.getElementById('publish-preset').value = 'default';
+            document.getElementById('publish-blueprint').value = '';
+            document.getElementById('publish-provider').value = '';
+            updatePublishPreset();
+            document.getElementById('publish-modal').classList.add('active');
         }
 
         function closePublishModal() {
             pendingPublishId = null;
-            publishModal.classList.remove('active');
-            publishModal.setAttribute('aria-hidden', 'true');
-            publishSubmit.disabled = false;
+            document.getElementById('publish-modal').classList.remove('active');
         }
 
-        function updatePresetFields() {
-            const preset = publishPreset.value;
-            const presets = {
-                tshirt: { blueprint: 3, provider: 99 },
-                hoodie: { blueprint: 165, provider: 99 }
-            };
+        function updatePublishPreset() {
+            const preset = document.getElementById('publish-preset').value;
+            const presets = { tshirt: { b: 3, p: 99 }, hoodie: { b: 165, p: 99 } };
+            const bp = document.getElementById('publish-blueprint');
+            const pv = document.getElementById('publish-provider');
 
-            if (preset === 'tshirt' || preset === 'hoodie') {
-                publishBlueprint.value = presets[preset].blueprint;
-                publishProvider.value = presets[preset].provider;
-                publishBlueprint.readOnly = true;
-                publishProvider.readOnly = true;
+            if (presets[preset]) {
+                bp.value = presets[preset].b;
+                pv.value = presets[preset].p;
+                bp.readOnly = true;
+                pv.readOnly = true;
             } else if (preset === 'custom') {
-                publishBlueprint.readOnly = false;
-                publishProvider.readOnly = false;
+                bp.readOnly = false;
+                pv.readOnly = false;
             } else {
-                publishBlueprint.value = '';
-                publishProvider.value = '';
-                publishBlueprint.readOnly = true;
-                publishProvider.readOnly = true;
+                bp.value = '';
+                pv.value = '';
+                bp.readOnly = true;
+                pv.readOnly = true;
             }
         }
 
-        publishPreset.addEventListener('change', updatePresetFields);
-        document.getElementById('publish-close').addEventListener('click', closePublishModal);
-        document.getElementById('publish-cancel').addEventListener('click', closePublishModal);
-        publishModal.addEventListener('click', (e) => {
-            if (e.target === publishModal) closePublishModal();
-        });
-
-        publishForm.addEventListener('submit', async (e) => {
+        // Generate form
+        async function handleGenerate(e) {
             e.preventDefault();
+            const submit = document.getElementById('gen-submit');
+            const status = document.getElementById('gen-status');
 
-            if (!pendingPublishId) return;
-
-            const payload = {
-                title: publishTitleInput.value.trim(),
-            };
-
-            if (publishDescription.value.trim()) {
-                payload.description = publishDescription.value.trim();
-            }
-
-            const priceValue = parseFloat(publishPrice.value);
-            if (!Number.isNaN(priceValue)) {
-                payload.price_cents = Math.round(priceValue * 100);
-            }
-
-            const blueprintValue = parseInt(publishBlueprint.value, 10);
-            const providerValue = parseInt(publishProvider.value, 10);
-            if (!Number.isNaN(blueprintValue)) {
-                payload.blueprint_id = blueprintValue;
-            }
-            if (!Number.isNaN(providerValue)) {
-                payload.provider_id = providerValue;
-            }
-
-            if (!payload.title) {
-                showNotification('Product title is required', 'error');
+            const prompt = document.getElementById('gen-prompt').value.trim();
+            if (!prompt) {
+                showNotification('Prompt is required', 'error');
                 return;
             }
 
-            publishSubmit.disabled = true;
+            submit.disabled = true;
+            status.textContent = 'Generating...';
+
+            const payload = {
+                prompt,
+                preset: document.getElementById('gen-preset').value,
+                style: document.getElementById('gen-style').value,
+                genre: document.getElementById('gen-genre').value,
+                width: parseInt(document.getElementById('gen-width').value) || 1024,
+                height: parseInt(document.getElementById('gen-height').value) || 1024,
+                steps: parseInt(document.getElementById('gen-steps').value) || 30,
+                upscale: document.getElementById('gen-upscale').checked,
+                enhance_for_pod: document.getElementById('gen-enhance').checked
+            };
+
+            const seed = document.getElementById('gen-seed').value;
+            if (seed) payload.seed = parseInt(seed);
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                if (data.status === 'COMPLETED') {
+                    status.textContent = `Complete! ${data.images?.length || 0} image(s) saved`;
+                    showNotification('Image generated!', 'success');
+                    await loadImages();
+                } else if (data.job_id) {
+                    currentJobId = data.job_id;
+                    status.textContent = `Queued: ${data.job_id}`;
+                    showNotification('Generation started', 'info');
+                    startJobPolling();
+                }
+            } catch (e) {
+                status.textContent = 'Failed';
+                showNotification(e.message || 'Generation failed', 'error');
+            } finally {
+                submit.disabled = false;
+            }
+        }
+
+        // Batch generate form
+        async function handleBatchGenerate(e) {
+            e.preventDefault();
+            const submit = document.getElementById('batch-submit');
+            const status = document.getElementById('batch-status');
+
+            const promptsText = document.getElementById('batch-prompts').value.trim();
+            const prompts = promptsText.split('\n').map(p => p.trim()).filter(p => p);
+
+            if (prompts.length === 0) {
+                showNotification('Enter at least one prompt', 'error');
+                return;
+            }
+
+            submit.disabled = true;
+            status.textContent = 'Generating batch...';
+
+            const payload = {
+                prompts,
+                preset: document.getElementById('batch-preset').value,
+                genre: document.getElementById('batch-genre').value,
+                variations: parseInt(document.getElementById('batch-variations').value) || 1,
+                upscale: document.getElementById('batch-upscale').checked,
+                enhance_for_pod: document.getElementById('batch-enhance').checked
+            };
+
+            try {
+                const res = await fetch('/api/batch/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                const success = data.success?.length || 0;
+                const queued = data.queued?.length || 0;
+                const failed = data.failed?.length || 0;
+
+                status.textContent = `Done: ${success} complete, ${queued} queued, ${failed} failed`;
+                showNotification(`Batch: ${success} complete, ${queued} queued`, 'success');
+                await loadImages();
+            } catch (e) {
+                status.textContent = 'Failed';
+                showNotification(e.message || 'Batch generation failed', 'error');
+            } finally {
+                submit.disabled = false;
+            }
+        }
+
+        // Publish form
+        async function handlePublish(e) {
+            e.preventDefault();
+            if (!pendingPublishId) return;
+
+            const submit = document.getElementById('publish-submit');
+            submit.disabled = true;
+
+            const payload = {
+                title: document.getElementById('publish-title').value.trim()
+            };
+
+            const desc = document.getElementById('publish-desc').value.trim();
+            if (desc) payload.description = desc;
+
+            const price = parseFloat(document.getElementById('publish-price').value);
+            if (!isNaN(price)) payload.price_cents = Math.round(price * 100);
+
+            const bp = parseInt(document.getElementById('publish-blueprint').value);
+            const pv = parseInt(document.getElementById('publish-provider').value);
+            if (!isNaN(bp)) payload.blueprint_id = bp;
+            if (!isNaN(pv)) payload.provider_id = pv;
 
             try {
                 const res = await fetch(`/api/publish/${pendingPublishId}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
@@ -1418,142 +1775,152 @@
                     closePublishModal();
                     await loadImages();
                 } else {
-                    const error = await res.json();
-                    showNotification(`Error: ${error.error || 'Unknown error'}`, 'error');
-                    publishSubmit.disabled = false;
+                    const err = await res.json();
+                    showNotification(err.error || 'Publish failed', 'error');
                 }
-            } catch (err) {
-                showNotification(`Failed: ${err.message}`, 'error');
-                publishSubmit.disabled = false;
+            } catch (e) {
+                showNotification('Publish failed', 'error');
+            } finally {
+                submit.disabled = false;
             }
-        });
+        }
 
-        // Prompter form
-        prompterForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Job polling
+        function startJobPolling() {
+            if (jobPollInterval) clearInterval(jobPollInterval);
+            jobPollInterval = setInterval(pollJobStatus, 4000);
+        }
 
-            const prompt = promptInput.value.trim();
-            const style = promptStyle.value;
-            const genre = promptGenre.value;
-
-            if (!prompt) {
-                setPrompterStatus('Prompt is required', 'error');
-                setPrompterDetail('Please enter a prompt before generating.');
+        async function pollJobStatus() {
+            if (!currentJobId) {
+                clearInterval(jobPollInterval);
                 return;
             }
 
-            prompterSubmit.disabled = true;
-            setPrompterStatus('Submitting prompt...');
-            setPrompterDetail('Queueing ComfyUI generation.');
-
             try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, style, genre })
-                });
-
+                const res = await fetch(`/api/runpod_status?job_id=${currentJobId}`);
                 const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Failed to queue prompt');
+
+                if (data.status === 'COMPLETED') {
+                    document.getElementById('gen-status').textContent = `Complete! ${data.images?.length || 0} image(s)`;
+                    showNotification('Image generated!', 'success');
+                    currentJobId = null;
+                    clearInterval(jobPollInterval);
+                    await loadImages();
+                } else if (data.status === 'FAILED') {
+                    document.getElementById('gen-status').textContent = 'Generation failed';
+                    showNotification('Generation failed', 'error');
+                    currentJobId = null;
+                    clearInterval(jobPollInterval);
                 }
-
-                if (data.source === 'runpod') {
-                    if (data.status === 'COMPLETED') {
-                        setPrompterStatus('Generation complete', 'success');
-                        setPrompterDetail(`Saved ${data.images?.length || 0} image(s).`);
-                        showNotification('Image generation completed!', 'success');
-                        await loadImages();
-                    } else {
-                        currentRunpodJobId = data.job_id || data.prompt_id;
-                        setPrompterStatus('Queued', 'success');
-                        setPrompterDetail(`RunPod job queued: ${currentRunpodJobId}`);
-                        showNotification('Generation started', 'info');
-
-                        if (runpodInterval) {
-                            clearInterval(runpodInterval);
-                        }
-                        runpodInterval = setInterval(pollRunpodStatus, 4000);
-                    }
-                } else {
-                    currentPromptId = data.prompt_id;
-                    setPrompterStatus('Queued', 'success');
-                    setPrompterDetail(`Prompt queued: ${currentPromptId}`);
-                    showNotification('Generation started', 'info');
-
-                    if (statusInterval) {
-                        clearInterval(statusInterval);
-                    }
-                    statusInterval = setInterval(pollGenerationStatus, 2000);
-                }
-            } catch (err) {
-                setPrompterStatus('Queue failed', 'error');
-                setPrompterDetail(err.message || 'Unable to reach ComfyUI.');
-                showNotification('Failed to start generation', 'error');
-            } finally {
-                prompterSubmit.disabled = false;
+            } catch (e) {
+                console.error('Poll failed:', e);
             }
-        });
+        }
 
-        // Filter buttons
-        document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentFilter = btn.dataset.filter;
+        // Auto refresh
+        function startAutoRefresh() {
+            if (autoRefresh.checked) {
+                autoRefreshInterval = setInterval(loadImages, 10000);
+            }
+        }
+
+        // Tabs
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+            document.getElementById('gallery-panel').style.display = tab === 'gallery' ? 'block' : 'none';
+            document.getElementById('generate-panel').style.display = tab === 'generate' ? 'block' : 'none';
+            document.getElementById('batch-panel').style.display = tab === 'batch' ? 'block' : 'none';
+        }
+
+        // Toggle panel
+        function togglePanel(header) {
+            header.closest('.panel').classList.toggle('collapsed');
+        }
+
+        // Toggle advanced options
+        function toggleAdvanced(id) {
+            document.getElementById(id).classList.toggle('show');
+        }
+
+        // Notification
+        function showNotification(message, type = 'info') {
+            const notif = document.createElement('div');
+            notif.className = `notification ${type}`;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 4000);
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            // Filters
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    renderGallery();
+                });
+            });
+
+            // Search
+            searchBox.addEventListener('input', (e) => {
+                searchQuery = e.target.value;
                 renderGallery();
             });
-        });
 
-        // Search and sort
-        searchBox.addEventListener('input', (e) => {
-            searchQuery = e.target.value;
-            renderGallery();
-        });
+            // Sort
+            sortSelect.addEventListener('change', (e) => {
+                sortOrder = e.target.value;
+                renderGallery();
+            });
 
-        sortSelect.addEventListener('change', (e) => {
-            sortOrder = e.target.value;
-            renderGallery();
-        });
-
-        // Auto-refresh toggle
-        autoRefreshToggle.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                autoRefreshInterval = setInterval(loadImages, 10000);
-                showNotification('Auto-refresh enabled', 'info');
-            } else {
-                if (autoRefreshInterval) {
-                    clearInterval(autoRefreshInterval);
-                    autoRefreshInterval = null;
-                }
-                showNotification('Auto-refresh disabled', 'info');
-            }
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + A: Select all
-            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
-                e.preventDefault();
-                selectAll();
-            }
-            // Escape: Close modals or deselect
-            if (e.key === 'Escape') {
-                if (publishModal.classList.contains('active')) {
-                    closePublishModal();
-                } else if (previewModal.classList.contains('active')) {
-                    closePreview();
+            // Auto refresh toggle
+            autoRefresh.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    autoRefreshInterval = setInterval(loadImages, 10000);
+                    showNotification('Auto-refresh enabled', 'info');
                 } else {
+                    clearInterval(autoRefreshInterval);
+                    showNotification('Auto-refresh disabled', 'info');
+                }
+            });
+
+            // Forms
+            document.getElementById('generate-form').addEventListener('submit', handleGenerate);
+            document.getElementById('batch-form').addEventListener('submit', handleBatchGenerate);
+            document.getElementById('publish-form').addEventListener('submit', handlePublish);
+            document.getElementById('publish-preset').addEventListener('change', updatePublishPreset);
+
+            // Modal close on backdrop click
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                    }
+                });
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
+                    e.preventDefault();
+                    selectAll();
+                }
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
                     deselectAll();
                 }
-            }
-        });
-
-        // Initial load
-        loadImages();
-
-        // Start auto-refresh
-        autoRefreshInterval = setInterval(loadImages, 10000);
+            });
+        }
     </script>
 </body>
 </html>
