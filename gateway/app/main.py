@@ -185,6 +185,364 @@ POD_STYLE_PRESETS = {
 # POD quality enhancement suffixes
 POD_QUALITY_SUFFIX = "high quality design suitable for print on demand, clean edges, transparent background friendly, centered composition, professional artwork"
 
+# ============================================================================
+# AUTO-PROMPTING SYSTEM FOR POD
+# ============================================================================
+
+import random
+
+# POD Niche subjects - popular categories for merchandise
+POD_SUBJECTS = {
+    "animals": [
+        "majestic wolf howling at the moon",
+        "fierce lion with a crown",
+        "cute cat with sunglasses",
+        "wise owl in a forest",
+        "playful dog with a bandana",
+        "mythical phoenix rising from flames",
+        "elegant horse running free",
+        "adorable panda eating bamboo",
+        "powerful eagle soaring",
+        "mystical dragon breathing fire",
+        "lazy sloth hanging from a branch",
+        "curious fox in autumn leaves",
+        "graceful deer in moonlight",
+        "tropical parrot with vibrant colors",
+        "underwater octopus with tentacles"
+    ],
+    "nature": [
+        "mountain landscape at sunset",
+        "ocean waves crashing on rocks",
+        "peaceful forest with sunbeams",
+        "desert cactus under starry sky",
+        "cherry blossom tree in spring",
+        "northern lights aurora borealis",
+        "tropical beach with palm trees",
+        "misty waterfall in jungle",
+        "autumn leaves falling",
+        "snowy mountain peak",
+        "wildflower meadow at golden hour",
+        "lightning storm over canyon",
+        "rainbow over green hills",
+        "coral reef underwater scene",
+        "full moon rising over lake"
+    ],
+    "typography": [
+        "Stay Wild",
+        "Good Vibes Only",
+        "Dream Big",
+        "Be Kind",
+        "Adventure Awaits",
+        "Stay Humble Hustle Hard",
+        "Live Laugh Love",
+        "No Bad Days",
+        "Coffee First",
+        "Weekend Warrior",
+        "Stay Positive",
+        "Born to be Wild",
+        "Choose Joy",
+        "Never Give Up",
+        "Make It Happen"
+    ],
+    "motivational": [
+        "silhouette of person on mountain top achieving goals",
+        "compass pointing north with adventure theme",
+        "rising sun symbolizing new beginnings",
+        "butterfly transformation metamorphosis",
+        "rocket launching into space dreams",
+        "tree growing from small seed",
+        "lighthouse guiding through storm",
+        "arrow breaking through barriers",
+        "phoenix rising symbolizing rebirth",
+        "lion representing courage and strength"
+    ],
+    "fantasy": [
+        "magical wizard casting spell",
+        "fairy in enchanted garden",
+        "unicorn in mystical forest",
+        "knight fighting dragon",
+        "mermaid under the sea",
+        "mystical crystal cave",
+        "floating castle in clouds",
+        "ancient tree of life",
+        "magical potion bottles",
+        "enchanted sword with runes"
+    ],
+    "space": [
+        "astronaut floating in space",
+        "galaxy spiral with stars",
+        "planets aligned in solar system",
+        "rocket ship exploring cosmos",
+        "alien landscape with two moons",
+        "nebula clouds colorful cosmic",
+        "black hole with light bending",
+        "space station orbiting earth",
+        "meteor shower across night sky",
+        "astronaut on moon surface"
+    ],
+    "retro": [
+        "vintage car on sunset highway",
+        "old school boombox with cassettes",
+        "retro arcade game machine",
+        "vinyl record player spinning",
+        "80s roller skating disco",
+        "vintage television with antenna",
+        "classic motorcycle chopper",
+        "retro diner with neon signs",
+        "old camera with film roll",
+        "vintage surfboard on beach"
+    ],
+    "skulls": [
+        "sugar skull dia de los muertos",
+        "floral skull with roses",
+        "geometric skull modern art",
+        "pirate skull with crossbones",
+        "neon skull cyberpunk style",
+        "skull with crown royal",
+        "skull made of flowers",
+        "viking skull with helmet",
+        "crystal skull mystical",
+        "skull with butterfly transformation"
+    ],
+    "sports": [
+        "basketball player slam dunk silhouette",
+        "soccer ball on fire",
+        "surfing big wave action",
+        "skateboard tricks aerial",
+        "mountain bike extreme downhill",
+        "boxing gloves crossed",
+        "golf ball on tee sunrise",
+        "tennis racket smashing ball",
+        "swimming freestyle motion",
+        "yoga pose meditation silhouette"
+    ],
+    "food": [
+        "pizza slice dripping cheese",
+        "coffee cup with steam heart",
+        "sushi roll arrangement",
+        "ice cream cone melting",
+        "burger stacked tall",
+        "donut with colorful sprinkles",
+        "tacos with all toppings",
+        "avocado toast trendy",
+        "ramen bowl steaming",
+        "cocktail with umbrella tropical"
+    ],
+    "music": [
+        "electric guitar with lightning",
+        "headphones with sound waves",
+        "piano keys abstract art",
+        "microphone with music notes",
+        "drums set explosive",
+        "vinyl DJ turntable spinning",
+        "saxophone with jazz notes",
+        "rock hand sign devil horns",
+        "music equalizer bars",
+        "concert crowd silhouette"
+    ],
+    "gaming": [
+        "retro game controller pixel art",
+        "gaming headset with RGB lights",
+        "dice rolling tabletop",
+        "chess pieces strategic",
+        "poker cards royal flush",
+        "arcade joystick classic",
+        "gaming mouse and keyboard",
+        "virtual reality headset",
+        "level up text gaming",
+        "respawn gaming text"
+    ],
+    "holidays": [
+        "Christmas tree with ornaments",
+        "Halloween pumpkin jack o lantern",
+        "Easter bunny with eggs",
+        "Thanksgiving turkey feast",
+        "Valentine hearts and roses",
+        "St Patrick shamrock lucky",
+        "Fourth of July fireworks",
+        "New Year countdown celebration",
+        "Hanukkah menorah candles",
+        "Day of the Dead calavera"
+    ],
+    "professions": [
+        "nurse healthcare hero",
+        "firefighter in action",
+        "teacher inspiring minds",
+        "chef cooking flames",
+        "mechanic with tools",
+        "programmer coding matrix",
+        "doctor medical symbol",
+        "police officer badge",
+        "pilot aviator wings",
+        "scientist laboratory"
+    ]
+}
+
+# Style modifiers for variety
+POD_STYLE_MODIFIERS = [
+    "detailed illustration",
+    "minimalist design",
+    "watercolor painting",
+    "vector art style",
+    "vintage retro look",
+    "neon glow effect",
+    "hand drawn sketch",
+    "geometric shapes",
+    "graffiti street art",
+    "psychedelic colors",
+    "line art outline",
+    "silhouette design",
+    "comic book style",
+    "abstract artistic",
+    "realistic detailed"
+]
+
+# Color schemes
+POD_COLOR_SCHEMES = [
+    "vibrant rainbow colors",
+    "black and white monochrome",
+    "pastel soft colors",
+    "neon bright colors",
+    "earth tones natural",
+    "sunset orange and purple",
+    "ocean blue and teal",
+    "forest green shades",
+    "warm autumn colors",
+    "cool winter blues",
+    "gold and black luxury",
+    "pink and purple gradient",
+    "red and black bold",
+    "tropical bright colors",
+    "muted vintage palette"
+]
+
+# Seasonal themes
+POD_SEASONAL = {
+    "spring": ["blooming flowers", "butterflies", "rain showers", "baby animals", "fresh green"],
+    "summer": ["beach vibes", "tropical", "sunshine", "vacation", "pool party"],
+    "fall": ["autumn leaves", "pumpkin spice", "harvest", "cozy sweater", "halloween"],
+    "winter": ["snowflakes", "cozy fireplace", "holiday spirit", "skiing", "hot cocoa"]
+}
+
+# Trending niches
+POD_TRENDING = [
+    "cottagecore aesthetic",
+    "dark academia",
+    "Y2K nostalgia",
+    "goblincore nature",
+    "vaporwave aesthetic",
+    "witchy vibes",
+    "plant parent",
+    "book lover",
+    "true crime obsessed",
+    "astrology zodiac",
+    "mental health awareness",
+    "LGBTQ pride",
+    "introvert life",
+    "dog mom dog dad",
+    "cat lover crazy"
+]
+
+
+def generate_auto_prompt(
+    niche: str = None,
+    style: str = None,
+    color_scheme: str = None,
+    season: str = None,
+    trending: bool = False,
+    count: int = 1
+) -> list:
+    """
+    Generate automatic POD prompts based on parameters.
+
+    Args:
+        niche: Specific niche category (animals, nature, typography, etc.)
+        style: Style modifier to apply
+        color_scheme: Color scheme to use
+        season: Seasonal theme (spring, summer, fall, winter)
+        trending: Whether to include trending themes
+        count: Number of prompts to generate
+
+    Returns:
+        List of generated prompts
+    """
+    prompts = []
+
+    for _ in range(count):
+        parts = []
+
+        # Select subject based on niche or random
+        if niche and niche.lower() in POD_SUBJECTS:
+            subject = random.choice(POD_SUBJECTS[niche.lower()])
+        else:
+            # Random niche
+            random_niche = random.choice(list(POD_SUBJECTS.keys()))
+            subject = random.choice(POD_SUBJECTS[random_niche])
+
+        parts.append(subject)
+
+        # Add style modifier
+        if style:
+            parts.append(style)
+        else:
+            parts.append(random.choice(POD_STYLE_MODIFIERS))
+
+        # Add color scheme
+        if color_scheme:
+            parts.append(color_scheme)
+        else:
+            # 50% chance to add color scheme
+            if random.random() > 0.5:
+                parts.append(random.choice(POD_COLOR_SCHEMES))
+
+        # Add seasonal theme
+        if season and season.lower() in POD_SEASONAL:
+            seasonal_modifier = random.choice(POD_SEASONAL[season.lower()])
+            parts.append(seasonal_modifier)
+
+        # Add trending theme
+        if trending:
+            trend = random.choice(POD_TRENDING)
+            parts.append(trend)
+
+        prompt = ", ".join(parts)
+        prompts.append(prompt)
+
+    return prompts
+
+
+def expand_prompt(base_prompt: str, variations: int = 5) -> list:
+    """
+    Expand a base prompt into multiple variations.
+
+    Args:
+        base_prompt: The base prompt to expand
+        variations: Number of variations to generate
+
+    Returns:
+        List of prompt variations
+    """
+    expanded = []
+
+    for _ in range(variations):
+        parts = [base_prompt]
+
+        # Add random style
+        parts.append(random.choice(POD_STYLE_MODIFIERS))
+
+        # Add random color scheme (50% chance)
+        if random.random() > 0.5:
+            parts.append(random.choice(POD_COLOR_SCHEMES))
+
+        # Add random preset style (30% chance)
+        if random.random() > 0.7:
+            preset_name = random.choice(list(POD_STYLE_PRESETS.keys()))
+            parts.append(POD_STYLE_PRESETS[preset_name])
+
+        expanded.append(", ".join(parts))
+
+    return expanded
+
 
 def build_prompt_text(
     prompt: str,
@@ -1338,6 +1696,211 @@ def list_presets():
         ],
         "count": len(POD_STYLE_PRESETS)
     })
+
+
+# ============================================================================
+# AUTO-PROMPTING ENDPOINTS
+# ============================================================================
+
+@app.route('/api/auto-prompt', methods=['GET', 'POST'])
+def auto_prompt():
+    """
+    Generate automatic POD prompts.
+
+    Query params or JSON body:
+        niche: Niche category (animals, nature, typography, etc.)
+        style: Style modifier
+        color_scheme: Color scheme
+        season: Seasonal theme (spring, summer, fall, winter)
+        trending: Include trending themes (true/false)
+        count: Number of prompts to generate (default 1, max 20)
+
+    Returns:
+        JSON with generated prompts
+    """
+    if request.method == 'POST':
+        data = request.get_json() or {}
+    else:
+        data = request.args.to_dict()
+
+    niche = data.get("niche")
+    style = data.get("style")
+    color_scheme = data.get("color_scheme")
+    season = data.get("season")
+    trending = str(data.get("trending", "false")).lower() == "true"
+    count = min(int(data.get("count", 1)), 20)
+
+    prompts = generate_auto_prompt(
+        niche=niche,
+        style=style,
+        color_scheme=color_scheme,
+        season=season,
+        trending=trending,
+        count=count
+    )
+
+    return jsonify({
+        "prompts": prompts,
+        "count": len(prompts),
+        "options": {
+            "niche": niche,
+            "style": style,
+            "color_scheme": color_scheme,
+            "season": season,
+            "trending": trending
+        }
+    })
+
+
+@app.route('/api/auto-prompt/expand', methods=['POST'])
+def expand_prompt_endpoint():
+    """
+    Expand a base prompt into multiple variations.
+
+    JSON body:
+        prompt: Base prompt to expand
+        variations: Number of variations (default 5, max 10)
+
+    Returns:
+        JSON with expanded prompts
+    """
+    data = request.get_json() or {}
+    base_prompt = (data.get("prompt") or "").strip()
+    variations = min(int(data.get("variations", 5)), 10)
+
+    if not base_prompt:
+        return jsonify({"error": "Prompt is required"}), 400
+
+    prompts = expand_prompt(base_prompt, variations)
+
+    return jsonify({
+        "base_prompt": base_prompt,
+        "variations": prompts,
+        "count": len(prompts)
+    })
+
+
+@app.route('/api/auto-prompt/niches')
+def list_niches():
+    """List available POD niches and their subjects."""
+    return jsonify({
+        "niches": {
+            name: {
+                "count": len(subjects),
+                "examples": subjects[:3]
+            }
+            for name, subjects in POD_SUBJECTS.items()
+        },
+        "total_niches": len(POD_SUBJECTS)
+    })
+
+
+@app.route('/api/auto-prompt/options')
+def list_prompt_options():
+    """List all available auto-prompt options."""
+    return jsonify({
+        "niches": list(POD_SUBJECTS.keys()),
+        "styles": POD_STYLE_MODIFIERS,
+        "color_schemes": POD_COLOR_SCHEMES,
+        "seasons": list(POD_SEASONAL.keys()),
+        "trending": POD_TRENDING,
+        "presets": list(POD_STYLE_PRESETS.keys())
+    })
+
+
+@app.route('/api/auto-prompt/generate-batch', methods=['POST'])
+def auto_generate_batch():
+    """
+    Generate and immediately queue images from auto-generated prompts.
+
+    JSON body:
+        niche: Niche category
+        style: Style modifier
+        preset: Style preset name
+        count: Number of images to generate (default 5, max 10)
+        upscale: Whether to upscale (default true)
+        enhance_for_pod: Add POD quality suffix (default true)
+
+    Returns:
+        JSON with generation results
+    """
+    data = request.get_json() or {}
+
+    niche = data.get("niche")
+    style = data.get("style")
+    preset = data.get("preset", "")
+    color_scheme = data.get("color_scheme")
+    season = data.get("season")
+    trending = data.get("trending", False)
+    count = min(int(data.get("count", 5)), 10)
+    upscale = data.get("upscale", True)
+    enhance = data.get("enhance_for_pod", True)
+
+    # Generate prompts
+    prompts = generate_auto_prompt(
+        niche=niche,
+        style=style,
+        color_scheme=color_scheme,
+        season=season,
+        trending=trending,
+        count=count
+    )
+
+    # Use batch generate internally
+    results = {"success": [], "failed": [], "queued": [], "prompts_generated": prompts}
+
+    for prompt_text in prompts:
+        try:
+            full_prompt = build_prompt_text(
+                prompt_text,
+                preset=preset,
+                enhance_for_pod=enhance
+            )
+
+            workflow = build_comfyui_workflow(
+                full_prompt,
+                seed=None,
+                width=1024,
+                height=1024,
+                steps=30,
+                cfg_scale=1.0,
+                upscale=upscale
+            )
+
+            client_id = f"pod-gateway-auto-{uuid.uuid4().hex[:8]}"
+
+            if comfyui_client:
+                result = comfyui_client.submit_workflow(workflow, client_id, timeout=300)
+
+                if result.get("status") == "COMPLETED":
+                    output = result.get("output", {})
+                    saved_images = save_runpod_output_images(output, prompt=full_prompt)
+                    results["success"].append({
+                        "prompt": prompt_text,
+                        "images": saved_images
+                    })
+                elif result.get("status") in ["IN_QUEUE", "IN_PROGRESS"]:
+                    results["queued"].append({
+                        "prompt": prompt_text,
+                        "job_id": result.get("job_id")
+                    })
+                else:
+                    results["failed"].append({
+                        "prompt": prompt_text,
+                        "error": result.get("error", "Generation failed")
+                    })
+            else:
+                results["failed"].append({
+                    "prompt": prompt_text,
+                    "error": "No generation client configured"
+                })
+
+        except Exception as e:
+            logger.error(f"Auto-generate error: {e}")
+            results["failed"].append({"prompt": prompt_text, "error": str(e)})
+
+    logger.info(f"Auto-generate batch: {len(results['success'])} succeeded, {len(results['queued'])} queued, {len(results['failed'])} failed")
+    return jsonify(results)
 
 
 # ============================================================================

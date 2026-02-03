@@ -901,6 +901,7 @@
         <div class="tabs">
             <button class="tab active" data-tab="gallery">Gallery</button>
             <button class="tab" data-tab="generate">Generate</button>
+            <button class="tab" data-tab="auto">Auto-Prompt</button>
             <button class="tab" data-tab="batch">Batch Generate</button>
         </div>
 
@@ -991,6 +992,96 @@
                         <span id="gen-status" class="form-hint">Ready to generate</span>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Auto-Prompt Panel -->
+        <div class="panel" id="auto-panel" style="display: none;">
+            <div class="panel-header" onclick="togglePanel(this)">
+                <div class="panel-title">
+                    <span class="panel-title-icon">*</span>
+                    <span>Auto-Prompt Generator</span>
+                </div>
+                <span class="panel-toggle">v</span>
+            </div>
+            <div class="panel-content">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    Generate POD-optimized prompts automatically based on niche, style, and trending themes.
+                </p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Niche Category</label>
+                        <select id="auto-niche" class="form-select">
+                            <option value="">Random niche</option>
+                        </select>
+                        <span class="form-hint">Popular POD categories</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Style</label>
+                        <select id="auto-style" class="form-select">
+                            <option value="">Random style</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Color Scheme</label>
+                        <select id="auto-color" class="form-select">
+                            <option value="">Random/None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Season</label>
+                        <select id="auto-season" class="form-select">
+                            <option value="">Any season</option>
+                            <option value="spring">Spring</option>
+                            <option value="summer">Summer</option>
+                            <option value="fall">Fall</option>
+                            <option value="winter">Winter</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Style Preset</label>
+                        <select id="auto-preset" class="form-select">
+                            <option value="">No preset</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Count</label>
+                        <select id="auto-count" class="form-select">
+                            <option value="1">1 image</option>
+                            <option value="3">3 images</option>
+                            <option value="5" selected>5 images</option>
+                            <option value="10">10 images</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="auto-trending">
+                            <span>Include trending themes</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-checkbox">
+                            <input type="checkbox" id="auto-upscale" checked>
+                            <span>4x Upscale</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-ghost" onclick="previewAutoPrompts()">Preview Prompts</button>
+                    <button type="button" class="btn btn-primary" onclick="generateAutoPrompts()">Generate Images</button>
+                    <span id="auto-status" class="form-hint">Ready</span>
+                </div>
+
+                <!-- Preview area -->
+                <div id="auto-preview" style="margin-top: 20px; display: none;">
+                    <label class="form-label">Generated Prompts Preview</label>
+                    <div id="auto-preview-list" style="background: var(--bg-primary); border-radius: var(--radius-sm); padding: 12px; max-height: 200px; overflow-y: auto; font-size: 0.85em; color: var(--text-secondary);"></div>
+                    <div style="margin-top: 12px;">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="copyAutoPrompts()">Copy All</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="sendToBatch()">Send to Batch</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1216,6 +1307,8 @@ Abstract geometric patterns in neon colors"></textarea>
         let currentJobId = null;
         let jobPollInterval = null;
         let rembgAvailable = false;
+        let autoPromptOptions = null;
+        let lastAutoPrompts = [];
 
         // DOM elements
         const gallery = document.getElementById('gallery');
@@ -1229,6 +1322,7 @@ Abstract geometric patterns in neon colors"></textarea>
         document.addEventListener('DOMContentLoaded', async () => {
             await checkRembgStatus();
             await loadPresets();
+            await loadAutoPromptOptions();
             await loadImages();
             setupEventListeners();
             startAutoRefresh();
@@ -1261,7 +1355,7 @@ Abstract geometric patterns in neon colors"></textarea>
         }
 
         function populatePresetDropdowns() {
-            const dropdowns = ['gen-preset', 'batch-preset'];
+            const dropdowns = ['gen-preset', 'batch-preset', 'auto-preset'];
             dropdowns.forEach(id => {
                 const select = document.getElementById(id);
                 if (!select) return;
@@ -1273,6 +1367,162 @@ Abstract geometric patterns in neon colors"></textarea>
                     select.appendChild(opt);
                 });
             });
+        }
+
+        // Load auto-prompt options
+        async function loadAutoPromptOptions() {
+            try {
+                const res = await fetch('/api/auto-prompt/options');
+                autoPromptOptions = await res.json();
+                populateAutoPromptDropdowns();
+            } catch (e) {
+                console.error('Failed to load auto-prompt options:', e);
+            }
+        }
+
+        function populateAutoPromptDropdowns() {
+            if (!autoPromptOptions) return;
+
+            // Populate niches
+            const nicheSelect = document.getElementById('auto-niche');
+            if (nicheSelect && autoPromptOptions.niches) {
+                autoPromptOptions.niches.forEach(niche => {
+                    const opt = document.createElement('option');
+                    opt.value = niche;
+                    opt.textContent = niche.charAt(0).toUpperCase() + niche.slice(1);
+                    nicheSelect.appendChild(opt);
+                });
+            }
+
+            // Populate styles
+            const styleSelect = document.getElementById('auto-style');
+            if (styleSelect && autoPromptOptions.styles) {
+                autoPromptOptions.styles.forEach(style => {
+                    const opt = document.createElement('option');
+                    opt.value = style;
+                    opt.textContent = style;
+                    styleSelect.appendChild(opt);
+                });
+            }
+
+            // Populate color schemes
+            const colorSelect = document.getElementById('auto-color');
+            if (colorSelect && autoPromptOptions.color_schemes) {
+                autoPromptOptions.color_schemes.forEach(color => {
+                    const opt = document.createElement('option');
+                    opt.value = color;
+                    opt.textContent = color;
+                    colorSelect.appendChild(opt);
+                });
+            }
+        }
+
+        // Auto-prompt functions
+        async function previewAutoPrompts() {
+            const status = document.getElementById('auto-status');
+            status.textContent = 'Generating prompts...';
+
+            const payload = {
+                niche: document.getElementById('auto-niche').value || null,
+                style: document.getElementById('auto-style').value || null,
+                color_scheme: document.getElementById('auto-color').value || null,
+                season: document.getElementById('auto-season').value || null,
+                trending: document.getElementById('auto-trending').checked,
+                count: parseInt(document.getElementById('auto-count').value)
+            };
+
+            try {
+                const res = await fetch('/api/auto-prompt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                lastAutoPrompts = data.prompts || [];
+
+                // Display preview
+                const previewDiv = document.getElementById('auto-preview');
+                const previewList = document.getElementById('auto-preview-list');
+                previewList.innerHTML = lastAutoPrompts.map((p, i) =>
+                    `<div style="padding: 8px; border-bottom: 1px solid var(--border-color);">${i + 1}. ${p}</div>`
+                ).join('');
+                previewDiv.style.display = 'block';
+
+                status.textContent = `Generated ${lastAutoPrompts.length} prompts`;
+                showNotification(`Generated ${lastAutoPrompts.length} prompts`, 'success');
+            } catch (e) {
+                status.textContent = 'Failed to generate prompts';
+                showNotification('Failed to generate prompts', 'error');
+            }
+        }
+
+        async function generateAutoPrompts() {
+            const status = document.getElementById('auto-status');
+            status.textContent = 'Generating images...';
+
+            const payload = {
+                niche: document.getElementById('auto-niche').value || null,
+                style: document.getElementById('auto-style').value || null,
+                color_scheme: document.getElementById('auto-color').value || null,
+                season: document.getElementById('auto-season').value || null,
+                trending: document.getElementById('auto-trending').checked,
+                preset: document.getElementById('auto-preset').value,
+                count: parseInt(document.getElementById('auto-count').value),
+                upscale: document.getElementById('auto-upscale').checked,
+                enhance_for_pod: true
+            };
+
+            try {
+                const res = await fetch('/api/auto-prompt/generate-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                const success = data.success?.length || 0;
+                const queued = data.queued?.length || 0;
+                const failed = data.failed?.length || 0;
+
+                status.textContent = `Done: ${success} complete, ${queued} queued, ${failed} failed`;
+                showNotification(`Auto-generate: ${success} complete, ${queued} queued`, 'success');
+
+                // Show generated prompts in preview
+                if (data.prompts_generated) {
+                    lastAutoPrompts = data.prompts_generated;
+                    const previewDiv = document.getElementById('auto-preview');
+                    const previewList = document.getElementById('auto-preview-list');
+                    previewList.innerHTML = lastAutoPrompts.map((p, i) =>
+                        `<div style="padding: 8px; border-bottom: 1px solid var(--border-color);">${i + 1}. ${p}</div>`
+                    ).join('');
+                    previewDiv.style.display = 'block';
+                }
+
+                await loadImages();
+            } catch (e) {
+                status.textContent = 'Failed';
+                showNotification('Auto-generate failed', 'error');
+            }
+        }
+
+        function copyAutoPrompts() {
+            if (lastAutoPrompts.length === 0) {
+                showNotification('No prompts to copy', 'warning');
+                return;
+            }
+            navigator.clipboard.writeText(lastAutoPrompts.join('\n'))
+                .then(() => showNotification('Prompts copied to clipboard', 'success'))
+                .catch(() => showNotification('Failed to copy', 'error'));
+        }
+
+        function sendToBatch() {
+            if (lastAutoPrompts.length === 0) {
+                showNotification('No prompts to send', 'warning');
+                return;
+            }
+            document.getElementById('batch-prompts').value = lastAutoPrompts.join('\n');
+            switchTab('batch');
+            showNotification(`${lastAutoPrompts.length} prompts sent to batch`, 'success');
         }
 
         // Load images
@@ -1912,6 +2162,7 @@ Abstract geometric patterns in neon colors"></textarea>
 
             document.getElementById('gallery-panel').style.display = tab === 'gallery' ? 'block' : 'none';
             document.getElementById('generate-panel').style.display = tab === 'generate' ? 'block' : 'none';
+            document.getElementById('auto-panel').style.display = tab === 'auto' ? 'block' : 'none';
             document.getElementById('batch-panel').style.display = tab === 'batch' ? 'block' : 'none';
         }
 
