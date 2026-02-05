@@ -2104,6 +2104,837 @@ def rembg_status():
     })
 
 
+# ============================================================================
+# PRODUCT TEMPLATES FOR MULTI-PRODUCT PUBLISHING
+# ============================================================================
+
+PRODUCT_TEMPLATES = {
+    "tshirt": {
+        "name": "T-Shirt",
+        "blueprint_id": 3,
+        "provider_id": 99,
+        "description": "Classic unisex t-shirt"
+    },
+    "hoodie": {
+        "name": "Hoodie",
+        "blueprint_id": 165,
+        "provider_id": 99,
+        "description": "Pullover hoodie"
+    },
+    "tank": {
+        "name": "Tank Top",
+        "blueprint_id": 30,
+        "provider_id": 99,
+        "description": "Unisex tank top"
+    },
+    "longsleeve": {
+        "name": "Long Sleeve",
+        "blueprint_id": 4,
+        "provider_id": 99,
+        "description": "Long sleeve t-shirt"
+    },
+    "sweatshirt": {
+        "name": "Sweatshirt",
+        "blueprint_id": 82,
+        "provider_id": 99,
+        "description": "Crewneck sweatshirt"
+    },
+    "mug": {
+        "name": "Mug",
+        "blueprint_id": 68,
+        "provider_id": 29,
+        "description": "11oz ceramic mug"
+    },
+    "poster": {
+        "name": "Poster",
+        "blueprint_id": 117,
+        "provider_id": 20,
+        "description": "Museum quality poster"
+    },
+    "sticker": {
+        "name": "Sticker",
+        "blueprint_id": 505,
+        "provider_id": 3,
+        "description": "Die-cut sticker"
+    },
+    "tote": {
+        "name": "Tote Bag",
+        "blueprint_id": 71,
+        "provider_id": 99,
+        "description": "Canvas tote bag"
+    },
+    "pillow": {
+        "name": "Throw Pillow",
+        "blueprint_id": 83,
+        "provider_id": 27,
+        "description": "Decorative throw pillow"
+    }
+}
+
+
+@app.route('/api/product-templates')
+def list_product_templates():
+    """List available product templates for multi-product publishing."""
+    return jsonify({
+        "templates": [
+            {"id": key, **value}
+            for key, value in PRODUCT_TEMPLATES.items()
+        ],
+        "count": len(PRODUCT_TEMPLATES)
+    })
+
+
+@app.route('/api/quick-publish/<image_id>', methods=['POST'])
+def quick_publish(image_id):
+    """
+    One-click publish using default settings.
+    Automatically approves if pending, then publishes with defaults.
+
+    Args:
+        image_id: Image identifier
+
+    Returns:
+        JSON with product ID or error
+    """
+    if not printify_client:
+        return jsonify({"success": False, "error": "Printify not configured"}), 400
+
+    # Validate image ID
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    # Get image path
+    image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+    if not os.path.exists(image_path):
+        return jsonify({"success": False, "error": "Image not found"}), 404
+
+    try:
+        # Get current status
+        status = state_manager.get_image_status(image_id)
+
+        # Auto-approve if pending
+        if status == ImageStatus.PENDING.value:
+            state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+            logger.info(f"Quick publish: auto-approved {image_id}")
+
+        # Get image state for title
+        all_images = state_manager.get_all_images()
+        image_state = all_images.get(image_id, {})
+        prompt = image_state.get("prompt", "")
+        title = prompt[:50].strip().title() if prompt else f"Design {image_id[:8]}"
+
+        # Mark as publishing
+        state_manager.set_image_status(image_id, ImageStatus.PUBLISHING.value)
+
+        # Publish with defaults
+        product_id = printify_client.create_and_publish(
+            image_path=image_path,
+            title=title,
+            blueprint_id=config.PRINTIFY_BLUEPRINT_ID,
+            provider_id=config.PRINTIFY_PROVIDER_ID,
+            price_cents=config.config.printify.default_price_cents
+        )
+
+        if product_id:
+            state_manager.set_image_status(image_id, ImageStatus.PUBLISHED.value, {
+                "product_id": product_id,
+                "title": title
+            })
+            logger.info(f"Quick publish successful: {image_id} -> {product_id}")
+            return jsonify({
+                "success": True,
+                "product_id": product_id,
+                "title": title,
+                "status": ImageStatus.PUBLISHED.value
+            })
+        else:
+            state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                "error_message": "Quick publish failed"
+            })
+            return jsonify({"success": False, "error": "Publish failed"}), 500
+
+    except Exception as e:
+        logger.error(f"Quick publish error for {image_id}: {e}", exc_info=True)
+        try:
+            state_manager.set_image_status(image_id, ImageStatus.FAILED.value, {
+                "error_message": str(e)
+            })
+        except Exception:
+            pass
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/multi-publish/<image_id>', methods=['POST'])
+def multi_publish(image_id):
+    """
+    Publish the same image to multiple product types.
+
+    Args:
+        image_id: Image identifier
+
+    Expected JSON body:
+    {
+        "products": ["tshirt", "hoodie", "mug"],  // Product template IDs
+        "title": "Optional custom title",
+        "price_cents": 1999  // Optional custom price
+    }
+
+    Returns:
+        JSON with results for each product
+    """
+    if not printify_client:
+        return jsonify({"success": False, "error": "Printify not configured"}), 400
+
+    # Validate image ID
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    # Get image path
+    image_path = os.path.join(config.IMAGE_DIR, f"{image_id}.png")
+    if not os.path.exists(image_path):
+        return jsonify({"success": False, "error": "Image not found"}), 404
+
+    try:
+        data = request.get_json() or {}
+        product_ids = data.get("products", ["tshirt"])  # Default to t-shirt
+        custom_title = data.get("title", "").strip()
+        price_cents = data.get("price_cents", config.config.printify.default_price_cents)
+
+        # Validate products
+        valid_products = [p for p in product_ids if p in PRODUCT_TEMPLATES]
+        if not valid_products:
+            return jsonify({"success": False, "error": "No valid product types specified"}), 400
+
+        # Get image state for title
+        all_images = state_manager.get_all_images()
+        image_state = all_images.get(image_id, {})
+        prompt = image_state.get("prompt", "")
+        base_title = custom_title or (prompt[:40].strip().title() if prompt else f"Design {image_id[:8]}")
+
+        # Auto-approve if needed
+        status = state_manager.get_image_status(image_id)
+        if status == ImageStatus.PENDING.value:
+            state_manager.set_image_status(image_id, ImageStatus.APPROVED.value)
+
+        # Upload image once
+        logger.info(f"Uploading image for multi-publish: {image_id}")
+        printify_image_id = printify_client.upload_image(image_path, f"{image_id}.png")
+
+        if not printify_image_id:
+            return jsonify({"success": False, "error": "Failed to upload image"}), 500
+
+        results = {"success": [], "failed": [], "image_id": image_id}
+
+        for product_key in valid_products:
+            template = PRODUCT_TEMPLATES[product_key]
+            product_title = f"{base_title} - {template['name']}"
+
+            try:
+                logger.info(f"Creating {template['name']} product...")
+
+                # Get variants for this blueprint/provider
+                variants = printify_client.get_blueprint_variants(
+                    template["blueprint_id"],
+                    template["provider_id"]
+                )
+                variant_ids = [v.id for v in variants if v.is_available][:100]
+
+                if not variant_ids:
+                    results["failed"].append({
+                        "product": product_key,
+                        "name": template["name"],
+                        "error": "No variants available"
+                    })
+                    continue
+
+                # Create product
+                product = printify_client.create_product(
+                    title=product_title,
+                    image_id=printify_image_id,
+                    blueprint_id=template["blueprint_id"],
+                    provider_id=template["provider_id"],
+                    price_cents=price_cents,
+                    variant_ids=variant_ids
+                )
+
+                if product and product.get("id"):
+                    # Publish the product
+                    publish_result = printify_client.publish_product(product["id"])
+                    results["success"].append({
+                        "product": product_key,
+                        "name": template["name"],
+                        "product_id": product["id"],
+                        "title": product_title,
+                        "published": publish_result
+                    })
+                else:
+                    results["failed"].append({
+                        "product": product_key,
+                        "name": template["name"],
+                        "error": "Failed to create product"
+                    })
+
+            except Exception as e:
+                logger.error(f"Multi-publish error for {product_key}: {e}")
+                results["failed"].append({
+                    "product": product_key,
+                    "name": template["name"],
+                    "error": str(e)
+                })
+
+        # Update image status based on results
+        if results["success"]:
+            state_manager.set_image_status(image_id, ImageStatus.PUBLISHED.value, {
+                "product_ids": [r["product_id"] for r in results["success"]],
+                "title": base_title,
+                "products": [r["product"] for r in results["success"]]
+            })
+
+        logger.info(f"Multi-publish: {len(results['success'])} succeeded, {len(results['failed'])} failed")
+        return jsonify(results)
+
+    except Exception as e:
+        logger.error(f"Multi-publish error for {image_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================================================
+# FAVORITES SYSTEM
+# ============================================================================
+
+@app.route('/api/favorite/<image_id>', methods=['POST'])
+def toggle_favorite(image_id):
+    """Toggle favorite status for an image."""
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    try:
+        all_images = state_manager.get_all_images()
+        image_state = all_images.get(image_id, {})
+
+        # Toggle favorite
+        is_favorite = not image_state.get("favorite", False)
+        state_manager.set_image_status(
+            image_id,
+            image_state.get("status", ImageStatus.PENDING.value),
+            {"favorite": is_favorite}
+        )
+
+        return jsonify({"success": True, "favorite": is_favorite, "id": image_id})
+    except Exception as e:
+        logger.error(f"Toggle favorite error for {image_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/favorites')
+def list_favorites():
+    """List all favorited images."""
+    try:
+        all_images = state_manager.get_all_images()
+        favorites = [
+            image_id for image_id, state in all_images.items()
+            if state.get("favorite", False)
+        ]
+        return jsonify({"favorites": favorites, "count": len(favorites)})
+    except Exception as e:
+        logger.error(f"List favorites error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# TAGS SYSTEM
+# ============================================================================
+
+@app.route('/api/tags/<image_id>', methods=['GET', 'POST', 'DELETE'])
+def manage_tags(image_id):
+    """Manage tags for an image."""
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    try:
+        all_images = state_manager.get_all_images()
+        image_state = all_images.get(image_id, {})
+        current_tags = image_state.get("tags", [])
+
+        if request.method == 'GET':
+            return jsonify({"tags": current_tags, "id": image_id})
+
+        data = request.get_json() or {}
+
+        if request.method == 'POST':
+            # Add tags
+            new_tags = data.get("tags", [])
+            if isinstance(new_tags, str):
+                new_tags = [t.strip() for t in new_tags.split(",") if t.strip()]
+
+            # Merge and dedupe
+            all_tags = list(set(current_tags + new_tags))[:20]  # Max 20 tags
+
+            state_manager.set_image_status(
+                image_id,
+                image_state.get("status", ImageStatus.PENDING.value),
+                {"tags": all_tags}
+            )
+            return jsonify({"success": True, "tags": all_tags, "id": image_id})
+
+        elif request.method == 'DELETE':
+            # Remove specific tags
+            remove_tags = data.get("tags", [])
+            if isinstance(remove_tags, str):
+                remove_tags = [t.strip() for t in remove_tags.split(",") if t.strip()]
+
+            remaining_tags = [t for t in current_tags if t not in remove_tags]
+
+            state_manager.set_image_status(
+                image_id,
+                image_state.get("status", ImageStatus.PENDING.value),
+                {"tags": remaining_tags}
+            )
+            return jsonify({"success": True, "tags": remaining_tags, "id": image_id})
+
+    except Exception as e:
+        logger.error(f"Manage tags error for {image_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/all-tags')
+def list_all_tags():
+    """List all unique tags across all images."""
+    try:
+        all_images = state_manager.get_all_images()
+        all_tags = set()
+        tag_counts = {}
+
+        for image_id, state in all_images.items():
+            tags = state.get("tags", [])
+            for tag in tags:
+                all_tags.add(tag)
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+        return jsonify({
+            "tags": sorted(list(all_tags)),
+            "counts": tag_counts,
+            "total_unique": len(all_tags)
+        })
+    except Exception as e:
+        logger.error(f"List all tags error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# NOTES SYSTEM
+# ============================================================================
+
+@app.route('/api/notes/<image_id>', methods=['GET', 'POST', 'DELETE'])
+def manage_notes(image_id):
+    """Manage notes for an image."""
+    is_valid, error = validate_image_id(image_id)
+    if not is_valid:
+        return jsonify({"success": False, "error": error}), 400
+
+    try:
+        all_images = state_manager.get_all_images()
+        image_state = all_images.get(image_id, {})
+
+        if request.method == 'GET':
+            return jsonify({
+                "notes": image_state.get("notes", ""),
+                "id": image_id
+            })
+
+        data = request.get_json() or {}
+
+        if request.method == 'POST':
+            note = (data.get("notes") or "").strip()[:1000]  # Max 1000 chars
+            state_manager.set_image_status(
+                image_id,
+                image_state.get("status", ImageStatus.PENDING.value),
+                {"notes": note}
+            )
+            return jsonify({"success": True, "notes": note, "id": image_id})
+
+        elif request.method == 'DELETE':
+            state_manager.set_image_status(
+                image_id,
+                image_state.get("status", ImageStatus.PENDING.value),
+                {"notes": ""}
+            )
+            return jsonify({"success": True, "notes": "", "id": image_id})
+
+    except Exception as e:
+        logger.error(f"Manage notes error for {image_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================================================
+# PROMPT TEMPLATES
+# ============================================================================
+
+# In-memory storage for prompt templates (persisted via state manager)
+def get_prompt_templates() -> List[Dict]:
+    """Get saved prompt templates from state."""
+    try:
+        # Store templates in a special state entry
+        all_state = state_manager.get_all_images()
+        templates_data = all_state.get("__prompt_templates__", {})
+        return templates_data.get("templates", [])
+    except Exception:
+        return []
+
+
+def save_prompt_templates(templates: List[Dict]):
+    """Save prompt templates to state."""
+    try:
+        state_manager.set_image_status("__prompt_templates__", "system", {
+            "templates": templates
+        })
+    except Exception as e:
+        logger.error(f"Failed to save templates: {e}")
+
+
+@app.route('/api/prompt-templates', methods=['GET', 'POST'])
+def prompt_templates():
+    """List or create prompt templates."""
+    if request.method == 'GET':
+        templates = get_prompt_templates()
+        return jsonify({"templates": templates, "count": len(templates)})
+
+    try:
+        data = request.get_json() or {}
+        name = (data.get("name") or "").strip()
+        prompt = (data.get("prompt") or "").strip()
+        preset = data.get("preset", "")
+
+        if not name or not prompt:
+            return jsonify({"error": "Name and prompt are required"}), 400
+
+        templates = get_prompt_templates()
+
+        # Check for duplicate names
+        if any(t["name"] == name for t in templates):
+            return jsonify({"error": "Template name already exists"}), 400
+
+        new_template = {
+            "id": uuid.uuid4().hex[:8],
+            "name": name,
+            "prompt": prompt,
+            "preset": preset,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
+
+        templates.append(new_template)
+        save_prompt_templates(templates)
+
+        return jsonify({"success": True, "template": new_template})
+    except Exception as e:
+        logger.error(f"Create template error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/prompt-templates/<template_id>', methods=['GET', 'DELETE'])
+def manage_prompt_template(template_id):
+    """Get or delete a specific prompt template."""
+    templates = get_prompt_templates()
+    template = next((t for t in templates if t["id"] == template_id), None)
+
+    if not template:
+        return jsonify({"error": "Template not found"}), 404
+
+    if request.method == 'GET':
+        return jsonify({"template": template})
+
+    elif request.method == 'DELETE':
+        templates = [t for t in templates if t["id"] != template_id]
+        save_prompt_templates(templates)
+        return jsonify({"success": True, "deleted": template_id})
+
+
+# ============================================================================
+# GENERATION HISTORY
+# ============================================================================
+
+@app.route('/api/generation-history')
+def generation_history():
+    """Get generation history with prompts and timestamps."""
+    try:
+        all_images = state_manager.get_all_images()
+        history = []
+
+        for image_id, state in all_images.items():
+            if image_id.startswith("__"):  # Skip system entries
+                continue
+
+            prompt = state.get("prompt", "")
+            if prompt:
+                history.append({
+                    "id": image_id,
+                    "prompt": prompt,
+                    "status": state.get("status", "pending"),
+                    "created_at": state.get("created_at"),
+                    "favorite": state.get("favorite", False),
+                    "tags": state.get("tags", [])
+                })
+
+        # Sort by created_at descending
+        history.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+
+        return jsonify({
+            "history": history[:100],  # Last 100 entries
+            "total": len(history)
+        })
+    except Exception as e:
+        logger.error(f"Generation history error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# EXPORT FUNCTIONALITY
+# ============================================================================
+
+@app.route('/api/export/zip', methods=['POST'])
+def export_zip():
+    """
+    Export selected images as a ZIP file.
+
+    Expected JSON body:
+    {
+        "image_ids": ["id1", "id2", ...],
+        "include_metadata": true/false
+    }
+    """
+    import zipfile
+    import io
+    import json
+
+    try:
+        data = request.get_json() or {}
+        image_ids = data.get("image_ids", [])
+        include_metadata = data.get("include_metadata", True)
+
+        if not image_ids:
+            return jsonify({"error": "No image IDs provided"}), 400
+
+        # Create ZIP in memory
+        zip_buffer = io.BytesIO()
+        all_images = state_manager.get_all_images()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            metadata = []
+
+            for image_id in image_ids:
+                is_valid, _ = validate_image_id(image_id)
+                if not is_valid:
+                    continue
+
+                image_path = Path(config.IMAGE_DIR) / f"{image_id}.png"
+                if not image_path.exists():
+                    continue
+
+                # Add image to ZIP
+                zf.write(image_path, f"{image_id}.png")
+
+                # Collect metadata
+                if include_metadata:
+                    state = all_images.get(image_id, {})
+                    metadata.append({
+                        "id": image_id,
+                        "filename": f"{image_id}.png",
+                        "prompt": state.get("prompt", ""),
+                        "status": state.get("status", ""),
+                        "tags": state.get("tags", []),
+                        "created_at": state.get("created_at")
+                    })
+
+            # Add metadata JSON
+            if include_metadata and metadata:
+                zf.writestr("metadata.json", json.dumps(metadata, indent=2))
+
+        zip_buffer.seek(0)
+
+        from flask import send_file
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'pod_export_{time.strftime("%Y%m%d_%H%M%S")}.zip'
+        )
+
+    except Exception as e:
+        logger.error(f"Export ZIP error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# ENHANCED DASHBOARD STATS
+# ============================================================================
+
+@app.route('/api/dashboard')
+def dashboard_stats():
+    """Get comprehensive dashboard statistics."""
+    try:
+        all_images = state_manager.get_all_images()
+        basic_stats = state_manager.get_statistics()
+
+        # Count by status
+        status_counts = {"pending": 0, "approved": 0, "published": 0, "rejected": 0, "failed": 0}
+        favorites_count = 0
+        tagged_count = 0
+        with_notes_count = 0
+        total_tags = set()
+        prompts_used = set()
+
+        for image_id, state in all_images.items():
+            if image_id.startswith("__"):
+                continue
+
+            status = state.get("status", "pending")
+            if status in status_counts:
+                status_counts[status] += 1
+
+            if state.get("favorite"):
+                favorites_count += 1
+
+            tags = state.get("tags", [])
+            if tags:
+                tagged_count += 1
+                total_tags.update(tags)
+
+            if state.get("notes"):
+                with_notes_count += 1
+
+            if state.get("prompt"):
+                prompts_used.add(state["prompt"][:50])
+
+        return jsonify({
+            "overview": {
+                "total_images": basic_stats.get("total", 0),
+                "favorites": favorites_count,
+                "tagged": tagged_count,
+                "with_notes": with_notes_count,
+                "unique_prompts": len(prompts_used),
+                "unique_tags": len(total_tags)
+            },
+            "by_status": status_counts,
+            "recent_tags": sorted(list(total_tags))[:10],
+            "templates_count": len(get_prompt_templates()),
+            "rembg_available": REMBG_AVAILABLE,
+            "printify_configured": printify_client is not None,
+            "runpod_configured": comfyui_client is not None
+        })
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# IMAGE COLLECTIONS
+# ============================================================================
+
+def get_collections() -> List[Dict]:
+    """Get saved collections from state."""
+    try:
+        all_state = state_manager.get_all_images()
+        collections_data = all_state.get("__collections__", {})
+        return collections_data.get("collections", [])
+    except Exception:
+        return []
+
+
+def save_collections(collections: List[Dict]):
+    """Save collections to state."""
+    try:
+        state_manager.set_image_status("__collections__", "system", {
+            "collections": collections
+        })
+    except Exception as e:
+        logger.error(f"Failed to save collections: {e}")
+
+
+@app.route('/api/collections', methods=['GET', 'POST'])
+def manage_collections():
+    """List or create collections."""
+    if request.method == 'GET':
+        collections = get_collections()
+        return jsonify({"collections": collections, "count": len(collections)})
+
+    try:
+        data = request.get_json() or {}
+        name = (data.get("name") or "").strip()
+        description = (data.get("description") or "").strip()
+
+        if not name:
+            return jsonify({"error": "Collection name is required"}), 400
+
+        collections = get_collections()
+
+        new_collection = {
+            "id": uuid.uuid4().hex[:8],
+            "name": name,
+            "description": description,
+            "image_ids": [],
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
+
+        collections.append(new_collection)
+        save_collections(collections)
+
+        return jsonify({"success": True, "collection": new_collection})
+    except Exception as e:
+        logger.error(f"Create collection error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/collections/<collection_id>', methods=['GET', 'PUT', 'DELETE'])
+def manage_single_collection(collection_id):
+    """Get, update, or delete a specific collection."""
+    collections = get_collections()
+    collection_idx = next((i for i, c in enumerate(collections) if c["id"] == collection_id), None)
+
+    if collection_idx is None:
+        return jsonify({"error": "Collection not found"}), 404
+
+    if request.method == 'GET':
+        return jsonify({"collection": collections[collection_idx]})
+
+    elif request.method == 'DELETE':
+        deleted = collections.pop(collection_idx)
+        save_collections(collections)
+        return jsonify({"success": True, "deleted": deleted["id"]})
+
+    elif request.method == 'PUT':
+        data = request.get_json() or {}
+
+        # Update name/description if provided
+        if "name" in data:
+            collections[collection_idx]["name"] = data["name"].strip()
+        if "description" in data:
+            collections[collection_idx]["description"] = data["description"].strip()
+
+        # Add images
+        if "add_images" in data:
+            current_ids = set(collections[collection_idx]["image_ids"])
+            for img_id in data["add_images"]:
+                is_valid, _ = validate_image_id(img_id)
+                if is_valid:
+                    current_ids.add(img_id)
+            collections[collection_idx]["image_ids"] = list(current_ids)
+
+        # Remove images
+        if "remove_images" in data:
+            remove_set = set(data["remove_images"])
+            collections[collection_idx]["image_ids"] = [
+                img_id for img_id in collections[collection_idx]["image_ids"]
+                if img_id not in remove_set
+            ]
+
+        save_collections(collections)
+        return jsonify({"success": True, "collection": collections[collection_idx]})
+
+
 @app.route('/api/stats')
 def get_stats():
     """

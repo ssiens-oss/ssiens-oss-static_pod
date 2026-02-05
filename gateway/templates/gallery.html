@@ -903,6 +903,9 @@
             <button class="tab" data-tab="generate">Generate</button>
             <button class="tab" data-tab="auto">Auto-Prompt</button>
             <button class="tab" data-tab="batch">Batch Generate</button>
+            <button class="tab" data-tab="templates">Templates</button>
+            <button class="tab" data-tab="collections">Collections</button>
+            <button class="tab" data-tab="dashboard">Dashboard</button>
         </div>
 
         <!-- Generate Panel -->
@@ -1156,6 +1159,86 @@ Abstract geometric patterns in neon colors"></textarea>
             </div>
         </div>
 
+        <!-- Templates Panel -->
+        <div class="panel" id="templates-panel" style="display: none;">
+            <div class="panel-header" onclick="togglePanel(this)">
+                <div class="panel-title">
+                    <span class="panel-title-icon">T</span>
+                    <span>Prompt Templates</span>
+                </div>
+                <span class="panel-toggle">v</span>
+            </div>
+            <div class="panel-content">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    Save and reuse your favorite prompts as templates.
+                </p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Template Name</label>
+                        <input type="text" id="template-name" class="form-input" placeholder="My awesome template">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Preset</label>
+                        <select id="template-preset" class="form-select">
+                            <option value="">No preset</option>
+                        </select>
+                    </div>
+                    <div class="form-group form-grid-wide">
+                        <label class="form-label">Prompt</label>
+                        <textarea id="template-prompt" class="form-textarea" placeholder="Enter your prompt template..."></textarea>
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+                </div>
+                <div id="templates-list" style="margin-top: 24px;"></div>
+            </div>
+        </div>
+
+        <!-- Collections Panel -->
+        <div class="panel" id="collections-panel" style="display: none;">
+            <div class="panel-header" onclick="togglePanel(this)">
+                <div class="panel-title">
+                    <span class="panel-title-icon">C</span>
+                    <span>Image Collections</span>
+                </div>
+                <span class="panel-toggle">v</span>
+            </div>
+            <div class="panel-content">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    Organize your images into collections.
+                </p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Collection Name</label>
+                        <input type="text" id="collection-name" class="form-input" placeholder="Summer designs">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" id="collection-desc" class="form-input" placeholder="Optional description">
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="createCollection()">Create Collection</button>
+                </div>
+                <div id="collections-list" style="margin-top: 24px;"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div class="panel" id="dashboard-panel" style="display: none;">
+            <div class="panel-header" onclick="togglePanel(this)">
+                <div class="panel-title">
+                    <span class="panel-title-icon">D</span>
+                    <span>Dashboard & Statistics</span>
+                </div>
+                <span class="panel-toggle">v</span>
+            </div>
+            <div class="panel-content" id="dashboard-content">
+                <p style="color: var(--text-secondary);">Loading dashboard...</p>
+            </div>
+        </div>
+
         <!-- Gallery Panel -->
         <div id="gallery-panel">
             <!-- Toolbar -->
@@ -1169,6 +1252,14 @@ Abstract geometric patterns in neon colors"></textarea>
                         <option value="oldest">Oldest first</option>
                         <option value="name-asc">Name (A-Z)</option>
                         <option value="name-desc">Name (Z-A)</option>
+                        <option value="favorites">Favorites first</option>
+                    </select>
+                </div>
+                <div class="toolbar-section">
+                    <select id="grid-size" class="form-select" style="width: 100px;" onchange="changeGridSize(this.value)">
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
                     </select>
                 </div>
                 <div class="toolbar-divider"></div>
@@ -1185,6 +1276,7 @@ Abstract geometric patterns in neon colors"></textarea>
                 <div class="toolbar-section">
                     <button class="btn btn-ghost btn-sm" onclick="selectAll()">Select All</button>
                     <button class="btn btn-ghost btn-sm" onclick="deselectAll()">Deselect</button>
+                    <button class="btn btn-ghost btn-sm" onclick="showKeyboardShortcuts()">?</button>
                 </div>
             </div>
 
@@ -1196,6 +1288,7 @@ Abstract geometric patterns in neon colors"></textarea>
                 <button class="filter-btn" data-filter="published">Published</button>
                 <button class="filter-btn" data-filter="rejected">Rejected</button>
                 <button class="filter-btn" data-filter="failed">Failed</button>
+                <button class="filter-btn" data-filter="favorites">Favorites</button>
             </div>
 
             <!-- Bulk Actions Bar -->
@@ -1206,9 +1299,11 @@ Abstract geometric patterns in neon colors"></textarea>
                 <button class="btn btn-success btn-sm" onclick="bulkApprove()">Approve</button>
                 <button class="btn btn-danger btn-sm" onclick="bulkReject()">Reject</button>
                 <button class="btn btn-info btn-sm" onclick="bulkPublish()">Publish</button>
+                <button class="btn btn-primary btn-sm" onclick="openMultiPublishModal()">Multi-Publish</button>
                 <button class="btn btn-warning btn-sm" onclick="bulkRemoveBg()" id="bulk-rembg-btn" style="display:none;">Remove BG</button>
                 <button class="btn btn-ghost btn-sm" onclick="bulkReset()">Reset</button>
                 <button class="btn btn-ghost btn-sm" onclick="bulkDownload()">Download</button>
+                <button class="btn btn-ghost btn-sm" onclick="exportSelected()">Export ZIP</button>
                 <button class="btn btn-danger btn-sm" onclick="bulkDelete()">Delete</button>
             </div>
 
@@ -1294,6 +1389,130 @@ Abstract geometric patterns in neon colors"></textarea>
         </div>
     </div>
 
+    <!-- Multi-Publish Modal -->
+    <div class="modal" id="multi-publish-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Multi-Product Publish</h2>
+                    <p>Publish to multiple product types at once</p>
+                </div>
+                <button class="btn btn-icon btn-ghost" onclick="closeMultiPublishModal()">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">Select Products</label>
+                    <div id="product-checkboxes" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px;"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Custom Title (optional)</label>
+                    <input type="text" id="multi-publish-title" class="form-input" placeholder="Leave blank to use prompt">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeMultiPublishModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeMultiPublish()">Publish Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tags Modal -->
+    <div class="modal" id="tags-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Manage Tags</h2>
+                    <p id="tags-image-id"></p>
+                </div>
+                <button class="btn btn-icon btn-ghost" onclick="closeTagsModal()">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Current Tags</label>
+                    <div id="current-tags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; padding: 10px; background: var(--bg-primary); border-radius: var(--radius-sm);"></div>
+                </div>
+                <div class="form-group" style="margin-top: 16px;">
+                    <label class="form-label">Add Tags (comma separated)</label>
+                    <input type="text" id="new-tags-input" class="form-input" placeholder="nature, minimal, summer">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeTagsModal()">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveTags()">Save Tags</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes Modal -->
+    <div class="modal" id="notes-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Image Notes</h2>
+                    <p id="notes-image-id"></p>
+                </div>
+                <button class="btn btn-icon btn-ghost" onclick="closeNotesModal()">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea id="notes-input" class="form-textarea" style="min-height: 150px;" placeholder="Add notes about this image..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeNotesModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveNotes()">Save Notes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div class="modal" id="shortcuts-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2>Keyboard Shortcuts</h2>
+                </div>
+                <button class="btn btn-icon btn-ghost" onclick="closeShortcutsModal()">X</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Select All</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">Ctrl + A</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Deselect / Close Modal</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">Escape</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Approve Selected</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">A</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Reject Selected</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">R</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Delete Selected</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">D</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Toggle Favorites Filter</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">F</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                        <span>Refresh Gallery</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px;">Ctrl + R</kbd>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeShortcutsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // State
         let images = [];
@@ -1309,6 +1528,10 @@ Abstract geometric patterns in neon colors"></textarea>
         let rembgAvailable = false;
         let autoPromptOptions = null;
         let lastAutoPrompts = [];
+        let productTemplates = [];
+        let gridSize = 'medium';
+        let currentTagsImageId = null;
+        let currentNotesImageId = null;
 
         // DOM elements
         const gallery = document.getElementById('gallery');
@@ -1323,10 +1546,46 @@ Abstract geometric patterns in neon colors"></textarea>
             await checkRembgStatus();
             await loadPresets();
             await loadAutoPromptOptions();
+            await loadProductTemplates();
             await loadImages();
             setupEventListeners();
             startAutoRefresh();
+            populateTemplatePresets();
         });
+
+        // Load product templates for multi-publish
+        async function loadProductTemplates() {
+            try {
+                const res = await fetch('/api/product-templates');
+                const data = await res.json();
+                productTemplates = data.templates || [];
+                populateProductCheckboxes();
+            } catch (e) {
+                console.error('Failed to load product templates:', e);
+            }
+        }
+
+        function populateProductCheckboxes() {
+            const container = document.getElementById('product-checkboxes');
+            if (!container) return;
+            container.innerHTML = productTemplates.map(t => `
+                <label class="form-checkbox" style="padding: 8px; background: var(--bg-primary); border-radius: var(--radius-sm);">
+                    <input type="checkbox" value="${t.id}" ${t.id === 'tshirt' ? 'checked' : ''}>
+                    <span>${t.name}</span>
+                </label>
+            `).join('');
+        }
+
+        function populateTemplatePresets() {
+            const select = document.getElementById('template-preset');
+            if (!select) return;
+            presets.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.name;
+                opt.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                select.appendChild(opt);
+            });
+        }
 
         // Check if background removal is available
         async function checkRembgStatus() {
@@ -1562,11 +1821,14 @@ Abstract geometric patterns in neon colors"></textarea>
                 filtered = filtered.filter(img =>
                     img.filename.toLowerCase().includes(q) ||
                     img.id.toLowerCase().includes(q) ||
-                    (img.title && img.title.toLowerCase().includes(q))
+                    (img.title && img.title.toLowerCase().includes(q)) ||
+                    (img.tags && img.tags.some(t => t.toLowerCase().includes(q)))
                 );
             }
 
-            if (currentFilter !== 'all') {
+            if (currentFilter === 'favorites') {
+                filtered = filtered.filter(img => img.favorite);
+            } else if (currentFilter !== 'all') {
                 filtered = filtered.filter(img => img.status === currentFilter);
             }
 
@@ -1575,6 +1837,7 @@ Abstract geometric patterns in neon colors"></textarea>
                     case 'oldest': return a.filename.localeCompare(b.filename);
                     case 'name-asc': return a.filename.localeCompare(b.filename);
                     case 'name-desc': return b.filename.localeCompare(a.filename);
+                    case 'favorites': return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
                     default: return b.filename.localeCompare(a.filename);
                 }
             });
@@ -1594,6 +1857,7 @@ Abstract geometric patterns in neon colors"></textarea>
                     <input type="checkbox" class="card-checkbox"
                            ${selectedImages.has(img.id) ? 'checked' : ''}
                            onchange="toggleSelection('${img.id}')">
+                    ${img.favorite ? '<div style="position: absolute; top: 12px; right: 12px; color: #f59e0b; font-size: 18px; z-index: 10;">*</div>' : ''}
                     <div class="card-image-container">
                         <img src="${img.path}" class="card-image" alt="${img.filename}"
                              onclick="openPreview('${img.id}', '${img.path}', '${img.filename}')">
@@ -1606,6 +1870,7 @@ Abstract geometric patterns in neon colors"></textarea>
                     <div class="card-body">
                         <div class="card-title">${img.filename}</div>
                         ${img.title ? `<div class="card-meta">Title: ${img.title}</div>` : ''}
+                        ${img.tags && img.tags.length ? `<div class="card-meta" style="display: flex; gap: 4px; flex-wrap: wrap;">${img.tags.slice(0,3).map(t => `<span style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-size: 0.7em;">${t}</span>`).join('')}${img.tags.length > 3 ? `<span style="color: var(--text-muted);">+${img.tags.length - 3}</span>` : ''}</div>` : ''}
                         ${img.product_id ? `<div class="card-meta">Printify: ${img.product_id}</div>` : ''}
                         ${img.error_message ? `<div class="card-meta" style="color: var(--error);">Error: ${img.error_message}</div>` : ''}
                         <div class="card-status status-${img.status}">${img.status}</div>
@@ -1620,7 +1885,12 @@ Abstract geometric patterns in neon colors"></textarea>
         }
 
         function getQuickActions(img) {
-            let actions = `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadImage('${img.id}')">DL</button>`;
+            const isFav = img.favorite ? 'color: #f59e0b;' : '';
+            let actions = `
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); toggleFavorite('${img.id}')" title="Toggle Favorite" style="${isFav}">*</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadImage('${img.id}')" title="Download">DL</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openTagsModal('${img.id}')" title="Tags">#</button>
+            `;
             // Add remove bg button if rembg is available and not already a nobg image
             if (rembgAvailable && !img.id.endsWith('_nobg')) {
                 actions += `<button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); removeBg('${img.id}')" title="Remove Background">BG</button>`;
@@ -1633,20 +1903,22 @@ Abstract geometric patterns in neon colors"></textarea>
                 case 'pending':
                     return `
                         <button class="btn btn-success btn-sm" onclick="approveImage('${img.id}')">Approve</button>
+                        <button class="btn btn-primary btn-sm" onclick="quickPublish('${img.id}')" title="One-click publish">Quick</button>
                         <button class="btn btn-danger btn-sm" onclick="rejectImage('${img.id}')">Reject</button>
                     `;
                 case 'approved':
                     return `
+                        <button class="btn btn-primary btn-sm" onclick="quickPublish('${img.id}')" title="One-click publish">Quick</button>
                         <button class="btn btn-info btn-sm" onclick="openPublishModal('${img.id}')">Publish</button>
-                        <button class="btn btn-ghost btn-sm" onclick="resetImage('${img.id}')">Reset</button>
+                        <button class="btn btn-ghost btn-sm" onclick="openSingleMultiPublish('${img.id}')" title="Multi-product">Multi</button>
                     `;
                 case 'published':
-                    return `<span style="color: var(--success); font-size: 0.85em;">Live on Printify</span>`;
+                    return `<span style="color: var(--success); font-size: 0.85em;">Published</span>`;
                 case 'rejected':
                     return `<button class="btn btn-ghost btn-sm" onclick="resetImage('${img.id}')">Reset</button>`;
                 case 'failed':
                     return `
-                        <button class="btn btn-info btn-sm" onclick="openPublishModal('${img.id}')">Retry</button>
+                        <button class="btn btn-primary btn-sm" onclick="quickPublish('${img.id}')" title="One-click retry">Retry</button>
                         <button class="btn btn-ghost btn-sm" onclick="resetImage('${img.id}')">Reset</button>
                     `;
                 default:
@@ -1888,6 +2160,542 @@ Abstract geometric patterns in neon colors"></textarea>
                 await loadImages();
             } catch (e) {
                 showNotification('Bulk background removal failed', 'error');
+            }
+        }
+
+        // Quick Publish (one-click)
+        async function quickPublish(id) {
+            showNotification('Publishing...', 'info');
+            try {
+                const res = await fetch(`/api/quick-publish/${id}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(`Published: ${data.title}`, 'success');
+                    await loadImages();
+                } else {
+                    showNotification(data.error || 'Quick publish failed', 'error');
+                }
+            } catch (e) {
+                showNotification('Quick publish failed', 'error');
+            }
+        }
+
+        // Multi-Publish Modal
+        let multiPublishImageId = null;
+
+        function openMultiPublishModal() {
+            if (selectedImages.size === 0) {
+                showNotification('No images selected', 'warning');
+                return;
+            }
+            multiPublishImageId = null; // Batch mode
+            document.getElementById('multi-publish-title').value = '';
+            document.getElementById('multi-publish-modal').classList.add('active');
+        }
+
+        function openSingleMultiPublish(id) {
+            multiPublishImageId = id;
+            document.getElementById('multi-publish-title').value = '';
+            document.getElementById('multi-publish-modal').classList.add('active');
+        }
+
+        function closeMultiPublishModal() {
+            multiPublishImageId = null;
+            document.getElementById('multi-publish-modal').classList.remove('active');
+        }
+
+        async function executeMultiPublish() {
+            const checkboxes = document.querySelectorAll('#product-checkboxes input:checked');
+            const products = Array.from(checkboxes).map(cb => cb.value);
+
+            if (products.length === 0) {
+                showNotification('Select at least one product type', 'warning');
+                return;
+            }
+
+            const title = document.getElementById('multi-publish-title').value.trim();
+
+            showNotification('Multi-publishing...', 'info');
+            closeMultiPublishModal();
+
+            const imageIds = multiPublishImageId ? [multiPublishImageId] : [...selectedImages];
+
+            for (const id of imageIds) {
+                try {
+                    const res = await fetch(`/api/multi-publish/${id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ products, title })
+                    });
+                    const data = await res.json();
+                    const success = data.success?.length || 0;
+                    const failed = data.failed?.length || 0;
+                    showNotification(`${id.slice(0,8)}: ${success} products created, ${failed} failed`, success > 0 ? 'success' : 'error');
+                } catch (e) {
+                    showNotification(`Multi-publish failed for ${id.slice(0,8)}`, 'error');
+                }
+            }
+
+            deselectAll();
+            await loadImages();
+        }
+
+        // Favorites
+        async function toggleFavorite(id) {
+            try {
+                const res = await fetch(`/api/favorite/${id}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    // Update local state
+                    const img = images.find(i => i.id === id);
+                    if (img) img.favorite = data.favorite;
+                    renderGallery();
+                    showNotification(data.favorite ? 'Added to favorites' : 'Removed from favorites', 'success');
+                }
+            } catch (e) {
+                showNotification('Failed to toggle favorite', 'error');
+            }
+        }
+
+        // Tags Modal
+        function openTagsModal(id) {
+            currentTagsImageId = id;
+            document.getElementById('tags-image-id').textContent = id;
+            document.getElementById('new-tags-input').value = '';
+
+            // Load current tags
+            const img = images.find(i => i.id === id);
+            const tags = img?.tags || [];
+
+            const container = document.getElementById('current-tags');
+            container.innerHTML = tags.length ? tags.map(t => `
+                <span style="background: var(--accent-primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.85em; display: flex; align-items: center; gap: 6px;">
+                    ${t}
+                    <button onclick="removeTag('${t}')" style="background: none; border: none; color: white; cursor: pointer; padding: 0;">x</button>
+                </span>
+            `).join('') : '<span style="color: var(--text-muted);">No tags</span>';
+
+            document.getElementById('tags-modal').classList.add('active');
+        }
+
+        function closeTagsModal() {
+            currentTagsImageId = null;
+            document.getElementById('tags-modal').classList.remove('active');
+        }
+
+        async function saveTags() {
+            if (!currentTagsImageId) return;
+
+            const newTagsInput = document.getElementById('new-tags-input').value;
+            const newTags = newTagsInput.split(',').map(t => t.trim()).filter(t => t);
+
+            if (newTags.length === 0) {
+                closeTagsModal();
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/tags/${currentTagsImageId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tags: newTags })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(`Added ${newTags.length} tag(s)`, 'success');
+                    // Update local state
+                    const img = images.find(i => i.id === currentTagsImageId);
+                    if (img) img.tags = data.tags;
+                    closeTagsModal();
+                    renderGallery();
+                }
+            } catch (e) {
+                showNotification('Failed to save tags', 'error');
+            }
+        }
+
+        async function removeTag(tag) {
+            if (!currentTagsImageId) return;
+
+            try {
+                const res = await fetch(`/api/tags/${currentTagsImageId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tags: [tag] })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const img = images.find(i => i.id === currentTagsImageId);
+                    if (img) img.tags = data.tags;
+                    openTagsModal(currentTagsImageId); // Refresh modal
+                    renderGallery();
+                }
+            } catch (e) {
+                showNotification('Failed to remove tag', 'error');
+            }
+        }
+
+        // Notes Modal
+        function openNotesModal(id) {
+            currentNotesImageId = id;
+            document.getElementById('notes-image-id').textContent = id;
+
+            const img = images.find(i => i.id === id);
+            document.getElementById('notes-input').value = img?.notes || '';
+
+            document.getElementById('notes-modal').classList.add('active');
+        }
+
+        function closeNotesModal() {
+            currentNotesImageId = null;
+            document.getElementById('notes-modal').classList.remove('active');
+        }
+
+        async function saveNotes() {
+            if (!currentNotesImageId) return;
+
+            const notes = document.getElementById('notes-input').value;
+
+            try {
+                const res = await fetch(`/api/notes/${currentNotesImageId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notes })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('Notes saved', 'success');
+                    const img = images.find(i => i.id === currentNotesImageId);
+                    if (img) img.notes = data.notes;
+                    closeNotesModal();
+                }
+            } catch (e) {
+                showNotification('Failed to save notes', 'error');
+            }
+        }
+
+        // Keyboard shortcuts
+        function showKeyboardShortcuts() {
+            document.getElementById('shortcuts-modal').classList.add('active');
+        }
+
+        function closeShortcutsModal() {
+            document.getElementById('shortcuts-modal').classList.remove('active');
+        }
+
+        // Grid size
+        function changeGridSize(size) {
+            gridSize = size;
+            const gallery = document.getElementById('gallery');
+            switch (size) {
+                case 'small':
+                    gallery.style.gridTemplateColumns = 'repeat(auto-fill, minmax(220px, 1fr))';
+                    break;
+                case 'large':
+                    gallery.style.gridTemplateColumns = 'repeat(auto-fill, minmax(420px, 1fr))';
+                    break;
+                default:
+                    gallery.style.gridTemplateColumns = 'repeat(auto-fill, minmax(320px, 1fr))';
+            }
+        }
+
+        // Export ZIP
+        async function exportSelected() {
+            if (selectedImages.size === 0) {
+                showNotification('No images selected', 'warning');
+                return;
+            }
+
+            showNotification('Preparing export...', 'info');
+
+            try {
+                const res = await fetch('/api/export/zip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_ids: [...selectedImages], include_metadata: true })
+                });
+
+                if (!res.ok) throw new Error('Export failed');
+
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pod_export_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showNotification('Export downloaded!', 'success');
+            } catch (e) {
+                showNotification('Export failed', 'error');
+            }
+        }
+
+        // Templates
+        async function saveTemplate() {
+            const name = document.getElementById('template-name').value.trim();
+            const prompt = document.getElementById('template-prompt').value.trim();
+            const preset = document.getElementById('template-preset').value;
+
+            if (!name || !prompt) {
+                showNotification('Name and prompt are required', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/prompt-templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, prompt, preset })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('Template saved!', 'success');
+                    document.getElementById('template-name').value = '';
+                    document.getElementById('template-prompt').value = '';
+                    loadTemplates();
+                } else {
+                    showNotification(data.error || 'Failed to save', 'error');
+                }
+            } catch (e) {
+                showNotification('Failed to save template', 'error');
+            }
+        }
+
+        async function loadTemplates() {
+            try {
+                const res = await fetch('/api/prompt-templates');
+                const data = await res.json();
+                const templates = data.templates || [];
+
+                const container = document.getElementById('templates-list');
+                if (templates.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No saved templates yet</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <label class="form-label">Saved Templates</label>
+                    <div style="display: grid; gap: 10px; margin-top: 8px;">
+                        ${templates.map(t => `
+                            <div style="background: var(--bg-primary); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <strong>${t.name}</strong>
+                                    ${t.preset ? `<span class="preset-badge">${t.preset}</span>` : ''}
+                                    <p style="color: var(--text-secondary); font-size: 0.85em; margin-top: 4px;">${t.prompt.slice(0, 100)}${t.prompt.length > 100 ? '...' : ''}</p>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-ghost btn-sm" onclick="useTemplate('${t.id}')">Use</button>
+                                    <button class="btn btn-ghost btn-sm" onclick="deleteTemplate('${t.id}')">X</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (e) {
+                console.error('Failed to load templates:', e);
+            }
+        }
+
+        function useTemplate(id) {
+            fetch(`/api/prompt-templates/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.template) {
+                        document.getElementById('gen-prompt').value = data.template.prompt;
+                        if (data.template.preset) {
+                            document.getElementById('gen-preset').value = data.template.preset;
+                        }
+                        switchTab('generate');
+                        showNotification('Template loaded', 'success');
+                    }
+                });
+        }
+
+        async function deleteTemplate(id) {
+            if (!confirm('Delete this template?')) return;
+
+            try {
+                await fetch(`/api/prompt-templates/${id}`, { method: 'DELETE' });
+                showNotification('Template deleted', 'success');
+                loadTemplates();
+            } catch (e) {
+                showNotification('Failed to delete', 'error');
+            }
+        }
+
+        // Collections
+        async function createCollection() {
+            const name = document.getElementById('collection-name').value.trim();
+            const description = document.getElementById('collection-desc').value.trim();
+
+            if (!name) {
+                showNotification('Collection name is required', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/collections', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('Collection created!', 'success');
+                    document.getElementById('collection-name').value = '';
+                    document.getElementById('collection-desc').value = '';
+                    loadCollections();
+                }
+            } catch (e) {
+                showNotification('Failed to create collection', 'error');
+            }
+        }
+
+        async function loadCollections() {
+            try {
+                const res = await fetch('/api/collections');
+                const data = await res.json();
+                const collections = data.collections || [];
+
+                const container = document.getElementById('collections-list');
+                if (collections.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No collections yet</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <label class="form-label">Your Collections</label>
+                    <div style="display: grid; gap: 10px; margin-top: 8px;">
+                        ${collections.map(c => `
+                            <div style="background: var(--bg-primary); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>${c.name}</strong>
+                                    <span style="color: var(--text-muted); margin-left: 8px;">${c.image_ids?.length || 0} images</span>
+                                    ${c.description ? `<p style="color: var(--text-secondary); font-size: 0.85em; margin-top: 4px;">${c.description}</p>` : ''}
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-ghost btn-sm" onclick="addSelectedToCollection('${c.id}')">Add Selected</button>
+                                    <button class="btn btn-ghost btn-sm" onclick="deleteCollection('${c.id}')">X</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (e) {
+                console.error('Failed to load collections:', e);
+            }
+        }
+
+        async function addSelectedToCollection(collectionId) {
+            if (selectedImages.size === 0) {
+                showNotification('No images selected', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/collections/${collectionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ add_images: [...selectedImages] })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(`Added ${selectedImages.size} images to collection`, 'success');
+                    loadCollections();
+                }
+            } catch (e) {
+                showNotification('Failed to add to collection', 'error');
+            }
+        }
+
+        async function deleteCollection(id) {
+            if (!confirm('Delete this collection?')) return;
+
+            try {
+                await fetch(`/api/collections/${id}`, { method: 'DELETE' });
+                showNotification('Collection deleted', 'success');
+                loadCollections();
+            } catch (e) {
+                showNotification('Failed to delete', 'error');
+            }
+        }
+
+        // Dashboard
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/dashboard');
+                const data = await res.json();
+
+                const container = document.getElementById('dashboard-content');
+                container.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 2em; font-weight: bold; color: var(--accent-primary);">${data.overview?.total_images || 0}</div>
+                            <div style="color: var(--text-secondary);">Total Images</div>
+                        </div>
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 2em; font-weight: bold; color: var(--warning);">${data.overview?.favorites || 0}</div>
+                            <div style="color: var(--text-secondary);">Favorites</div>
+                        </div>
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 2em; font-weight: bold; color: var(--info);">${data.by_status?.published || 0}</div>
+                            <div style="color: var(--text-secondary);">Published</div>
+                        </div>
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 2em; font-weight: bold; color: var(--success);">${data.overview?.unique_tags || 0}</div>
+                            <div style="color: var(--text-secondary);">Unique Tags</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                        <div style="background: var(--bg-primary); padding: 16px; border-radius: var(--radius-md);">
+                            <h3 style="margin-bottom: 12px;">Status Breakdown</h3>
+                            <div style="display: grid; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between;"><span>Pending</span><span>${data.by_status?.pending || 0}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Approved</span><span style="color: var(--success);">${data.by_status?.approved || 0}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Published</span><span style="color: var(--info);">${data.by_status?.published || 0}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Rejected</span><span style="color: var(--error);">${data.by_status?.rejected || 0}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Failed</span><span style="color: var(--error);">${data.by_status?.failed || 0}</span></div>
+                            </div>
+                        </div>
+                        <div style="background: var(--bg-primary); padding: 16px; border-radius: var(--radius-md);">
+                            <h3 style="margin-bottom: 12px;">System Status</h3>
+                            <div style="display: grid; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Printify</span>
+                                    <span style="color: ${data.printify_configured ? 'var(--success)' : 'var(--error)'};">${data.printify_configured ? 'Connected' : 'Not configured'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>RunPod</span>
+                                    <span style="color: ${data.runpod_configured ? 'var(--success)' : 'var(--error)'};">${data.runpod_configured ? 'Connected' : 'Not configured'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Background Removal</span>
+                                    <span style="color: ${data.rembg_available ? 'var(--success)' : 'var(--warning)'};">${data.rembg_available ? 'Available' : 'Not installed'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Saved Templates</span>
+                                    <span>${data.templates_count || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${data.recent_tags?.length ? `
+                        <div style="margin-top: 24px; background: var(--bg-primary); padding: 16px; border-radius: var(--radius-md);">
+                            <h3 style="margin-bottom: 12px;">Popular Tags</h3>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                ${data.recent_tags.map(t => `<span style="background: var(--bg-tertiary); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+            } catch (e) {
+                console.error('Failed to load dashboard:', e);
+                document.getElementById('dashboard-content').innerHTML = '<p style="color: var(--error);">Failed to load dashboard</p>';
             }
         }
 
@@ -2164,6 +2972,14 @@ Abstract geometric patterns in neon colors"></textarea>
             document.getElementById('generate-panel').style.display = tab === 'generate' ? 'block' : 'none';
             document.getElementById('auto-panel').style.display = tab === 'auto' ? 'block' : 'none';
             document.getElementById('batch-panel').style.display = tab === 'batch' ? 'block' : 'none';
+            document.getElementById('templates-panel').style.display = tab === 'templates' ? 'block' : 'none';
+            document.getElementById('collections-panel').style.display = tab === 'collections' ? 'block' : 'none';
+            document.getElementById('dashboard-panel').style.display = tab === 'dashboard' ? 'block' : 'none';
+
+            // Load data when switching to specific tabs
+            if (tab === 'templates') loadTemplates();
+            if (tab === 'collections') loadCollections();
+            if (tab === 'dashboard') loadDashboard();
         }
 
         // Toggle panel
@@ -2242,13 +3058,31 @@ Abstract geometric patterns in neon colors"></textarea>
 
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
+                // Ignore if typing in an input
+                if (e.target.matches('input, textarea')) return;
+
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
                     e.preventDefault();
                     selectAll();
-                }
-                if (e.key === 'Escape') {
+                } else if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    loadImages();
+                } else if (e.key === 'Escape') {
                     document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
                     deselectAll();
+                } else if (e.key === 'a' && selectedImages.size > 0) {
+                    bulkApprove();
+                } else if (e.key === 'r' && selectedImages.size > 0) {
+                    bulkReject();
+                } else if (e.key === 'd' && selectedImages.size > 0) {
+                    e.preventDefault();
+                    bulkDelete();
+                } else if (e.key === 'f') {
+                    // Toggle favorites filter
+                    const favBtn = document.querySelector('[data-filter="favorites"]');
+                    if (favBtn) favBtn.click();
+                } else if (e.key === '?') {
+                    showKeyboardShortcuts();
                 }
             });
         }
