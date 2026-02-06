@@ -987,6 +987,12 @@
                                     <span>Enhance for POD (quality suffix)</span>
                                 </label>
                             </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="gen-remove-bg">
+                                    <span>Auto-remove background (transparent)</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -1147,6 +1153,12 @@ Abstract geometric patterns in neon colors"></textarea>
                             <label class="form-checkbox">
                                 <input type="checkbox" id="batch-enhance" checked>
                                 <span>Enhance for POD</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="batch-remove-bg">
+                                <span>Auto-remove background (transparent)</span>
                             </label>
                         </div>
                     </div>
@@ -2793,7 +2805,8 @@ Abstract geometric patterns in neon colors"></textarea>
                 height: parseInt(document.getElementById('gen-height').value) || 1024,
                 steps: parseInt(document.getElementById('gen-steps').value) || 30,
                 upscale: document.getElementById('gen-upscale').checked,
-                enhance_for_pod: document.getElementById('gen-enhance').checked
+                enhance_for_pod: document.getElementById('gen-enhance').checked,
+                auto_remove_bg: document.getElementById('gen-remove-bg').checked
             };
 
             const seed = document.getElementById('gen-seed').value;
@@ -2850,7 +2863,8 @@ Abstract geometric patterns in neon colors"></textarea>
                 genre: document.getElementById('batch-genre').value,
                 variations: parseInt(document.getElementById('batch-variations').value) || 1,
                 upscale: document.getElementById('batch-upscale').checked,
-                enhance_for_pod: document.getElementById('batch-enhance').checked
+                enhance_for_pod: document.getElementById('batch-enhance').checked,
+                auto_remove_bg: document.getElementById('batch-remove-bg').checked
             };
 
             try {

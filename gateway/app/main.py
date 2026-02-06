@@ -754,8 +754,17 @@ def extract_image_payloads(output: Any) -> List[Dict[str, Any]]:
     return payloads
 
 
-def save_runpod_output_images(output: Dict[str, Any], prompt: str = "") -> List[Dict[str, str]]:
-    """Save any images found in a RunPod output payload."""
+def save_runpod_output_images(output: Dict[str, Any], prompt: str = "", auto_remove_bg: bool = False) -> List[Dict[str, str]]:
+    """Save any images found in a RunPod output payload.
+
+    Args:
+        output: RunPod output dictionary containing image data
+        prompt: Optional prompt text to associate with images
+        auto_remove_bg: If True, automatically remove background from saved images
+
+    Returns:
+        List of saved image dictionaries with id and path
+    """
     saved_images: List[Dict[str, str]] = []
     logger.info(f"Processing RunPod output keys: {list(output.keys()) if isinstance(output, dict) else type(output)}")
     payloads = extract_image_payloads(output)
@@ -776,6 +785,23 @@ def save_runpod_output_images(output: Dict[str, Any], prompt: str = "") -> List[
                 image_id, file_path = saved
                 logger.info(f"✓ Saved image: {image_id} -> {file_path}")
                 saved_images.append({"id": image_id, "path": file_path})
+
+                # Auto-remove background if enabled
+                if auto_remove_bg and REMBG_AVAILABLE:
+                    try:
+                        nobg_id = f"{image_id}_nobg"
+                        nobg_path = Path(config.IMAGE_DIR) / f"{nobg_id}.png"
+                        remove_background(file_path, str(nobg_path))
+                        state_manager.add_image(
+                            nobg_id,
+                            f"{nobg_id}.png",
+                            str(nobg_path),
+                            prompt=f"{prompt} (background removed)" if prompt else ""
+                        )
+                        logger.info(f"✓ Auto-removed background: {nobg_id}")
+                        saved_images.append({"id": nobg_id, "path": str(nobg_path)})
+                    except Exception as e:
+                        logger.warning(f"Auto-remove background failed for {image_id}: {e}")
             continue
 
         if payload.get("filename"):
@@ -787,6 +813,23 @@ def save_runpod_output_images(output: Dict[str, Any], prompt: str = "") -> List[
                 except StateManagerError:
                     pass
                 saved_images.append({"id": image_id, "path": local_path})
+
+                # Auto-remove background if enabled
+                if auto_remove_bg and REMBG_AVAILABLE:
+                    try:
+                        nobg_id = f"{image_id}_nobg"
+                        nobg_path = Path(config.IMAGE_DIR) / f"{nobg_id}.png"
+                        remove_background(local_path, str(nobg_path))
+                        state_manager.add_image(
+                            nobg_id,
+                            f"{nobg_id}.png",
+                            str(nobg_path),
+                            prompt=f"{prompt} (background removed)" if prompt else ""
+                        )
+                        logger.info(f"✓ Auto-removed background: {nobg_id}")
+                        saved_images.append({"id": nobg_id, "path": str(nobg_path)})
+                    except Exception as e:
+                        logger.warning(f"Auto-remove background failed for {image_id}: {e}")
 
     logger.info(f"Total images saved: {len(saved_images)}")
     return saved_images
@@ -939,7 +982,8 @@ def generate_image():
         "genre": "Optional genre",
         "preset": "Optional preset name (vintage, minimalist, bold, etc.)",
         "enhance_for_pod": true/false (default true),
-        "custom_suffix": "Optional custom suffix to append"
+        "custom_suffix": "Optional custom suffix to append",
+        "auto_remove_bg": true/false (default false) - auto remove background from generated images
     }
     """
     data = request.get_json(silent=True) or {}
@@ -949,6 +993,7 @@ def generate_image():
     preset = (data.get("preset") or "").strip()
     enhance_for_pod = data.get("enhance_for_pod", True)
     custom_suffix = (data.get("custom_suffix") or "").strip()
+    auto_remove_bg = data.get("auto_remove_bg", False)
 
     if not prompt:
         return jsonify({"error": "Prompt is required"}), 400
@@ -981,7 +1026,7 @@ def generate_image():
             saved_images: List[Dict[str, str]] = []
             if result.get("status") == "COMPLETED":
                 output = result.get("output", {})
-                saved_images = save_runpod_output_images(output, prompt=full_prompt)
+                saved_images = save_runpod_output_images(output, prompt=full_prompt, auto_remove_bg=auto_remove_bg)
 
             return jsonify({
                 "prompt_id": result.get("prompt_id"),
@@ -1554,12 +1599,14 @@ def batch_generate():
         "width": 1024,
         "height": 1024,
         "steps": 30,
-        "variations": 1  // Generate N variations of each prompt with different seeds
+        "variations": 1,  // Generate N variations of each prompt with different seeds
+        "auto_remove_bg": true/false (default false) - auto remove background from all generated images
     }
     """
     try:
         data = request.get_json() or {}
         prompts = data.get("prompts", [])
+        global_auto_remove_bg = data.get("auto_remove_bg", False)
 
         # Global options (can be overridden per-prompt)
         global_style = (data.get("style") or "").strip()
@@ -1646,7 +1693,7 @@ def batch_generate():
 
                         if result.get("status") == "COMPLETED":
                             output = result.get("output", {})
-                            saved_images = save_runpod_output_images(output, prompt=full_prompt)
+                            saved_images = save_runpod_output_images(output, prompt=full_prompt, auto_remove_bg=global_auto_remove_bg)
                             results["success"].append({
                                 "prompt": prompt_text,
                                 "variation": var_idx + 1 if variations > 1 else None,
@@ -1835,6 +1882,7 @@ def auto_generate_batch():
     count = min(int(data.get("count", 5)), 10)
     upscale = data.get("upscale", True)
     enhance = data.get("enhance_for_pod", True)
+    auto_remove_bg = data.get("auto_remove_bg", False)
 
     # Generate prompts
     prompts = generate_auto_prompt(
@@ -1874,7 +1922,7 @@ def auto_generate_batch():
 
                 if result.get("status") == "COMPLETED":
                     output = result.get("output", {})
-                    saved_images = save_runpod_output_images(output, prompt=full_prompt)
+                    saved_images = save_runpod_output_images(output, prompt=full_prompt, auto_remove_bg=auto_remove_bg)
                     results["success"].append({
                         "prompt": prompt_text,
                         "images": saved_images
